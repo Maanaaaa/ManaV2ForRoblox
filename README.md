@@ -1,7 +1,7 @@
 # ManaV2ForRoblox
 Cool script for roblox
  
-Supports executors that has file system
+Supports level 3 exploits
 
 __Status:__ **working + discontinued**
 
