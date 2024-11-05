@@ -3,7 +3,7 @@ Cool script for roblox
  
 Supports level 3 exploits
 
-__Status:__ **working**
+___Status:___ **working**
 
 Discord server: ``https://discord.gg/CEMMRSvXek``
 
