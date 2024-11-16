@@ -57,8 +57,6 @@ NotificationGui.Name = "NotificationGui"
 NotificationGui.BackgroundTransparency = 1
 NotificationGui.Size = UDim2.new(0, 100, 0, 10)
 NotificationGui.Position = UDim2.new(0, 1735, 0, 820)
---NotificationGui.Active = true
---NotificationGui.Draggable = true
 
 Library.ScreenGui = ScreenGui
 Library.ClickGui = ClickGui
