@@ -1,3 +1,4 @@
+-- Bee Swarm Simulator
 --[[
     Credits to anyones code i used or looked at
 ]]
@@ -22,6 +23,7 @@ local entity = Mana.Entity
 local GuiLibrary = Mana.GuiLibrary
 local Tabs = Mana.Tabs
 local Functions = Mana.Functions
+local RunLoops = Mana.RunLoops
 
 local function runFunction(func) func() end
 
@@ -44,48 +46,6 @@ local function isAlive(Player, headCheck)
     else
         return false
     end
-end
-
-local RunLoops = {RenderStepTable = {}, StepTable = {}, HeartTable = {}}
-do
-	function RunLoops:BindToRenderStep(name, func)
-		if RunLoops.RenderStepTable[name] == nil then
-			RunLoops.RenderStepTable[name] = RunService.RenderStepped:Connect(func)
-		end
-	end
-
-	function RunLoops:UnbindFromRenderStep(name)
-		if RunLoops.RenderStepTable[name] then
-			RunLoops.RenderStepTable[name]:Disconnect()
-			RunLoops.RenderStepTable[name] = nil
-		end
-	end
-
-	function RunLoops:BindToStepped(name, func)
-		if RunLoops.StepTable[name] == nil then
-			RunLoops.StepTable[name] = RunService.Stepped:Connect(func)
-		end
-	end
-
-	function RunLoops:UnbindFromStepped(name)
-		if RunLoops.StepTable[name] then
-			RunLoops.StepTable[name]:Disconnect()
-			RunLoops.StepTable[name] = nil
-		end
-	end
-
-	function RunLoops:BindToHeartbeat(name, func)
-		if RunLoops.HeartTable[name] == nil then
-			RunLoops.HeartTable[name] = RunService.Heartbeat:Connect(func)
-		end
-	end
-
-	function RunLoops:UnbindFromHeartbeat(name)
-		if RunLoops.HeartTable[name] then
-			RunLoops.HeartTable[name]:Disconnect()
-			RunLoops.HeartTable[name] = nil
-		end
-	end
 end
 
 local BeeSwarm = {
@@ -153,9 +113,7 @@ runFunction(function()
 
 	FarmLeavesSpeed = FarmLeaves:CreateSlider({
         Name = "FarmSpeed",
-        Function = function(v)
-			FarmLeavesSpeed = v or 0.1
-		end,
+        Function = function() end,
         Min = 0,
         Max = 1,
         Default = 0.1,
@@ -165,7 +123,6 @@ end)
 
 runFunction(function()
 	local FarmTokensSpeed = {Value = 0.1}
-	local FarmTokensEnabled = false
 	local Info = TweenInfo.new(FarmTokensSpeed.Value or 0.1)
     local Item = {}
 	FarmTokens = Tabs.Utility:CreateToggle({
@@ -173,13 +130,12 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-				FarmLeavesEnabled = true
                 RunLoops:BindToRenderStep("FarmTokens", function()
 					for i,v in pairs(Collectibles:GetChildren()) do
-						if FarmLeavesEnabled then
-							wait(1)
+						if callback then
+							wait(FarmTokensSpeed,Value)
 							if v.Name == "C" then
-								if v.Transparency ~= 0.699999988079071 then -- check if that coin is already collected 
+								if v.Transparency ~= 0.699999988079071 then
 									LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
 								end
 							end
@@ -194,9 +150,7 @@ runFunction(function()
 
 	FarmTokensSpeed = FarmTokens:CreateSlider({
         Name = "FarmSpeed",
-        Function = function(v)
-			FarmTokensSpeed = v or 0.1
-		end,
+        Function = function() end,
         Min = 0,
         Max = 1,
         Default = 0.1,

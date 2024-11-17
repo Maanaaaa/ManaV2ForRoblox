@@ -1,23 +1,9 @@
-# ManaV2ForRoblox
-Cool script for roblox
- 
-Supports level 3 exploits
-
-__Status:__ ___working___
-
-Discord server: ``https://discord.gg/CEMMRSvXek``
+# ManaV2ForRoblox - New Version
+Universal script for roblox with simple and probably quality features.
 
 Loadstring:
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/MainScript.lua"))()
-```
-
-## Supported Games:
-```
-RaceClicker | roblox.com/games/9285238704
-Every Second You Get +1 | roblox.com/games/11912525919
-Bee Swarm Simulator | roblox.com/games/1537690962
-Build A Boat For Treasure | roblox.com/games/537413528
 ```
 
 ## Supported Game's Features:
@@ -44,4 +30,9 @@ AutoDig
 FarmLeaves
 FarmTokens and Bubbels
 MemoryMatchHack
+```
+
+```
+Build A Boat For Treasure:
+InfinityBlocks
 ```

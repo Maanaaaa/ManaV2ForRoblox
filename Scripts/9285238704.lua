@@ -1,3 +1,4 @@
+-- Race clicker
 --[[
     Credits to anyones code i used or looked at
 ]]
@@ -40,12 +41,9 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoFarmEnabled = true
-                while AutoFarmEnabled and task.wait() do
+                while callback and task.wait() do
                     LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(-100000, 0, 0)
                 end
-            else
-                AutoFarmEnabled = false
             end
         end
     })
@@ -58,12 +56,9 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoClickEnabled = true
-                while AutoClickEnabled and task.wait() do
+                while callback and task.wait() do
                     Remotes.ClickRemote:InvokeServer()
                 end
-            else
-                AutoClickEnabled = false
             end
         end
     })
@@ -76,12 +71,9 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoEquipBestPetsEnabled = true
-                while AutoEquipBestPetsEnabled and task.wait() do
+                while callback and task.wait() do
                     Remotes.EquipBestPetsRemote:InvokeServer()
                 end
-            else
-                AutoEquipBestPetsEnabled = false
             end
         end
     })
@@ -94,12 +86,9 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoCraftPetsEnabled = true
-                while AutoCraftPetsEnabled and task.wait() do
+                while callback and task.wait() do
                     Remotes.CraftAllPetsRemote:InvokeServer()
                 end
-            else
-                AutoCraftPetsEnabled = false
             end
         end
     })
@@ -112,12 +101,9 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoSeasonEnabled = true
-                while AutoSeasonEnabled and task.wait() do
+                while callback and task.wait() do
                     Remotes.SeasonRemote:InvokeServer()
                 end
-            else
-                AutoSeasonEnabled = false
             end
         end
     })
@@ -130,14 +116,12 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                AutoRebirthEnabled = true
-                while AutoRebirthEnabled and task.wait() do
+                while callback and task.wait() do
                     Remotes.RebithRemote:InvokeServer()
                 end
-            else
-                AutoRebirthEnabled = false
             end
         end
     })
 end)
+
 print("[ManaV2ForRoblox/Scripts/9285238704.lua]: Loaded in " .. tostring(tick() - startTick) .. ". ")

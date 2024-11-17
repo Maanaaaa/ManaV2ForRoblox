@@ -1,5 +1,5 @@
---[[
-    Credits to anyones code i used or looked at
+--[[ 
+    Credits to anyones code i used or looked at 
 ]]
 
 repeat task.wait() until game:IsLoaded()
@@ -18,6 +18,8 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local configsaving = true
 local LastPress = 0
+local Functions = Mana.CustomFileSystem
+local Developer = Mana.Developer
 local OnMobile
 local TabsFrame
 local Tabs = {}
@@ -34,29 +36,69 @@ local Library = {
     ChatNotifications = true,
     ArrayListObject = {},
     Objects = {},
-    UpdateHud = {},
     Functions = {},
-    ColorSystem = { -- idk how i will do it
-        Type = "Normal", -- Normal or Custom
-        ColorR = 20,
-        ColorG = 20,
-        ColorB = 20
+    OriginalTabs = {
+        Combat,
+        Movement,
+        Render,
+        Utility,
+        World,
+        Other
+    },
+    ThemeManager = {
+        CurrentTheme = {},
+        ThemeColor = { -- here is default theme
+            Tab = {
+                TabTitleTextColor3 = "TabData.Color",
+                TabTopColor3 = {14, 14, 23}
+            },
+            TabToggle = {
+                UnToggledBackgroundColor3 = {0, 0, 0},
+                ToggledBackgroundColor3 = "tabname.TextColor3",
+                OptionFrameBackgroundColor3 = {},
+                BindTextBackgroundColor3 = {255, 255, 255},
+                OptionFrameButton = {255, 255, 255}
+            },
+            OptionElements = {
+                OptionObjectsBackgroundColor3 = {},
+                Slider = {
+                    SliderBackgroundColor3 = {47, 48, 64},
+                    Slider2BackgroundColor3 = "tabname.TextColor3"
+                },
+                DropDown = {
+                    BackgroundColor3 = {255, 255, 255}
+                },
+                OptionToggle = {
+                    ToggledAcativeFrameBackgroundColor3 = "tabname.TextColor3",
+                    UnToggledActiveFrameBackgroundColor3 = {68, 68, 60},
+                    ToggleButtonBackgroundColor3 = {66, 68, 66}
+                },
+                TextBox = {
+                    TextBoxBackgroundColor3 = "tabname.TextColor3",
+                    TextBox2BackgroundColor3 = {47, 48, 64},
+                    PlaceholderColor3 = {0, 0, 0}
+                }
+            },
+            TextColor3 = {255, 255, 255},
+            Font = Enum.Font.Arial
+        }    
     }
 }
 
--- Main thing
 local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "Mana"
 ScreenGui.DisplayOrder = 999
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.OnTopOfCoreBlur = true
+ScreenGui.OnTopOfCoreBlur = true -- so if you even get kicked or banned you'll still see gui :)
 local ClickGui = Instance.new("Frame", ScreenGui)
 ClickGui.Name = "ClickGui"
 local NotificationGui = Instance.new("Frame", ScreenGui)
 NotificationGui.Name = "NotificationGui"
-NotificationGui.BackgroundTransparency = 1
+NotificationGui.BackgroundTransparency = 0
 NotificationGui.Size = UDim2.new(0, 100, 0, 10)
 NotificationGui.Position = UDim2.new(0, 1735, 0, 820)
+NotificationGui.Active = true
+NotificationGui.Draggable = true
 
 Library.ScreenGui = ScreenGui
 Library.ClickGui = ClickGui
@@ -66,87 +108,11 @@ if UserInputService.TouchEnabled then
     Library.Device = "Mobile"
 end
 
-for i,v in pairs(Enum.Font:GetEnumItems()) do 
-	if v.Name ~= "Arial" then
-		table.insert(Fonts, v.Name)
-	end
+for i, v in pairs(Enum.Font:GetEnumItems()) do
+    Fonts[v.Name] = v
 end
 
 Library.FontsList = Fonts
-
--- Config System
-if isfolder("Mana") == false then
-    makefolder("Mana")
-end
-
-if isfolder("Mana/Assets") == false then
-    makefolder("Mana/Assets")
-end
-
-if isfolder("Mana/Config") == false then
-    makefolder("Mana/Config")
-end
-
-if isfolder("Mana/Scripts") == false then
-    makefolder("Mana/Scripts")
-end
-
-if isfolder("Mana/Modules") == false then
-    makefolder("Mana/Modules")
-end
-
-if isfolder("Mana/Libraries") == false then
-    makefolder("Mana/Libraries")
-end
-
-local foldername = "Mana/Config"
-local conf = {
-	file = foldername .. "/" .. game.PlaceId .. ".json",
-	functions = {}
-}
-
-function conf.functions:MakeFile()
-	if isfile("Mana/Config/" .. game.PlaceId .. ".json") then return end
-        if not isfolder(foldername) then
-            makefolder(foldername)
-        end
-	writefile("Mana/Config/ ".. game.PlaceId .. ".json", "{}")
-end
-
-function conf.functions:LoadConfigs()
-	if not isfile("Mana/Config/" .. game.PlaceId .. ".json") then
-		conf.functions:MakeFile()
-	end
-    wait(0.5)
-    local success, data = pcall(function()
-        return HttpService:JSONDecode(readfile("Mana/Config/" .. game.PlaceId .. ".json"))
-    end)
-    if success then
-        warn("[ManaV2ForRoblox]: successfully decoded JSON.")
-        return data
-    else
-        warn("[ManaV2ForRoblox]: error in decoding JSON:", data, ".")
-        return {}
-    end
-end
-
-function conf.functions:WriteConfigs(tab)
-	conf.functions:MakeFile()
-	writefile("Mana/Config/" .. game.PlaceId .. ".json", HttpService:JSONEncode((tab or {})))
-end
-local configtable = (conf.functions:LoadConfigs() or {})
-
-Library.ConfigSystem = conf
-Library.ConfigTable = configtable
-
---[[ no
-spawn(function()
-    repeat
-        conf.functions:WriteConfigs(configtable)
-        task.wait(30)
-    until (not configsaving)
-end)
-]]
 
 local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request or function(tab)
     if tab.Method == "GET" then
@@ -198,6 +164,237 @@ local function GetCustomAsset(path)
     return cachedassets[path]
 end
 
+-- Config System
+if isfolder("Mana") == false then
+    makefolder("Mana")
+end
+
+if isfolder("Mana/Assets") == false then
+    makefolder("Mana/Assets")
+end
+
+if isfolder("Mana/Config") == false then
+    makefolder("Mana/Config")
+end
+
+if isfolder("Mana/Scripts") == false then
+    makefolder("Mana/Scripts")
+end
+
+if isfolder("Mana/Modules") == false then
+    makefolder("Mana/Modules")
+end
+
+if isfolder("Mana/Libraries") == false then
+    makefolder("Mana/Libraries")
+end
+
+local foldername = "Mana/Config"
+local conf = {
+    file = foldername .. "/" .. game.PlaceId .. ".json",
+    functions = {}
+}
+
+function conf.functions:MakeFile()
+    if isfile("Mana/Config/" .. game.PlaceId .. ".json") then return end
+        if not isfolder(foldername) then
+            makefolder(foldername)
+        end
+    writefile("Mana/Config/" .. game.PlaceId .. ".json", "{}")
+end
+
+function conf.functions:LoadConfigs()
+    if not isfile("Mana/Config/" .. game.PlaceId .. ".json") then
+        conf.functions:MakeFile()
+    end
+    wait(0.5)
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile("Mana/Config/" .. game.PlaceId .. ".json"))
+    end)
+    if success then
+        warn("[ManaV2ForRoblox/ConfigSystem]: successfully decoded JSON.")
+        return data
+    else
+        warn("[ManaV2ForRoblox/ConfigSystem]: error in decoding JSON:", data, ".")
+        return {}
+    end
+end
+
+function conf.functions:WriteConfigs(tab)
+    conf.functions:MakeFile()
+    writefile("Mana/Config/" .. game.PlaceId .. ".json", HttpService:JSONEncode((tab or {})))
+end
+local configtable = (conf.functions:LoadConfigs() or {})
+
+Library.ConfigSystem = conf
+Library.ConfigTable = configtable
+
+--[[ Old AutoSave
+spawn(function()
+    repeat
+        conf.functions:WriteConfigs(configtable)
+        task.wait(30)
+    until (not configsaving)
+end)
+]]
+
+-- Themes System
+local Themes
+local success, err = pcall(function()
+    Themes = HttpService:JSONDecode(readfile("NewMana/Themes/OriginalThemes.json"))
+end)
+
+if not success then
+    warn("[ManaV2ForRoblox]: Failed to load themes: " .. err .. ".")
+end
+
+--[[coming soon
+function Library.ThemeManager:GetThemes(Type)
+    local Themes
+    if tostring(string.lower(Type)) == "original" then -- dont ask why
+        local success, err = pcall(function()
+            Themes = HttpService:JSONDecode(readfile("NewMana/Themes/OriginalThemes.json"))
+        end)
+
+        if not success then
+            warn("[ManaV2ForRoblox/ThemeManager]: Failed to get original themes: " .. err .. ".")
+        end
+    elseif tostring(string.lower(Type)) == "custom" then -- dont ask why
+        local success, err = pcall(function()
+            Themes = HttpService:JSONDecode(readfile("NewMana/Themes/CustomThemes.json"))
+        end)
+
+        if not success then
+            warn("[ManaV2ForRoblox/ThemeManager]: Failed to get custom themes: " .. err .. ".")
+        end
+    else
+        warn("[ManaV2ForRoblox/ThemeManager]: Failed to get themes, unknown type: " .. Type .. ".")
+        return {}
+    end
+    return Themes
+end
+]]
+
+--[[release: winter
+function Library.ThemeManager:ApplyTheme(ThemeName) -- (Type, ThemeName) 
+    local Theme = Themes[ThemeName]
+    if not Theme then
+        warn("[ManaV2ForRoblox/ThemeManager]: Theme not found: " .. ThemeName or Theme)
+        return
+    end
+
+    Library.CurrentTheme = Theme
+    local ThemeTable = Library.ThemeManager.ThemeColor
+
+    if ThemeName == not "DefaultTheme" then
+        -- TabTop
+        ThemeTable.Tab.TabTitleTextColor3 = Color3.fromRGB(unpack(Theme.Tab.TabTitleTextColor3))
+        ThemeTable.Tab.TabTopColor3 = Color3.fromRGB(unpack(Theme.Tab.TabTopColor3))
+
+        -- Toggle
+        ThemeTable.TabToggle.UnToggledBackgroundColor3 = Color3.fromRGB(unpack(Theme.TabToggle.UnToggledBackgroundColor3))
+        ThemeTable.TabToggle.ToggledBackgroundColor3 = Color3.fromRGB(unpack(Theme.TabToggle.ToggledBackgroundColor3))
+        ThemeTable.TabToggle.OptionFrameBackgroundColor3 = Color3.fromRGB(unpack(Theme.TabToggle.OptionFrameBackgroundColor3))
+        ThemeTable.TabToggle.BindTextBackgroundColor3 = Color3.fromRGB(unpack(Theme.TabToggle.BindTextBackgroundColor3))
+        ThemeTable.TabToggle.OptionFrameButton = Color3.fromRGB(unpack(Theme.TabToggle.OptionFrameButton))
+
+        -- Slider
+        ThemeTable.OptionElements.Slider.SliderBackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.Slider.SliderBackgroundColor3))
+        ThemeTable.OptionElements.Slider.Slider2BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.Slider.Slider2BackgroundColor3))
+
+        -- DropDown
+        ThemeTable.OptionElements.DropDown.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.DropDown.BackgroundColor3))
+
+        -- OptionToggle
+        ThemeTable.OptionElements.OptionToggle.ToggledAcativeFrameBackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.OptionToggle.ToggledAcativeFrameBackgroundColor3))
+        ThemeTable.OptionElements.OptionToggle.UnToggledActiveFrameBackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.OptionToggle.UnToggledActiveFrameBackgroundColor3))
+        ThemeTable.OptionElements.OptionToggle.ToggleButtonBackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.OptionToggle.ToggleButtonBackgroundColor3))
+
+        -- TextBox
+        ThemeTable.OptionElements.TextBox.TextBoxBackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.TextBoxBackgroundColor3))
+        ThemeTable.OptionElements.TextBox.TextBox2BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.TextBox2BackgroundColor3))
+        ThemeTable.OptionElements.TextBox.PlaceholderColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.PlaceholderColor3))
+
+        -- For everything
+        ThemeTable.TextColor3 = Color3.fromRGB(unpack(Theme.TextColor3))
+    end
+
+    -- Objects updating
+    for _, Object in pairs(ScreenGui:GetDescendants()) do
+        --print("Applying obj  " .. Object.Name)
+        if ThemeName == "DefaultTheme" then
+            if Object.Name:find("TabTop") then
+                for i, v in pairs(Library.OriginalTabs) do
+                    if Object.Name:find(v) then
+                        print("Applying tab " .. v.Name)
+                        Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.Tab.Tabs[v .. "Tab"]))
+                    end
+                end
+                Object.TextColor3 = Color3.fromRGB(255, 255, 255)
+            elseif Object:IsA("TextLabel") or Object:IsA("TextButton") then
+                Object.TextColor3 = Color3.fromRGB()
+                if Object.Name == "Dropdown" then
+                    Object.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                elseif Object.Name == "Slider" then
+                    Object.BackgroundColor3 = Color3.fromRGB(47, 48, 64)
+                elseif Object.Name == "ToggleButton" then
+                    Object.BackgroundColor3 = Color3.fromRGB(66, 68, 66)
+                else
+                    --warn("[ManaV2ForRoblox/ThemeManager]: Can't change object's background because it's unknown, object name: " .. Object.Name .. ". (TextLabel or TextButton type, DefaultTheme)")
+                end
+            elseif Object:IsA("Frame") then
+                if Object.Name == "Slider_2" then
+                    Object.BackgroundColor3 = tabname.TextColor3
+                elseif Object.Name == "ActiveFrame" then
+                    Object.BackgroundColor3 = Color3.fromRGB(68, 68, 60)
+                elseif Object.Name == "textboxbackground" then
+                    Object.BackgroundColor3 = Color3.fromRGB(47, 48, 64)
+                else
+                    --warn("[ManaV2ForRoblox/ThemeManager]: Can't change object's background because it's unknown, object name: " .. Object.Name .. ". (Frame type, DefaultTheme)")
+                end
+            elseif Object:IsA("TextBox") then
+                Object.BackgroundColor3 = tabname.TextColor3
+                Object.PlaceholderColor3 = Color3.fromRGB(0, 0, 0)
+            end
+        else
+            if Object.Name == "TabTop" then
+                Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.Tab.TabTopColor3))
+                Object.TextColor3 = Color3.fromRGB(unpack(Theme.Tab.TabTopColor3))
+            elseif Object:IsA("TextLabel") or Object:IsA("TextButton") then
+                Object.TextColor3 = Color3.fromRGB(unpack(Theme.TextColor3))
+                if Object.Name == "Dropdown" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.DropDown.BackgroundColor3))
+                elseif Object.Name == "Slider" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.Slider.SliderBackgroundColor3))
+                elseif Object.Name == "ToggleButton" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.OptionToggle.ToggleButtonBackgroundColor3))
+                elseif Object.Name:find("_TabbToggleButton") then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.TabToggle.UnToggledBackgroundColor3)) -- // 255, 182, 193
+                else
+                    --warn("[ManaV2ForRoblox/ThemeManager]: Can't change object's background because it's unknown, object name: " .. Object.Name .. ". (TextLabel or TextButton type, " .. ThemeName .. " theme)")
+                end
+            elseif Object:IsA("Frame") then
+                if Object.Name == "Slider_2" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.Slider.Slider2BackgroundColor3))
+                elseif Object.Name == "ActiveFrame" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.OptionToggle.ToggledAcativeFrameBackgroundColor3))
+                elseif Object.Name == "textboxbackground" then
+                    Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.TextBoxBackgroundColor3))
+                else
+                    --warn("[ManaV2ForRoblox/ThemeManager]: Can't change object's background because it's unknown, object name: " .. Object.Name .. " (Frame type, " .. ThemeName .. " theme)")
+                end
+            elseif Object:IsA("TextBox") then
+                Object.BackgroundColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.TextBox2BackgroundColor3))
+                Object.PlaceholderColor3 = Color3.fromRGB(unpack(Theme.OptionElements.TextBox.PlaceholderColor3))
+            end
+        end
+    end
+end
+
+--Library.ThemeManager:ApplyTheme("Kawaii :3")
+]]
+
+-- Other functions
 function dragGUI(gui)
 	task.spawn(function()
 		local dragging
@@ -236,7 +433,7 @@ function dragGUI(gui)
 end
 
 local ColorBox
-function Library.Functions:MakeRainbowText(Text, Bool)
+function Library:MakeRainbowText(Text, Bool)
     local Text = Text or Instance.new("TextLabel")
     spawn(function()
         ColorBox = Color3.fromRGB(170, 0, 170)
@@ -259,7 +456,7 @@ function Library.Functions:MakeRainbowText(Text, Bool)
     end)
 end
 
-function Library.Functions:MakeRainbowObjectBackground(Object, Bool)
+function Library:MakeRainbowObjectBackground(Object, Bool)
     spawn(function()
         repeat
             wait()
@@ -270,7 +467,8 @@ function Library.Functions:MakeRainbowObjectBackground(Object, Bool)
     end)
 end
 
-local function bettertween(obj, newpos, dir, style, tim, override)
+--bettertween and bettertween2 are from future
+local function BetterTween(obj, newpos, dir, style, tim, override)
     spawn(function()
         local frame = Instance.new("Frame")
         frame.Visible = false
@@ -288,7 +486,7 @@ local function bettertween(obj, newpos, dir, style, tim, override)
     end)
 end
 
-local function bettertween2(obj, newpos, dir, style, tim, override)
+local function BetterTween2(obj, newpos, dir, style, tim, override)
     spawn(function()
         local frame = Instance.new("Frame")
         frame.Visible = false
@@ -304,6 +502,60 @@ local function bettertween2(obj, newpos, dir, style, tim, override)
         task.wait(tim)
         frame:Remove()
     end)
+end
+
+function Library:UpdateFont(NewFont)
+    local font = "Enum.Font." .. NewFont
+    for i, v in pairs(ScreenGui:GetChildren()) do
+        if v:IsA("TextButton") or v:IsA("TextLabel") then
+            v.Font = font
+        end
+    end
+end
+
+function Library:RandomString() -- from vape
+    local randomlength = math.random(10,100)
+    local array = {}
+
+    for i = 1, randomlength do
+        array[i] = string.char(math.random(32, 126))
+    end
+
+    return table.concat(array)
+end
+
+function Library:ToggleLibrary()
+    if UserInputService:GetFocusedTextBox() == nil then
+        if ClickGui.Visible then
+            ClickGui.Visible = false
+        else
+            ClickGui.Visible = true
+        end
+    end
+end
+
+function Library:RemoveObject(ObjectName) 
+    pcall(function()
+        if Library.Objects[ObjectName] and Library.Objects[ObjectName].Type == "Toggle" then 
+            Library.Objects[ObjectName].Instance:Destroy()
+            Library.Objects[ObjectName].OptionFrame:Destroy()
+            Library.Objects[ObjectName] = nil
+        end
+    end)
+end
+
+function Library:playsound(id, volume) 
+    if Library.Sounds == true then
+        local sound = Instance.new("Sound")
+        sound.Parent = workspace
+        sound.SoundId = id
+        if volume then 
+            sound.Volume = volume
+        end
+        sound:Play()
+        wait(sound.TimeLength + 2)
+        sound:Destroy()
+    end
 end
 
 function Library:CreateGuiNotification(title, text, delay2, toggled)
@@ -366,6 +618,80 @@ function Library:CreateGuiNotification(title, text, delay2, toggled)
 	    end
     end)
 end
+
+local NotificationSize = UDim2.new(0, 300, 0, 100)
+local function CreateNewGuiNotification(Titlte, Text, ShowTime, Toggled)
+    local Toggled = string.lower(Toggled)
+
+    spawn(function()
+		if Library.Notifications == true then
+	        local NotificationBackground = Instance.new("Frame")
+            local frametitle = Instance.new("TextLabel")
+            local frametext = Instance.new("TextLabel")
+
+	        NotificationBackground.Size = UDim2.new(0, 100, 0, 115)
+	        NotificationBackground.Position = UDim2.new(0.5, 0, 0, -115)
+	        NotificationBackground.BorderSizePixel = 0
+	        NotificationBackground.AnchorPoint = Vector2.new(0.5, 0)
+	        NotificationBackground.BackgroundTransparency = 0
+	        NotificationBackground.BackgroundColor3 = Color3.new(0, 0, 0)
+	        NotificationBackground.Name = "Background"
+	        NotificationBackground.Parent = NotificationGui
+
+	        frametitle.Font = Enum.Font.SourceSansLight
+	        frametitle.BackgroundTransparency = 1
+	        frametitle.Position = UDim2.new(0, 0, 0, 30)
+	        frametitle.TextColor3 = (toggled and Color3.fromRGB(102, 205, 67) or Color3.fromRGB(205, 64, 78))
+	        frametitle.Size = UDim2.new(1, 0, 0, 28)
+	        frametitle.Text = "          " .. title
+	        frametitle.TextSize = 24
+	        frametitle.TextXAlignment = Enum.TextXAlignment.Left
+	        frametitle.TextYAlignment = Enum.TextYAlignment.Top
+	        frametitle.Parent = NotificationBackground
+
+	        frametext.Font = Enum.Font.SourceSansLight
+	        frametext.BackgroundTransparency = 1
+	        frametext.Position = UDim2.new(0, 0, 0, 68)
+	        frametext.TextColor3 = Color3.new(1, 1, 1)
+	        frametext.Size = UDim2.new(1, 0, 0, 28)
+	        frametext.Text = "          " .. text
+	        frametext.TextSize = 24
+	        frametext.TextXAlignment = Enum.TextXAlignment.Left
+	        frametext.TextYAlignment = Enum.TextYAlignment.Top
+	        frametext.Parent = NotificationBackground
+
+	        local textsize = TextService:GetTextSize(frametitle.Text, frametitle.TextSize, frametitle.Font, Vector2.new(100000, 100000))
+	        local textsize2 = TextService:GetTextSize(frametext.Text, frametext.TextSize, frametext.Font, Vector2.new(100000, 100000))
+
+	        if textsize2.X > textsize.X then textsize = textsize2 end
+
+	        NotificationBackground.Size = UDim2.new(0, textsize.X + 38, 0, 115)
+
+            --[[
+	        pcall(function()
+	            NotificationBackground:TweenPosition(UDim2.new(0.5, 0, 0, 20), Enum.EasingDirection.InOut, Enum.EasingStyle.Quad, 0.15)
+
+	            Debris:AddItem(frame, delay2 + 0.15)
+	        end)
+            ]]
+            BetterTween2(NotificationBackground, UDim2.new(1, -(NotificationSize.X.Offset + 10), 1, -((5 + NotificationSize.Y.Offset) * (offset + 1))), Enum.EasingDirection.In, Enum.EasingStyle.Sine, 0.15, true)
+            task.wait(0.15)
+            --pcall(function()
+                --Bottombar:TweenSize(UDim2.new(0, 0, 0, 5), Enum.EasingDirection.In, Enum.EasingStyle.Linear, showtime, true)
+            --end)
+            task.wait(ShowTime)
+            BetterTween2(NotificationBackground, UDim2.new(1, 0, 1, NotificationBackground.Position.Y.Offset), Enum.EasingDirection.In, Enum.EasingStyle.Sine, 0.15, true)
+            task.wait(0.15)
+            NotificationBackground:Destroy()
+	    end
+    end)
+end
+
+NotificationGui.ChildRemoved:Connect(function()
+    for i,v in pairs(NotificationGui:GetChildren()) do
+        BetterTween(v, UDim2.new(1, v.Position.X.Offset, 1, -((5 + NotificationSize.Y.Offset) * (i - 1))), Enum.EasingDirection.In, Enum.EasingStyle.Sine, 0.15, true)
+    end
+end)
 
 function Library:CreateChatNotification(NotificationText, NotificationType) -- type: warning, error, print
     local Text = NotificationText or "nil"
@@ -492,8 +818,8 @@ function Library:CreateSessionInfo()
     end
 
     function SessionInfoTable:Rainbow(Bool)
-        Library.Functions:MakeRainbowObjectBackground(RainbowTop, Bool)
-        Library.Functions:MakeRainbowObjectBackground(RainbowTopFix, Bool)
+        Library:MakeRainbowObjectBackground(RainbowTop, Bool)
+        Library:MakeRainbowObjectBackground(RainbowTopFix, Bool)
     end
 
     function SessionInfoTable:RemoveSessionInfo()
@@ -505,71 +831,15 @@ function Library:CreateSessionInfo()
     return SessionInfoTable
 end
 
--- Hud functions
-function Library.UpdateHud:UpdateFont(NewFont)
-    local font = "Enum.Font." .. NewFont
-    for i, v in pairs(ScreenGui:GetChildren()) do
-        if v:IsA("TextButton") or v:IsA("TextLabel") then
-            v.Font = font
-        end
-    end
-end
-
--- Functions functions
-function Library:RandomString() -- from vape
-    local randomlength = math.random(10,100)
-    local array = {}
-
-    for i = 1, randomlength do
-        array[i] = string.char(math.random(32, 126))
-    end
-
-    return table.concat(array)
-end
-
--- Library functions
-function Library:ToggleLibrary()
-    if UserInputService:GetFocusedTextBox() == nil then
-        if ClickGui.Visible then
-            ClickGui.Visible = false
-        else
-            ClickGui.Visible = true
-        end
-    end
-end
-
-function Library:RemoveObject(ObjectName) 
-    pcall(function()
-        if Library.Objects[ObjectName] and Library.Objects[ObjectName].Type == "Toggle" then 
-            Library.Objects[ObjectName].Instance:Destroy()
-            Library.Objects[ObjectName].OptionFrame:Destroy()
-            Library.Objects[ObjectName] = nil
-        end
-    end)
-end
-
-function Library:playsound(id, volume) 
-    if Library.Sounds == true then
-        local sound = Instance.new("Sound")
-        sound.Parent = workspace
-        sound.SoundId = id
-        if volume then 
-            sound.Volume = volume
-        end
-        sound:Play()
-        wait(sound.TimeLength + 2)
-        sound:Destroy()
-    end
-end
-
 --[[
     ToDo:
     Make tabs scrollable
     Make tabs dragable
+    Add TargetInfo
 ]]
 
 function Library:CreateWindow()
-    ScreenGui.Name = Library:RandomString()
+    ScreenGui.Name = Library:RandomString() -- like protect ok?
     
     local TabsFrame = Instance.new("Frame")
     local uilistthingy = Instance.new("UIListLayout")
@@ -585,14 +855,17 @@ function Library:CreateWindow()
     TabsFrame.Size = UDim2.new(0, 207, 0, 40)
     TabsFrame.AutomaticSize = "X"
 
+    
     uilistthingy.Parent = TabsFrame
     uilistthingy.FillDirection = Enum.FillDirection.Horizontal
     uilistthingy.SortOrder = Enum.SortOrder.LayoutOrder
     uilistthingy.Padding = UDim.new(0, 40)
-
+    
+    
     UIScale.Parent = TabsFrame
     UIScale.Scale = Library.Scale
 
+    --[[
     HoverText.Text = "  "
     HoverText.ZIndex = 1
     HoverText.TextColor3 = Color3.fromRGB(160, 160, 160)
@@ -601,6 +874,7 @@ function Library:CreateWindow()
     HoverText.Visible = false
     HoverText.Parent = TabsFrame
     HoverText.AnchorPoint = Vector2.new(0.5, 0.5)
+    ]]
 
     Library.TabsFrame = TabsFrame
     Library.UIScale = UIScale
@@ -613,14 +887,13 @@ function Library:CreateWindow()
     function Library:CreateTab(TabData)
         local TabName = TabData.Name
         local Color = TabData.Color or Color3.fromRGB(83, 214, 110)
-        --local TabIcon = TabData.TabIcon
+        local TabIcon = TabData.TabIcon
         local Callback = TabData.Callback or function() end
-        table.insert(Tabs, #Tabs)
         local tab = Instance.new("TextButton")
         local tabname = Instance.new("TextLabel")
         local assetthing = Instance.new("ImageLabel")
         local uilistlayout = Instance.new("UIListLayout")
-
+    
         local tabtable = {
             Name = TabName,
             Color = Color,
@@ -629,48 +902,32 @@ function Library:CreateWindow()
             Toggles = {}
         }
 
-        --[[
-        -- W - Width, H - Height
-        local TabPositionX = 0
-        local TabPositionY = 247 * #Tabs
-        local TabPositionW = 0
-        local TabPositionH = 0
-
-        local TabPositionTable = {
-            X = TabPositionX,
-            Y = TabPositionY,
-            W = TabPositionW,
-            H = TabPositionH,
-        }
+        table.insert(Tabs, #Tabs)
+    
+        local TabPosition = configtable[TabData.Name] and configtable[TabData.Name].Position or {X = 0, Y = 247 * #Tabs, W = 0, H = 0}
         
-        if configtable[title] == nil and configtable[title.Position] == nil or configtable[title] == nil or configtable[title.Position] == nil then
-            configtable[title] = title
-            configtable[title.Position] = TabPositionTable
-        end
-        ]]
-
         tab.Modal = true
-        tab.Name = TabName
+        tab.Name = TabName .. "_TabTop"
         tab.Selectable = true
         tab.ZIndex = 1
         tab.Parent = TabsFrame
         tab.BackgroundColor3 = Color3.fromRGB(14, 14, 23)
         tab.BorderSizePixel = 0
-        tab.Position = configtable[TabName.Position] or UDim2.new(TabPositionX, TabPositionY, TabPositionW, TabPositionH)
+        tab.Position = UDim2.new(TabPosition.X, TabPosition.W, TabPosition.Y, TabPosition.H)
         tab.Size = UDim2.new(0, 207, 0, 40)
         tab.Active = true
         tab.LayoutOrder = 1 + #Tabs
         tab.AutoButtonColor = false
-	    tab.Text = ""
-    
+        tab.Text = ""
+        
         tabname.Name = TabName
         tabname.Parent = tab
         tabname.ZIndex = tab.ZIndex + 1
         tabname.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         tabname.BackgroundTransparency = 1.000
         tabname.BorderSizePixel = 0
-        tabname.Position = UDim2.new(0, 199,0, 40)
-        tabname.Size = UDim2.new(0, 199,0, 40)
+        tabname.Position = UDim2.new(0, 199, 0, 40)
+        tabname.Size = UDim2.new(0, 199, 0, 40)
         tabname.Font = Enum.Font.SourceSansLight
         tabname.Text = " " .. TabName
         tabname.TextColor3 = Color
@@ -678,25 +935,29 @@ function Library:CreateWindow()
         tabname.TextWrapped = true
         tabname.TextXAlignment = Enum.TextXAlignment.Left
         tabname.Selectable = true
-    
+        
         assetthing.Parent = tabname
         assetthing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        assetthing.BackgroundTransparency = 1
-        assetthing.Position = UDim2.new(0.86, 0,0.154, 0)
-        assetthing.Size = UDim2.new(0, 30, 0, 30)
+        assetthing.BackgroundTransparency = 1.000
+        assetthing.BorderSizePixel = 0
+        assetthing.Position = UDim2.new(0, 0, 0.5, 0)
+        assetthing.Size = UDim2.new(0, 20, 0, 20)
+        --assetthing.Image = getcustomasset("NewMana/Assets/" .. TabIcon)
         
         uilistlayout.Parent = tab
+        uilistlayout.FillDirection = Enum.FillDirection.Vertical
         uilistlayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-        tabtable.MainObject = tab
+        uilistlayout.Padding = UDim.new(0, 0)
+        
+        Tabs[TabName] = tabtable
+        
+        dragGUI(tab) 
 
         function tabtable:ChangeVisibility(bool)
             bool = bool or not tab.Visible
             tab.Visible = bool
             Callback(bool)
         end
-
-        --dragGUI(tab, tabname)
 
         function tabtable:CreateDivider(DividerText)
             local DividerFrame = Instance.new("Frame")
@@ -731,18 +992,18 @@ function Library:CreateWindow()
         function tabtable:CreateToggle(data)
             local info = {
                 Name = data.Name,
-                HoverText = data.HoverText,
+                --HoverText = data.HoverText,
                 Keybind = (configtable[data.Name.Keybind] or data.Keybind),
                 Callback = (data.Callback or function() end)
             }
 
-            configtable[info.Name] = {
+            configtable[data.Name] = {
                 Keybind = ((configtable[info.Name] and configtable[info.Name].Keybind) or "none"),
                 IsToggled = ((configtable[info.Name] and configtable[info.Name].IsToggled) or false)
             }
 
             local title = info.Name
-            local ToolTip = info.HoverText
+            --local ToolTip = info.HoverText
             local keybind = info.Keybind
             local Callback = info.Callback
 
@@ -771,9 +1032,9 @@ function Library:CreateWindow()
             local optionframe = Instance.new("Frame")
             local UIListLayout = Instance.new("UIListLayout")
 
-            toggle.Name = title
+            toggle.Name = title .. "_TabbToggleButton"
             toggle.Parent = tab
-            toggle.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            toggle.BackgroundColor3 = Color3.fromRGB(0, 0, 0) --Color3.fromRGB(unpack(Library.ThemeManager.ThemeColor.TabToggle.UnToggledBackgroundColor3))
             toggle.BorderSizePixel = 0
             toggle.Position = UDim2.new(0.0827946085, -17, 0.133742347, 33)
             toggle.Size = UDim2.new(0, 207, 0, 40)
@@ -931,7 +1192,7 @@ function Library:CreateWindow()
                         Library:CreateNotification(title, "Disabled " .. title, 4, false)
                         configtable[title].IsToggled = false
                     end)
-                    toggle.BackgroundColor3 = Color3.fromRGB(14, 20, 14)
+                    toggle.BackgroundColor3 = Color3.fromRGB(0, 0, 0) --Color3.fromRGB(unpack(Library.ThemeManager.ThemeColor.TabToggle.UnToggledBackgroundColor3))
                     if not silent then
                         Library:playsound("rbxassetid://421058925", 1)
                     end
@@ -943,7 +1204,7 @@ function Library:CreateWindow()
                         Library:CreateNotification(title, "Enabled " .. title, 4, true)
                         configtable[title].IsToggled = true
                     end)
-                    toggle.BackgroundColor3 = tabname.TextColor3
+                    toggle.BackgroundColor3 = Color --Color3.fromRGB(unpack(Library.ThemeManager.ThemeColor.TabToggle.ToggledBackgroundColor3))
                     if not silent then
                         Library:playsound("rbxassetid://421058925", 1)
                     end
@@ -1142,7 +1403,11 @@ function Library:CreateWindow()
                         dropdownapi.Value = dropdownapi.List[_select] or dropdownapi.List[stringtablefind(dropdownapi.List, _select)]
                         Dropdown.Text =  argstable.Name .. ":" .. tostring(dropdownapi.Value)
                         configtable[ddname].Value = dropdownapi.Value
-                        argstable.Function(dropdownapi.Value)
+                        if argstable.Function then
+                            argstable.Function(dropdownapi.Value)
+                        elseif argstable.Callback then
+                            argstable.Callback(dropdownapi.Value)
+                        end
                     end
                 end
                 
@@ -1190,79 +1455,76 @@ function Library:CreateWindow()
             end               
             function ToggleTable:CreateToggle(argstable)
                 if configtable[argstable.Name .. ToggleTable.Name] == nil then
-                    configtable[argstable.Name .. ToggleTable.Name] = {IsToggled = configtable[argstable.Name .. ToggleTable.Name] and configtable[argstable.Name .. ToggleTable.Name].IsToggled or argstable.Default}
+                    configtable[argstable.Name .. ToggleTable.Name] = {IsToggled = argstable.Default}
                 end
-                local OptionToggle = {
+            
+                local optionToggle = {
                     Name = argstable.Name,
-                    Enabled = configtable[argstable.Name .. ToggleTable.Name] and configtable[argstable.Name .. ToggleTable.Name].IsToggled or argstable.Default,
+                    Enabled = configtable[argstable.Name .. ToggleTable.Name].IsToggled or argstable.Default,
                     Function = argstable.Function
                 }
-
-                local tognametwo = Instance.new("TextLabel")
-                local toggleactived = Instance.new("Frame")
-                local untoggled = Instance.new("TextButton")
-
-                tognametwo.Name = "tognametwo"
-                tognametwo.Parent = optionframe
-                tognametwo.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                tognametwo.BackgroundTransparency = 1.000
-                tognametwo.Position = UDim2.new(0.0911458358, 0, 0.502793312, 0)
-                tognametwo.Size = UDim2.new(0, 170, 0, 32)
-                tognametwo.Font = Enum.Font.SourceSansLight
-                tognametwo.TextColor3 = Color3.fromRGB(255, 255, 255)
-                tognametwo.TextSize = 22.000
-                tognametwo.TextXAlignment = Enum.TextXAlignment.Left
-                tognametwo.Text = argstable.Name
-
-                untoggled.Name = "untoggled"
-                untoggled.Parent = tognametwo
-                untoggled.BackgroundColor3 = Color3.fromRGB(66, 68, 66)
-                untoggled.BorderSizePixel = 0
-                untoggled.Position = UDim2.new(0.816739559, 0, 0.0743236542, 0)
-                untoggled.Size = UDim2.new(0, 29, 0, 29)
-                untoggled.ZIndex = 2
-                untoggled.AutoButtonColor = false
-
-                toggleactived.Name = "togthingylol"
-                toggleactived.Parent = tognametwo
-                toggleactived.BackgroundColor3 = Color3.fromRGB(66, 68, 66)
-                toggleactived.BorderSizePixel = 0
-                toggleactived.Position = UDim2.new(0, 141, 0, 5)
-                toggleactived.Size = UDim2.new(0, 24, 0, 24)
-                toggleactived.ZIndex = 3
-
-                OptionToggle.MainObject = tognametwo
-
-                if configtable[argstable.Name .. ToggleTable.Name] == nil then
-                    configtable[argstable.Name .. ToggleTable.Name] = {IsToggled = OptionToggle.Value}
-                end
-
-                function OptionToggle:Toggle(bool)
-                    bool = bool or not OptionToggle.Value
-                    OptionToggle.Value = bool
-                    configtable[argstable.Name .. ToggleTable.Name].IsToggled = bool
+            
+                local Label = Instance.new("TextLabel")
+                local ActiveFrame = Instance.new("Frame")
+                local ToggleButton = Instance.new("TextButton")
+            
+                Label.Name = "Label"
+                Label.Parent = optionframe
+                Label.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                Label.BackgroundTransparency = 1
+                Label.Position = UDim2.new(0.091, 0, 0.503, 0)
+                Label.Size = UDim2.new(0, 170, 0, 32)
+                Label.Font = Enum.Font.SourceSansLight
+                Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Label.TextSize = 22
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                Label.Text = argstable.Name
+            
+                ToggleButton.Name = "ToggleButton"
+                ToggleButton.Parent = Label
+                ToggleButton.BackgroundColor3 = Color3.fromRGB(66, 68, 66)
+                ToggleButton.BorderSizePixel = 0
+                ToggleButton.Position = UDim2.new(0.817, 0, 0.074, 0)
+                ToggleButton.Size = UDim2.new(0, 29, 0, 29)
+                ToggleButton.ZIndex = 2
+                ToggleButton.AutoButtonColor = false
+            
+                ActiveFrame.Name = "ActiveFrame"
+                ActiveFrame.Parent = Label
+                ActiveFrame.BackgroundColor3 = Color3.fromRGB(66, 68, 66)
+                ActiveFrame.BorderSizePixel = 0
+                ActiveFrame.Position = UDim2.new(0, 141, 0, 5)
+                ActiveFrame.Size = UDim2.new(0, 24, 0, 24)
+                ActiveFrame.ZIndex = 3
+            
+                optionToggle.MainObject = Label
+            
+                function optionToggle:Toggle(state)
+                    state = state or not optionToggle.Enabled
+                    optionToggle.Enabled = state
+                    configtable[argstable.Name .. ToggleTable.Name].IsToggled = state
+            
                     if argstable.Function then
                         spawn(function()
-                            argstable.Function(bool)
+                            argstable.Function(state)
                         end)
                     end
-                    toggleactived.BackgroundColor3 = bool and tabname.TextColor3 or Color3.fromRGB(68, 68, 60)
+            
+                    ActiveFrame.BackgroundColor3 = state and tabname.TextColor3 or Color3.fromRGB(68, 68, 60)
                 end
-
-                if configtable[argstable.Name .. ToggleTable.Name] then
-                	OptionToggle:Toggle(configtable[argstable.Name .. ToggleTable.Name].IsToggled)
-                end
-
+            
+                optionToggle:Toggle(configtable[argstable.Name .. ToggleTable.Name].IsToggled)
+            
                 if argstable.Default then
-                    OptionToggle:Toggle(true)
+                    optionToggle:Toggle(true)
                 end
-
-                untoggled.MouseButton1Click:Connect(function()
-                    OptionToggle:Toggle()
+            
+                ToggleButton.MouseButton1Click:Connect(function()
+                    optionToggle:Toggle()
                 end)
-
-                return OptionToggle
-            end
+            
+                return optionToggle
+            end            
             function ToggleTable:CreateTextBox(argstable)
                 local TextBoxAPI = {
                     Name = argstable.Name,
