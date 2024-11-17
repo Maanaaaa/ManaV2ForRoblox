@@ -376,7 +376,7 @@ runFunction(function()
                 GuiLibrary.ScreenGui:Destroy()
                 if isfile("Mana/Config/" .. game.PlaceId .. ".json") then delfile("Mana/Config/" .. game.PlaceId .. ".json") end
                 wait(1)
-                Functions:RunFile("MainScript.lua")
+                Functions:RunFile("NewestMainScript.lua")
             end
         end
     })
@@ -392,7 +392,7 @@ runFunction(function()
                 Reinject:Toggle(false)
                 GuiLibrary.ScreenGui:Destroy()
                 wait(1)
-                Functions:RunFile("MainScript.lua")
+                Functions:RunFile("NewestMainScript.lua")
             end
         end
     })

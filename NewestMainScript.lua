@@ -18,7 +18,7 @@ local Window = KeySystemLibrary:Create({
     Key = "$Dy71b0o4a(*g)!g%",
     Callback = function(callback)
         if callback then
-            Functions:RunFile("NewMainScript.lua")
+            Functions:RunFile("NewMainScript.lua") 
         else
             print("[ManaV2ForRoblox/NewestMainScript.lua]: Something went wrong, try again or message the developer on discord - @mankacoder.")
         end
