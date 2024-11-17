@@ -16,6 +16,7 @@ local Debris = game:GetService("Debris")
 local getasset = getsynasset or getcustomasset
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
 local configsaving = true
 local LastPress = 0
 local Functions = Mana.CustomFileSystem
@@ -845,6 +846,7 @@ function Library:CreateWindow()
     local uilistthingy = Instance.new("UIListLayout")
     local UIScale = Instance.new("UIScale")
     local HoverText = Instance.new("TextLabel")
+    local UIGridLayout = Instance.new("UIGridLayout")
 
     TabsFrame.Name = "Tabs"
     TabsFrame.Parent = ClickGui
@@ -861,24 +863,28 @@ function Library:CreateWindow()
     uilistthingy.SortOrder = Enum.SortOrder.LayoutOrder
     uilistthingy.Padding = UDim.new(0, 40)
     
-    
-    UIScale.Parent = TabsFrame
-    UIScale.Scale = Library.Scale
+    local screenSize = Camera.ViewportSize
+    local Width = screenSize.X
+    local Height = screenSize.Y
 
-    local screenSize = Workspace.CurrentCamera.ViewportSize
-    local width = screenSize.X
-    local height = screenSize.Y
-
-    -- Scale calculation based on screen size
-    if width <= 1280 then -- Small screens (Mobile or small laptops)
+    if Width <= 1280 then -- Small screens
         Library.Scale = 0.7
-    elseif width <= 1920 then -- Mid-sized screens (Laptops or standard monitors)
+    elseif Width <= 1920 then -- Mid-sized screens
         Library.Scale = 0.85
-    elseif width <= 2560 then -- Large screens (Wide monitors or high-res laptops)
+    elseif Width <= 2560 then -- Large screens
         Library.Scale = 1.0
     else -- Ultra-wide or 4K monitors
         Library.Scale = 1.25
     end
+
+    UIGridLayout.Parent = TabsFrame
+    UIGridLayout.FillDirection = Enum.FillDirection.Horizontal
+    UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+    UIGridLayout.CellSize = UDim2.new(0, 150, 0, 40)
+
+    Library.TabsFrame = TabsFrame
+    Library.UIScale = UIScale
 
     --[[
     HoverText.Text = "  "
