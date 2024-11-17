@@ -881,11 +881,11 @@ function Library:CreateWindow()
     local Height = screenSize.Y
 
     if Width <= 1280 then -- Small screens
-        Library.Scale = 0.7
+        Library.Scale = 0.6
     elseif Width <= 1920 then -- Mid-sized screens
-        Library.Scale = 0.7
+        Library.Scale = 0.6
     elseif Width <= 2560 then -- Large screens
-        Library.Scale = 1.0
+        Library.Scale = 6
     else -- Ultra-wide or 4K monitors
         Library.Scale = 1.25
     end
