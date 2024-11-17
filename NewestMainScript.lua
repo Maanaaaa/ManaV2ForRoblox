@@ -8,7 +8,7 @@ function Functions:RunFile(filepath)
     elseif isfile("Mana/" .. filepath) then
         return loadstring(readfile("Mana/" .. filepath))()
     else
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath))()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath))()
     end
 end
 
