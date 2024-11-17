@@ -883,7 +883,7 @@ function Library:CreateWindow()
     if Width <= 1280 then -- Small screens
         Library.Scale = 0.7
     elseif Width <= 1920 then -- Mid-sized screens
-        Library.Scale = 0.85
+        Library.Scale = 0.7
     elseif Width <= 2560 then -- Large screens
         Library.Scale = 1.0
     else -- Ultra-wide or 4K monitors
