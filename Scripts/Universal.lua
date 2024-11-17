@@ -801,7 +801,7 @@ runFunction(function()
                 FastFallEnabled = true
                 spawn(function() 
                     repeat task.wait()
-                        if isAlive() then
+                        if IsAlive() then
                             local Params = RaycastParams.new()
                             Params.FilterDescendantsInstances = {LocalPlayer.Character}
                             Params.FilterType = Enum.RaycastFilterType.Blacklist
@@ -2098,6 +2098,7 @@ runFunction(function()
     })
 end)
 
+--[[
 runFunction(function()
     local AutoReportNotifications = {Value = true}
 
@@ -2212,6 +2213,7 @@ runFunction(function()
         Function = function() end
     })
 end)
+]]
 
 runFunction(function()
 	local First = false
