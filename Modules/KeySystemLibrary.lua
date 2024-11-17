@@ -7,13 +7,17 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local StartSuffix
 local EndSuffix
+local Functions = _G.Functions
 
 if isfile("NewMana/Modules/KeyStartSuffix.lua") and isfile("NewMana/Modules/KeyEndSuffix.lua") then
     StartSuffix = loadstring(readfile("NewMana/Modules/KeyStartSuffix.lua"))()
     EndSuffix = loadstring(readfile("NewMana/Modules/KeyEndSuffix.lua"))()
-else
+elseif isfile("Mana/Modules/KeyStartSuffix.lua") and isfile("Mana/Modules/KeyEndSuffix.lua") then
     StartSuffix = loadstring(readfile("Mana/Modules/KeyStartSuffix.lua"))()
     EndSuffix = loadstring(readfile("Mana/Modules/KeyEndSuffix.lua"))()
+else
+    StartSuffix = Functions:RunFile("Modules/KeyStartSuffix.lua")
+    EndSuffix = Functions:RunFile("Modules/KeyEndSuffix.lua")
 end
 
 _G.KeySystemDone = false
