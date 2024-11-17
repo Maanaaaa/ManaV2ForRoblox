@@ -865,6 +865,21 @@ function Library:CreateWindow()
     UIScale.Parent = TabsFrame
     UIScale.Scale = Library.Scale
 
+    local screenSize = Workspace.CurrentCamera.ViewportSize
+    local width = screenSize.X
+    local height = screenSize.Y
+
+    -- Scale calculation based on screen size
+    if width <= 1280 then -- Small screens (Mobile or small laptops)
+        Library.Scale = 0.7
+    elseif width <= 1920 then -- Mid-sized screens (Laptops or standard monitors)
+        Library.Scale = 0.85
+    elseif width <= 2560 then -- Large screens (Wide monitors or high-res laptops)
+        Library.Scale = 1.0
+    else -- Ultra-wide or 4K monitors
+        Library.Scale = 1.25
+    end
+
     --[[
     HoverText.Text = "  "
     HoverText.ZIndex = 1
@@ -879,10 +894,12 @@ function Library:CreateWindow()
     Library.TabsFrame = TabsFrame
     Library.UIScale = UIScale
 
+    --[[
     if Library.Device == "Mobile" then
         UIScale.Scale = Library.MobileScale
         Library.Scale = 0.45
     end
+    ]]
 
     function Library:CreateTab(TabData)
         local TabName = TabData.Name
