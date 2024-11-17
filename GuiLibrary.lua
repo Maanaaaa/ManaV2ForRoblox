@@ -842,12 +842,14 @@ end
 function Library:CreateWindow()
     ScreenGui.Name = Library:RandomString() -- like protect ok?
     
-    local TabsFrame = Instance.new("Frame")
+    --local TabsFrame = Instance.new("Frame")
+    local TabsFrame = Instance.new("ScrollingFrame")
     local uilistthingy = Instance.new("UIListLayout")
     local UIScale = Instance.new("UIScale")
     local HoverText = Instance.new("TextLabel")
     local UIGridLayout = Instance.new("UIGridLayout")
 
+    --[[
     TabsFrame.Name = "Tabs"
     TabsFrame.Parent = ClickGui
     TabsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -856,7 +858,18 @@ function Library:CreateWindow()
     TabsFrame.Position = UDim2.new(0.010, 0, 0.010, 0)
     TabsFrame.Size = UDim2.new(0, 207, 0, 40)
     TabsFrame.AutomaticSize = "X"
+    ]]
 
+    TabsFrame.Name = "Tabs"
+    TabsFrame.Parent = ClickGui
+    TabsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    TabsFrame.BackgroundTransparency = 1.000
+    TabsFrame.BorderSizePixel = 0
+    TabsFrame.Position = UDim2.new(0.01, 0, 0.01, 0)
+    TabsFrame.Size = UDim2.new(0.98, 0, 0, 150)
+    TabsFrame.ClipsDescendants = true
+    TabsFrame.ScrollBarThickness = 8
+    TabsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     
     uilistthingy.Parent = TabsFrame
     uilistthingy.FillDirection = Enum.FillDirection.Horizontal
@@ -886,26 +899,9 @@ function Library:CreateWindow()
     Library.TabsFrame = TabsFrame
     Library.UIScale = UIScale
 
-    --[[
-    HoverText.Text = "  "
-    HoverText.ZIndex = 1
-    HoverText.TextColor3 = Color3.fromRGB(160, 160, 160)
-    HoverText.TextXAlignment = Enum.TextXAlignment.Left
-    HoverText.TextSize = 14
-    HoverText.Visible = false
-    HoverText.Parent = TabsFrame
-    HoverText.AnchorPoint = Vector2.new(0.5, 0.5)
-    ]]
-
-    Library.TabsFrame = TabsFrame
-    Library.UIScale = UIScale
-
-    --[[
-    if Library.Device == "Mobile" then
-        UIScale.Scale = Library.MobileScale
-        Library.Scale = 0.45
-    end
-    ]]
+    UIGridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabsFrame.CanvasSize = UDim2.new(0, UIGridLayout.AbsoluteContentSize.X, 0, UIGridLayout.AbsoluteContentSize.Y)
+    end)
 
     function Library:CreateTab(TabData)
         local TabName = TabData.Name
