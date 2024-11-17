@@ -900,7 +900,9 @@ function Library:CreateWindow()
     Library.UIScale = UIScale
 
     UIGridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabsFrame.CanvasSize = UDim2.new(0, UIGridLayout.AbsoluteContentSize.X, 0, UIGridLayout.AbsoluteContentSize.Y)
+        local contentSize = UIGridLayout.AbsoluteContentSize
+        TabsFrame.CanvasSize = UDim2.new(0, contentSize.X, 0, contentSize.Y)
+        print("Content Size Updated:", contentSize)
     end)
 
     function Library:CreateTab(TabData)
