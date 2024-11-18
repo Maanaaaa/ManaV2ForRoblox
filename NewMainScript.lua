@@ -31,6 +31,27 @@ local httprequest = (request and http and http.request or http_request or fluxus
 local queueteleport = syn and syn.queue_on_teleport or queue_on_teleport or fluxus and fluxus.queue_on_teleport
 local function runFunction(func) func() end
 
+local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request or function(tab)
+    if tab.Method == "GET" then
+        return {
+            Body = game:HttpGet(tab.Url, true),
+            Headers = {},
+            StatusCode = 200
+        }
+    else
+        return {
+            Body = "bad exploit",
+            Headers = {},
+            StatusCode = 404
+        }
+    end
+end 
+
+local betterisfile = function(file)
+    local suc, res = pcall(function() return readfile(file) end)
+    return suc and res ~= nil
+end
+
 if Mana and Mana.Activated == true then 
     warn("[ManaV2ForRoblox]: Already loaded.")
     Mana.GuiLibrary:playsound("rbxassetid://421058925", 1)
@@ -52,43 +73,23 @@ elseif not (_G and getgenv) then
 end
 
 do
-    function Functions:WriteFile(path, filepath) -- path - executor's in workspace path, filepath - github path
-        local CurrentFile
-        if isfile(path) then CurrentFile = readfile(path) end
-        local res = httprequest({Url = 'https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/' .. filepath, Method = 'GET'}).Body
-        if res ~= '404: Not Found' and res ~= CurrentFile then
-            writefile("Mana/" .. path, res)
-        else
-            warn("[ManaV2ForRoblox]: Can't write requested file. \nWorkspacePath: " .. path .. " \nGithubFilePath: " .. filepath .. ". \nError: " .. res)
-        end
-    end
-
-    function Functions:CheckFile(filepath)
-        local ToReturn
-        local Success, Error = pcall(function() 
-            ToReturn = loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath))()
-        end) 
-        if not Success then 
-            warn(Error)
-        else
-            return ToReturn
-        end
-    end
-
     function Functions:RunFile(filepath)
-        --return loadstring(readfile("NewMana/" .. filepath))()
-        if filepath == "Scripts/6872274481.lua" or filepath == "Scripts/8560631822.lua" or filepath == "Scripts/8444591321.lua" then
-            --Functions:WriteFile(filepath, filepath)
-            return Functions:CheckFile("Scripts/6872274481.lua")
-        elseif isfile("NewMana/" .. filepath) then
-            return loadstring(readfile("NewMana/" .. filepath))()
-        elseif Mana and Mana.Developer then
-            return loadstring(readfile("NewMana/" .. filepath))()
-        elseif isfile("Mana/" .. filepath) then
-            return loadstring(readfile("Mana/" .. filepath))()
+        local req = requestfunc({
+            Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath,
+            Method = "GET"
+        })
+        if not betterisfile(filepath) then
+                local context = req.Body
+                writefile(filepath, context)
+            return loadstring(context)()
         else
-            Functions:WriteFile(filepath, filepath)
-            return Functions:CheckFile(filepath)
+            if isfile("NewMana/" .. filepath) then
+                return loadstring(readfile("NewMana/" .. filepath))()
+            elseif isfile("Mana/" .. filepath) then
+                return loadstring(readfile("Mana/" .. filepath))()
+            else
+                return loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath))()
+            end
         end
     end
 end
@@ -376,7 +377,7 @@ runFunction(function()
                 GuiLibrary.ScreenGui:Destroy()
                 if isfile("Mana/Config/" .. game.PlaceId .. ".json") then delfile("Mana/Config/" .. game.PlaceId .. ".json") end
                 wait(1)
-                Functions:RunFile("NewestMainScript.lua")
+                Functions:RunFile("MainScript.lua")
             end
         end
     })
@@ -392,7 +393,7 @@ runFunction(function()
                 Reinject:Toggle(false)
                 GuiLibrary.ScreenGui:Destroy()
                 wait(1)
-                Functions:RunFile("NewestMainScript.lua")
+                Functions:RunFile("MainScript.lua")
             end
         end
     })
@@ -423,7 +424,6 @@ runFunction(function()
     })
 end)
 
---[[release: winter
 runFunction(function()
     local Themes = {Value = "Default"}
     UpdateTheme = Tabs.Misc:CreateToggle({
@@ -446,7 +446,6 @@ runFunction(function()
         end
     })
 end)
-]]
 
 local Button = Instance.new("TextButton")
 local Corner = Instance.new("UICorner")
