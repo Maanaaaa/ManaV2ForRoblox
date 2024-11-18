@@ -16,7 +16,6 @@ local Debris = game:GetService("Debris")
 local getasset = getsynasset or getcustomasset
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
-local Camera = workspace.CurrentCamera
 local configsaving = true
 local LastPress = 0
 local Functions = Mana.CustomFileSystem
@@ -95,7 +94,7 @@ local ClickGui = Instance.new("Frame", ScreenGui)
 ClickGui.Name = "ClickGui"
 local NotificationGui = Instance.new("Frame", ScreenGui)
 NotificationGui.Name = "NotificationGui"
-NotificationGui.BackgroundTransparency = 0
+NotificationGui.BackgroundTransparency = 1 -- so it's not visible
 NotificationGui.Size = UDim2.new(0, 100, 0, 10)
 NotificationGui.Position = UDim2.new(0, 1735, 0, 820)
 NotificationGui.Active = true
@@ -230,7 +229,7 @@ local configtable = (conf.functions:LoadConfigs() or {})
 Library.ConfigSystem = conf
 Library.ConfigTable = configtable
 
---[[ Old AutoSave
+--[[oldautosave
 spawn(function()
     repeat
         conf.functions:WriteConfigs(configtable)
@@ -240,6 +239,7 @@ end)
 ]]
 
 -- Themes System
+--[[coming soon
 local Themes
 local success, err = pcall(function()
     Themes = HttpService:JSONDecode(readfile("NewMana/Themes/OriginalThemes.json"))
@@ -249,7 +249,6 @@ if not success then
     warn("[ManaV2ForRoblox]: Failed to load themes: " .. err .. ".")
 end
 
---[[coming soon
 function Library.ThemeManager:GetThemes(Type)
     local Themes
     if tostring(string.lower(Type)) == "original" then -- dont ask why
@@ -274,9 +273,7 @@ function Library.ThemeManager:GetThemes(Type)
     end
     return Themes
 end
-]]
 
---[[release: winter
 function Library.ThemeManager:ApplyTheme(ThemeName) -- (Type, ThemeName) 
     local Theme = Themes[ThemeName]
     if not Theme then
@@ -842,14 +839,11 @@ end
 function Library:CreateWindow()
     ScreenGui.Name = Library:RandomString() -- like protect ok?
     
-    --local TabsFrame = Instance.new("Frame")
-    local TabsFrame = Instance.new("ScrollingFrame")
+    local TabsFrame = Instance.new("Frame")
     local uilistthingy = Instance.new("UIListLayout")
     local UIScale = Instance.new("UIScale")
     local HoverText = Instance.new("TextLabel")
-    local UIGridLayout = Instance.new("UIGridLayout")
 
-    --[[
     TabsFrame.Name = "Tabs"
     TabsFrame.Parent = ClickGui
     TabsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -858,52 +852,34 @@ function Library:CreateWindow()
     TabsFrame.Position = UDim2.new(0.010, 0, 0.010, 0)
     TabsFrame.Size = UDim2.new(0, 207, 0, 40)
     TabsFrame.AutomaticSize = "X"
-    ]]
 
-    TabsFrame.Name = "Tabs"
-    TabsFrame.Parent = ClickGui
-    TabsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    TabsFrame.BackgroundTransparency = 1.000
-    TabsFrame.BorderSizePixel = 0
-    TabsFrame.Position = UDim2.new(0.01, 0, 0.01, 0)
-    TabsFrame.Size = UDim2.new(0.98, 0, 0, 150)
-    TabsFrame.ClipsDescendants = true
-    TabsFrame.ScrollBarThickness = 8
-    TabsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    
     uilistthingy.Parent = TabsFrame
     uilistthingy.FillDirection = Enum.FillDirection.Horizontal
     uilistthingy.SortOrder = Enum.SortOrder.LayoutOrder
     uilistthingy.Padding = UDim.new(0, 40)
     
-    local screenSize = Camera.ViewportSize
-    local Width = screenSize.X
-    local Height = screenSize.Y
+    
+    UIScale.Parent = TabsFrame
+    UIScale.Scale = Library.Scale
 
-    if Width <= 1280 then -- Small screens
-        Library.Scale = 0.6
-    elseif Width <= 1920 then -- Mid-sized screens
-        Library.Scale = 0.6
-    elseif Width <= 2560 then -- Large screens
-        Library.Scale = 6
-    else -- Ultra-wide or 4K monitors
-        Library.Scale = 1.25
-    end
-
-    UIGridLayout.Parent = TabsFrame
-    UIGridLayout.FillDirection = Enum.FillDirection.Horizontal
-    UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
-    UIGridLayout.CellSize = UDim2.new(0, 150, 0, 40)
+    --[[
+    HoverText.Text = "  "
+    HoverText.ZIndex = 1
+    HoverText.TextColor3 = Color3.fromRGB(160, 160, 160)
+    HoverText.TextXAlignment = Enum.TextXAlignment.Left
+    HoverText.TextSize = 14
+    HoverText.Visible = false
+    HoverText.Parent = TabsFrame
+    HoverText.AnchorPoint = Vector2.new(0.5, 0.5)
+    ]]
 
     Library.TabsFrame = TabsFrame
     Library.UIScale = UIScale
 
-    UIGridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        local contentSize = UIGridLayout.AbsoluteContentSize
-        TabsFrame.CanvasSize = UDim2.new(0, contentSize.X, 0, contentSize.Y)
-        print("Content Size Updated:", contentSize)
-    end)
+    if Library.Device == "Mobile" then
+        UIScale.Scale = Library.MobileScale
+        Library.Scale = 0.45
+    end
 
     function Library:CreateTab(TabData)
         local TabName = TabData.Name
@@ -922,11 +898,11 @@ function Library:CreateWindow()
             Callback = (TabData.Callback or function() end),
             Toggles = {}
         }
-
+    
         table.insert(Tabs, #Tabs)
     
-        local TabPosition = configtable[TabData.Name] and configtable[TabData.Name].Position or {X = 0, Y = 247 * #Tabs, W = 0, H = 0}
-        
+        local TabPosition = configtable[TabData.Name] and configtable[TabData.Name].Position or UDim2.new(0, 0, 0, 0)
+    
         tab.Modal = true
         tab.Name = TabName .. "_TabTop"
         tab.Selectable = true
@@ -934,13 +910,13 @@ function Library:CreateWindow()
         tab.Parent = TabsFrame
         tab.BackgroundColor3 = Color3.fromRGB(14, 14, 23)
         tab.BorderSizePixel = 0
-        tab.Position = UDim2.new(TabPosition.X, TabPosition.W, TabPosition.Y, TabPosition.H)
+        tab.Position = TabPosition
         tab.Size = UDim2.new(0, 207, 0, 40)
         tab.Active = true
         tab.LayoutOrder = 1 + #Tabs
         tab.AutoButtonColor = false
         tab.Text = ""
-        
+    
         tabname.Name = TabName
         tabname.Parent = tab
         tabname.ZIndex = tab.ZIndex + 1
@@ -956,29 +932,44 @@ function Library:CreateWindow()
         tabname.TextWrapped = true
         tabname.TextXAlignment = Enum.TextXAlignment.Left
         tabname.Selectable = true
-        
+    
         assetthing.Parent = tabname
         assetthing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         assetthing.BackgroundTransparency = 1.000
         assetthing.BorderSizePixel = 0
         assetthing.Position = UDim2.new(0, 0, 0.5, 0)
         assetthing.Size = UDim2.new(0, 20, 0, 20)
-        --assetthing.Image = getcustomasset("NewMana/Assets/" .. TabIcon)
-        
+        --assetthing.Image = getcustomasset("Assets/" .. TabIcon)
+    
         uilistlayout.Parent = tab
         uilistlayout.FillDirection = Enum.FillDirection.Vertical
         uilistlayout.SortOrder = Enum.SortOrder.LayoutOrder
         uilistlayout.Padding = UDim.new(0, 0)
-        
+    
         Tabs[TabName] = tabtable
-        
-        dragGUI(tab) 
-
+    
+        dragGUI(tab)
+    
         function tabtable:ChangeVisibility(bool)
             bool = bool or not tab.Visible
             tab.Visible = bool
             Callback(bool)
         end
+    
+        --[[
+        local lastPosition = tab.Position
+    
+        tab:GetPropertyChangedSignal("Position"):Connect(function()
+            local NewPos = tab.Position
+            if NewPos ~= lastPosition then
+                if not configtable[TabData.Name] then
+                    configtable[TabData.Name] = {}
+                end
+                configtable[TabData.Name].Position = NewPos
+                lastPosition = NewPos
+            end
+        end)
+        ]]
 
         function tabtable:CreateDivider(DividerText)
             local DividerFrame = Instance.new("Frame")
