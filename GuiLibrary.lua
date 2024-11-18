@@ -97,8 +97,8 @@ NotificationGui.Name = "NotificationGui"
 NotificationGui.BackgroundTransparency = 1 -- so it's not visible
 NotificationGui.Size = UDim2.new(0, 100, 0, 10)
 NotificationGui.Position = UDim2.new(0, 1735, 0, 820)
-NotificationGui.Active = true
-NotificationGui.Draggable = true
+--NotificationGui.Active = true
+--NotificationGui.Draggable = true
 
 Library.ScreenGui = ScreenGui
 Library.ClickGui = ClickGui
@@ -229,7 +229,7 @@ local configtable = (conf.functions:LoadConfigs() or {})
 Library.ConfigSystem = conf
 Library.ConfigTable = configtable
 
---[[oldautosave
+--[[old autosave
 spawn(function()
     repeat
         conf.functions:WriteConfigs(configtable)
@@ -895,7 +895,7 @@ function Library:CreateWindow()
             Name = TabName,
             Color = Color,
             Visible = true,
-            Callback = (TabData.Callback or function() end),
+            Callback =  (TabData.Callback or function() end),
             Toggles = {}
         }
     
