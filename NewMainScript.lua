@@ -94,10 +94,12 @@ do
     end
 end
 
+--[[
 if not _G.KeySystemDone then
     if Mana then Mana = nil end
     return Functions:RunFile("NewestMainScript.lua")
 end
+]]
 
 Mana.CustomFileSystem = Functions
 

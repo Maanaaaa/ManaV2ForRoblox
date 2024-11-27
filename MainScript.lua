@@ -1,4 +1,493 @@
--- Obfuscated due to key system.
--- Also please dont hate me for this, and i know that it's easy to bypass.
+--[[
+    Credits to anyones code I used or looked at
+]]
 
-local v0=tonumber;local v1=string.byte;local v2=string.char;local v3=string.sub;local v4=string.gsub;local v5=string.rep;local v6=table.concat;local v7=table.insert;local v8=math.ldexp;local v9=getfenv or function() return _ENV;end ;local v10=setmetatable;local v11=pcall;local v12=select;local v13=unpack or table.unpack ;local v14=tonumber;local function v15(v16,v17,...) local v18=1;local v19;v16=v4(v3(v16,5),"..",function(v30) if (v1(v30,2)==81) then v19=v0(v3(v30,1,1));return "";else local v81=v2(v0(v30,16));if v19 then local v90=v5(v81,v19);v19=nil;return v90;else return v81;end end end);local function v20(v31,v32,v33) if v33 then local v82=(v31/((5 -3)^(v32-(2 -(1 + 0)))))%((3 -1)^(((v33-((1 + 1) -1)) -(v32-(620 -((1432 -(282 + 595)) + 64)))) + 1)) ;return v82-(v82%1) ;else local v83=2^(v32-(932 -(857 + 74))) ;return (((v31%(v83 + v83))>=v83) and (569 -(367 + (1838 -(1523 + 114))))) or (927 -(214 + 713)) ;end end local function v21() local v34=0 + (117 -(32 + 85)) ;local v35;while true do if (v34==(0 -0)) then v35=v1(v16,v18,v18);v18=v18 + (1066 -(67 + 1 + 997)) ;v34=1271 -(226 + 232 + 812) ;end if ((4 -3)==v34) then return v35;end end end local function v22() local v36=957 -(892 + 65) ;local v37;local v38;while true do if (v36==(2 -(953 -(802 + 150)))) then return (v38 * (188 + 68)) + v37 ;end if (v36==(0 -0)) then v37,v38=v1(v16,v18,v18 + (3 -1) );v18=v18 + (3 -1) ;v36=1;end end end local function v23() local v39=0 -(1187 -(1069 + 118)) ;local v40;local v41;local v42;local v43;while true do if (v39==(1 -0)) then return (v43 * 16777216) + (v42 * (47703 + 17833)) + (v41 * 256) + v40 ;end if (v39==(997 -((2075 -1160) + 82))) then v40,v41,v42,v43=v1(v16,v18,v18 + (8 -5) );v18=v18 + 3 + 1 ;v39=1 -0 ;end end end local function v24() local v44=v23();local v45=v23();local v46=1;local v47=(v20(v45,1 -0 ,4 + 16 ) * ((3 -1)^(32 + (0 -0)))) + v44 ;local v48=v20(v45,(1671 -(814 + 45)) -(368 + 423) ,(403 -306) -66 );local v49=((v20(v45,50 -(10 + 8) )==(3 -2)) and  -(443 -(416 + (63 -37)))) or (3 -2) ;if (v48==0) then if (v47==0) then return v49 * (0 + 0 + 0 + 0) ;else v48=(1 + 0) -0 ;v46=438 -(145 + 293) ;end elseif (v48==(2477 -(44 + (1409 -1023)))) then return ((v47==(1486 -(998 + 488))) and (v49 * ((1 + 0)/(885 -(261 + 624))))) or (v49 * NaN) ;end return v8(v49,v48-(838 + 185) ) * (v46 + (v47/((774 -(201 + 571))^((2114 -924) -(116 + 1022))))) ;end local function v25(v50) local v51=0;local v52;local v53;while true do if (v51==1) then v52=v3(v16,v18,(v18 + v50) -(1081 -(1020 + 60)) );v18=v18 + v50 ;v51=1425 -(630 + 273 + 520) ;end if (v51==(6 -4)) then v53={};for v91=1, #v52 do v53[v91]=v2(v1(v3(v52,v91,v91)));end v51=14 -11 ;end if (v51==(0 + 0)) then v52=nil;if  not v50 then local v103=(0 -0) -0 ;while true do if (v103==0) then v50=v23();if (v50==(1747 -(760 + 987))) then return "";end break;end end end v51=1914 -(1789 + 124) ;end if (v51==(769 -(745 + 21))) then return v6(v53);end end end local v26=v23;local function v27(...) return {...},v12("#",...);end local function v28() local v54=(function() return 1456 -(282 + 1174) ;end)();local v55=(function() return;end)();local v56=(function() return;end)();local v57=(function() return;end)();local v58=(function() return;end)();local v59=(function() return;end)();local v60=(function() return;end)();while true do if (2~=v54) then else for v93= #"]",v23() do local v94=(function() return 0;end)();local v95=(function() return;end)();local v96=(function() return;end)();while true do if (v94==(811 -(569 + 242))) then local v104=(function() return 0 -0 ;end)();local v105=(function() return;end)();while true do if (v104==(0 + 0)) then v105=(function() return 0;end)();while true do if (v105==(1024 -(706 + 318))) then v95=(function() return 0;end)();v96=(function() return nil;end)();v105=(function() return 1252 -(721 + 530) ;end)();end if (v105==(1272 -(945 + 326))) then v94=(function() return 2 -1 ;end)();break;end end break;end end end if (v94~=1) then else while true do if ((0 + 0)~=v95) then else v96=(function() return v21();end)();if (v20(v96, #"}", #"/")==0) then local v163=(function() return 0;end)();local v164=(function() return;end)();local v165=(function() return;end)();local v166=(function() return;end)();local v167=(function() return;end)();while true do if (v163~=(702 -(271 + 429))) then else while true do if (v164==(2 + 0)) then local v181=(function() return 1500 -(1408 + 92) ;end)();local v182=(function() return;end)();while true do if (0~=v181) then else v182=(function() return 1086 -(461 + 625) ;end)();while true do if (v182~=(1288 -(993 + 295))) then else if (v20(v166, #"[", #"<")~= #"|") then else v167[2]=(function() return v60[v167[2]];end)();end if (v20(v166,1 + 1 ,2)~= #" ") then else v167[ #"gha"]=(function() return v60[v167[ #"nil"]];end)();end v182=(function() return 1172 -(418 + 753) ;end)();end if (v182~=(1 + 0)) then else v164=(function() return  #"xnx";end)();break;end end break;end end end if ( #":"~=v164) then else local v183=(function() return 0;end)();local v184=(function() return;end)();while true do if (v183~=0) then else v184=(function() return 0 + 0 ;end)();while true do if (v184~=1) then else v164=(function() return 1 + 1 ;end)();break;end if (v184==0) then v167=(function() return {v22(),v22(),nil,nil};end)();if (v165==(529 -(406 + 123))) then local v191=(function() return 1769 -(1749 + 20) ;end)();local v192=(function() return;end)();while true do if (0==v191) then v192=(function() return 0;end)();while true do if (v192~=0) then else v167[ #"19("]=(function() return v22();end)();v167[ #"?id="]=(function() return v22();end)();break;end end break;end end elseif (v165== #":") then v167[ #"-19"]=(function() return v23();end)();elseif (v165==(1 + 1)) then v167[ #"xnx"]=(function() return v23() -(2^(1338 -(1249 + 73))) ;end)();elseif (v165== #"asd") then local v197=(function() return 0 + 0 ;end)();while true do if (v197==(1145 -(466 + 679))) then v167[ #"xxx"]=(function() return v23() -(2^16) ;end)();v167[ #"http"]=(function() return v22();end)();break;end end end v184=(function() return 2 -1 ;end)();end end break;end end end if ((0 -0)~=v164) then else local v185=(function() return 1900 -(106 + 1794) ;end)();local v186=(function() return;end)();while true do if (v185~=0) then else v186=(function() return 0;end)();while true do if (v186~=1) then else v164=(function() return  #"]";end)();break;end if (v186~=0) then else v165=(function() return v20(v96,2, #"91(");end)();v166=(function() return v20(v96, #".dev",2 + 4 );end)();v186=(function() return 1;end)();end end break;end end end if (v164~= #"asd") then else if (v20(v166, #"asd", #"19(")~= #"/") then else v167[ #"0313"]=(function() return v60[v167[ #"0313"]];end)();end v55[v93]=(function() return v167;end)();break;end end break;end if (v163==(1 + 0)) then local v174=(function() return 0 -0 ;end)();while true do if (v174==(0 -0)) then v166=(function() return nil;end)();v167=(function() return nil;end)();v174=(function() return 115 -(4 + 110) ;end)();end if (v174==1) then v163=(function() return 586 -(57 + 527) ;end)();break;end end end if (v163~=(1427 -(41 + 1386))) then else local v175=(function() return 103 -(17 + 86) ;end)();while true do if (v175~=1) then else v163=(function() return 1;end)();break;end if (v175~=0) then else v164=(function() return 0 + 0 ;end)();v165=(function() return nil;end)();v175=(function() return 1;end)();end end end end end break;end end break;end end end for v97= #":",v23() do v56[v97-#" " ]=(function() return v28();end)();end return v58;end if ( #">"~=v54) then else local v87=(function() return 0 -0 ;end)();local v88=(function() return;end)();while true do if ((0 -0)==v87) then v88=(function() return 166 -(122 + 44) ;end)();while true do if (v88~=(2 -0)) then else v54=(function() return 2;end)();break;end if (v88==(0 -0)) then v59=(function() return v23();end)();v60=(function() return {};end)();v88=(function() return 1;end)();end if (1==v88) then for v126= #"[",v59 do local v127=(function() return 0 + 0 ;end)();local v128=(function() return;end)();local v129=(function() return;end)();local v130=(function() return;end)();while true do if ((1 + 0)~=v127) then else v130=(function() return nil;end)();while true do if (0~=v128) then else local v178=(function() return 0 -0 ;end)();local v179=(function() return;end)();while true do if (v178==0) then v179=(function() return 65 -(30 + 35) ;end)();while true do if ((1 + 0)~=v179) then else v128=(function() return  #"[";end)();break;end if (0==v179) then v129=(function() return v21();end)();v130=(function() return nil;end)();v179=(function() return 1258 -(1043 + 214) ;end)();end end break;end end end if ( #"{"==v128) then if (v129== #"/") then v130=(function() return v21()~=0 ;end)();elseif (v129==2) then v130=(function() return v24();end)();elseif (v129== #"-19") then v130=(function() return v25();end)();end v60[v126]=(function() return v130;end)();break;end end break;end if (0==v127) then local v173=(function() return 0;end)();while true do if (v173~=1) then else v127=(function() return 1;end)();break;end if (v173~=0) then else v128=(function() return 0 -0 ;end)();v129=(function() return nil;end)();v173=(function() return 1;end)();end end end end end v58[ #"xnx"]=(function() return v21();end)();v88=(function() return 1214 -(323 + 889) ;end)();end end break;end end end if (v54~=0) then else local v89=(function() return 0 -0 ;end)();while true do if ((580 -(361 + 219))~=v89) then else v55=(function() return {};end)();v56=(function() return {};end)();v89=(function() return 1;end)();end if (v89==1) then v57=(function() return {};end)();v58=(function() return {v55,v56,nil,v57};end)();v89=(function() return 1 + 1 ;end)();end if (v89==2) then v54=(function() return  #"[";end)();break;end end end end end local function v29(v61,v62,v63) local v64=v61[414 -(15 + 398) ];local v65=v61[2 + 0 ];local v66=v61[985 -(18 + 964) ];return function(...) local v67=v64;local v68=v65;local v69=v66;local v70=v27;local v71=3 -2 ;local v72= -(1 + 0);local v73={};local v74={...};local v75=v12("#",...) -(1 + 0) ;local v76={};local v77={};for v84=850 -(20 + 830) ,v75 do if ((v84>=v69) or (1393>4489)) then v73[v84-v69 ]=v74[v84 + (1126 -((1099 -(92 + 71)) + 189)) ];else v77[v84]=v74[v84 + 1 + 0 ];end end local v78=(v75-v69) + (127 -(116 + 10)) ;local v79;local v80;while true do v79=v67[v71];v80=v79[1 + 0 + (0 -0) ];if ((v80<=(2 + 1)) or (4424<27)) then if (v80<=(739 -(542 + 196))) then if (v80==(0 -0)) then local v106=0 + 0 ;local v107;local v108;local v109;local v110;local v111;while true do if ((1658>89) and (v106==(4 + (767 -(574 + 191))))) then v77[v111]=v77[v111](v13(v77,v111 + 1 + 0 ,v72));v71=v71 + (2 -1) ;v79=v67[v71];v77[v79[2 + 0 ]]();v71=v71 + (1093 -(975 + 117)) ;v106=(42 -25) -10 ;end if (v106==(1551 -(1126 + 425))) then v107=nil;v108,v109=nil;v110=nil;v111=nil;v77[v79[407 -(118 + 287) ]]={};v106=(2 + 1) -2 ;end if ((v106==(1123 -(118 + 1003))) or (1997>3815)) then v77[v79[5 -3 ]]=v63[v79[(859 -(254 + 595)) -7 ]];v71=v71 + 1 ;v79=v67[v71];v111=v79[(505 -(55 + 71)) -(142 + (309 -74)) ];v110=v77[v79[13 -10 ]];v106=(1791 -(573 + 1217)) + 2 ;end if ((3465>1913) and (1421<2213) and ((980 -(553 + (1174 -750)))==v106)) then v77[v111 + (1 -(0 + 0)) ]=v110;v77[v111]=v110[v79[4 + 0 ]];v71=v71 + 1 + 0 ;v79=v67[v71];v77[v79[2 -0 ]]=v79[7 -4 ];v106=3 + 1 ;end if ((3058<4860) and (v106==(3 + 4))) then v79=v67[v71];do return;end break;end if (((1 + 0)==v106) or (1296>=4446)) then v71=v71 + (2 -1) ;v79=v67[v71];v77[v79[874 -(826 + 46) ]]=v63[v79[7 -4 ]];v71=v71 + 1 ;v79=v67[v71];v106=2;end if (v106==(8 -4)) then v71=v71 + (940 -(714 + 225)) + 0 ;v79=v67[v71];v111=v79[1 + 1 ];v108,v109=v70(v77[v111](v13(v77,v111 + (4 -3) ,v79[9 -6 ])));v72=(v109 + v111) -(754 -(239 + 514)) ;v106=9 -4 ;end if ((733<1819) and (v106==(2 + 3))) then v107=1329 -(797 + 532) ;for v168=v111,v72 do local v169=0 + 0 ;while true do if (v169==(0 + 0)) then v107=v107 + (2 -1) ;v77[v168]=v108[v107];break;end end end v71=v71 + (2 -1) ;v79=v67[v71];v111=v79[(3518 -2314) -(373 + 829) ];v106=737 -(476 + 255) ;end end else local v112=1130 -(369 + 761) ;local v113;while true do if ((v112==(0 + 0)) or (4395==4755)) then v113=v79[2];v77[v113]=v77[v113](v13(v77,v113 + ((1 -0) -0) ,v72));break;end end end elseif (v80==(3 -1)) then v77[v79[240 -(64 + 174) ]]=v63[v79[1 + 2 ]];else local v116=0 -0 ;local v117;local v118;while true do if ((v116==(337 -(144 + 192))) or (3793<2369)) then v77[v117 + (217 -(42 + 174)) ]=v118;v77[v117]=v118[v79[13 -9 ]];break;end if (v116==(0 -0)) then v117=v79[2 + 0 ];v118=v77[v79[1 + 2 + 0 ]];v116=1 + 0 ;end end end elseif ((v80<=(1509 -((524 -161) + 1141))) or (4084==265)) then if ((4358==4358) and (v80>4)) then do return;end else local v119=(2386 -(118 + 688)) -(1183 + 397) ;local v120;local v121;local v122;local v123;while true do if (v119==((50 -(25 + 23)) -1)) then v72=(v122 + v120) -(1 + 0) ;v123=0 + 0 ;v119=2 + 0 ;end if (v119==((383 + 1594) -(1913 + 62))) then for v170=v120,v72 do v123=v123 + 1 + 0 ;v77[v170]=v121[v123];end break;end if (v119==0) then v120=v79[5 -3 ];v121,v122=v70(v77[v120](v13(v77,v120 + (1934 -(565 + 1368)) ,v79[3 + (1886 -(927 + 959)) ])));v119=3 -2 ;end end end elseif (v80<=(1667 -(1477 + 184))) then v77[v79[2 -0 ]]={};elseif (v80==(7 + 0)) then v77[v79[858 -((1901 -1337) + 292) ]]=v79[3];else v77[v79[2 -0 ]]();end v71=v71 + (2 -1) ;end end;end return v29(v28(),{},v17)(...);end return v15("LOL!043Q00030A3Q006C6F6164737472696E6703043Q0067616D6503073Q00482Q747047657403543Q00682Q7470733A2Q2F7261772E67697468756275736572636F6E74656E742E636F6D2F4D2Q616E4Q612F4D616E615632466F72526F626C6F782F6D61696E2F4E65776573744D61696E5363726970742E6C756100099Q003Q00122Q000100013Q00122Q000200023Q00202Q00020002000300122Q000400046Q000200046Q00013Q00024Q0001000100016Q00017Q00",v9(),...);
+repeat task.wait() until game:IsLoaded()
+
+local startTick = tick()
+
+local UserInputService = game:GetService("UserInputService")
+local TextChatService = game:GetService("TextChatService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character
+local HumanoidRootPart = Character.HumanoidRootPart
+local Humanoid = Character.Humanoid
+local Camera = workspace.CurrentCamera
+local RealCamera = workspace.Camera
+local Mouse = LocalPlayer:GetMouse()
+local PlayerGui = LocalPlayer.PlayerGui
+local PlaceId = game.PlaceId
+local SliderScaleValue = 1
+local Functions = {}
+local LocalPlayerEvents = {}
+local Mana
+
+local httprequest = (request and http and http.request or http_request or fluxus and fluxus.request)
+local queueteleport = syn and syn.queue_on_teleport or queue_on_teleport or fluxus and fluxus.queue_on_teleport
+local function runFunction(func) func() end
+
+local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request or function(tab)
+    if tab.Method == "GET" then
+        return {
+            Body = game:HttpGet(tab.Url, true),
+            Headers = {},
+            StatusCode = 200
+        }
+    else
+        return {
+            Body = "bad exploit",
+            Headers = {},
+            StatusCode = 404
+        }
+    end
+end 
+
+local betterisfile = function(file)
+    local suc, res = pcall(function() return readfile(file) end)
+    return suc and res ~= nil
+end
+
+if Mana and Mana.Activated == true then 
+    warn("[ManaV2ForRoblox]: Already loaded.")
+    Mana.GuiLibrary:playsound("rbxassetid://421058925", 1)
+    if Mana.GuiLibrary.ChatNotifications then
+        Mana.GuiLibrary:CreateChatNotification("Warn", "Already loaded.")
+    end
+    return
+end
+
+if getgenv then
+    getgenv().Mana = {Developer = false}
+    Mana = getgenv().Mana
+elseif not getgenv then
+    _G.Mana = {Developer = false}
+    Mana = _G.Mana
+    warn("[ManaV2ForRoblox]: Using _G function.")
+elseif not (_G and getgenv) then
+    return warn("[ManaV2ForRoblox]: Unsupported executor.")
+end
+
+do
+    function Functions:RunFile(filepath)
+        local req = requestfunc({
+            Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath,
+            Method = "GET"
+        })
+        if not betterisfile(filepath) then
+                local context = req.Body
+                writefile(filepath, context)
+            return loadstring(context)()
+        else
+            if isfile("NewMana/" .. filepath) then
+                return loadstring(readfile("NewMana/" .. filepath))()
+            elseif isfile("Mana/" .. filepath) then
+                return loadstring(readfile("Mana/" .. filepath))()
+            else
+                return loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath))()
+            end
+        end
+    end
+end
+
+--[[
+if not _G.KeySystemDone then
+    if Mana then Mana = nil end
+    return Functions:RunFile("NewestMainScript.lua")
+end
+]]
+
+Mana.CustomFileSystem = Functions
+
+local RunLoops = {RenderStepTable = {}, StepTable = {}, HeartTable = {}}
+
+do
+	function RunLoops:BindToRenderStep(name, func)
+		if RunLoops.RenderStepTable[name] == nil then
+			RunLoops.RenderStepTable[name] = RunService.RenderStepped:Connect(func)
+		end
+	end
+
+	function RunLoops:UnbindFromRenderStep(name)
+		if RunLoops.RenderStepTable[name] then
+			RunLoops.RenderStepTable[name]:Disconnect()
+			RunLoops.RenderStepTable[name] = nil
+		end
+	end
+
+	function RunLoops:BindToStepped(name, func)
+		if RunLoops.StepTable[name] == nil then
+			RunLoops.StepTable[name] = RunService.Stepped:Connect(func)
+		end
+	end
+
+	function RunLoops:UnbindFromStepped(name)
+		if RunLoops.StepTable[name] then
+			RunLoops.StepTable[name]:Disconnect()
+			RunLoops.StepTable[name] = nil
+		end
+	end
+
+	function RunLoops:BindToHeartbeat(name, func) 
+		if RunLoops.HeartTable[name] == nil then
+			RunLoops.HeartTable[name] = RunService.Heartbeat:Connect(func)
+		end
+	end
+
+	function RunLoops:UnbindFromHeartbeat(name)
+		if RunLoops.HeartTable[name] then
+			RunLoops.HeartTable[name]:Disconnect()
+			RunLoops.HeartTable[name] = nil
+		end
+	end
+end
+
+local Whitelist = HttpService:JSONDecode(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/Whitelist/main/Whitelist.json"))
+local GuiLibrary = Functions:RunFile("GuiLibrary.lua")--loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/refs/heads/main/GuiLibrary.lua"))()
+--local EntityLibrary = loadstring(game)
+
+Mana.GuiLibrary = GuiLibrary
+Mana.ThemeManager = GuiLibrary.ThemeManager
+Mana.Functions = Functions
+Mana.RunLoops = RunLoops
+--Mana.EntityLibrary = EntityLibrary
+Mana.Activated = true
+Mana.Whitelisted = false
+
+GuiLibrary:CreateWindow()
+
+local Tabs = {
+    Combat = GuiLibrary:CreateTab({
+        Name = "Combat",
+        Color = Color3.fromRGB(252, 60, 68),
+        Visible = true,
+        TabIcon = "CombatTabIcon.png",
+        Callback = function() end
+    }),
+    Movement = GuiLibrary:CreateTab({
+        Name = "Movement",
+        Color = Color3.fromRGB(255, 148, 36),
+        Visible = true,
+        TabIcon = "MovementTabIcon.png",
+        Callback = function() end
+    }),
+    Render = GuiLibrary:CreateTab({
+        Name = "Render",
+        Color = Color3.fromRGB(59, 170, 222),
+        Visible = true,
+        TabIcon = "RenderTabIcon.png",
+        Callback = function() end
+    }),
+    Utility = GuiLibrary:CreateTab({
+        Name = "Utility",
+        Color = Color3.fromRGB(83, 214, 110),
+        Visible = true,
+        TabIcon = "MiscTabIcon.png", --"UtilityTabIcon",
+        Callback = function() end
+    }),
+    World = GuiLibrary:CreateTab({
+        Name = "World",
+        Color = Color3.fromRGB(52 ,28, 228),
+        Visible = true,
+        TabIcon = "WorldTabIcon.png",
+        Callback = function() end
+    }),
+    Misc = GuiLibrary:CreateTab({
+        Name = "Other",
+        Color = Color3.fromRGB(240, 157, 62),
+        Visible = true,
+        TabIcon = "MiscTabIcon.png",
+        Callback = function() end
+    }),
+}
+
+Mana.Tabs = Tabs
+
+if GuiLibrary.Device == "Mobile" then
+    SliderScaleValue = 0.5
+end
+
+-- Chattags and commands system
+task.spawn(function() -- so it doesn't stop script loading
+    for PlayerName, Tag in pairs(Whitelist) do
+        if LocalPlayer.UserId == tonumber(Tag.UserId) then
+            if Tag.Whitelisted or Tag.Whitelisted == "true" then
+                Mana.Whitelisted = true
+
+                Tabs.Private = GuiLibrary:CreateTab({
+                    Name = "Private",
+                    Color = Color3.fromRGB(243, 247, 5),
+                    Visible = true,
+                    Callback = function() end
+                })
+
+                GuiLibrary:CreateNotification("Whitelist", "Successfully whitelisted as whitelisted!", 10, true, "warn") -- warn bc it has bigger chance that you will notice this
+            elseif Tag.Developer or Tag.Developer == "true" then
+                Mana.Whitelisted = true
+                Mana.Developer = true
+
+                Tabs.Private = GuiLibrary:CreateTab({
+                    Name = "Private",
+                    Color = Color3.fromRGB(243, 247, 5),
+                    Visible = true,
+                    Callback = function() end
+                })
+
+                GuiLibrary:CreateNotification("Whitelist", "Successfully whitelisted as whitelisted and developer!", 10, true, "warn")
+            end
+            if Mana.Whitelisted or Mana.Developer then
+                TextChatService.OnIncomingMessage = function(Message, ChatStyle)
+                    local MessageProperties = Instance.new("TextChatMessageProperties")
+                    local Player = Players:GetPlayerByUserId(Message.TextSource.UserId)
+                    if Player.Name == PlayerName then
+                        MessageProperties.PrefixText = '<font color="' .. Tag.Color .. '">' .. Tag.Chattag .. '</font> ' .. Message.PrefixText
+                    end
+                    return MessageProperties
+                end
+            end
+        end
+    end
+end)
+
+-- Misc tab
+
+runFunction(function()
+    local AutoSaveDelay = {Value = 5}
+    local AutoSaveOnRejoin = {Value = true}
+    local LeavingEvent
+    AutoSaveConfig = Tabs.Misc:CreateToggle({
+        Name = "AutoSaveConfig",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                while callback and task.wait(AutoSaveDelay.Value) do
+                    GuiLibrary.ConfigSystem.functions:WriteConfigs(GuiLibrary.ConfigTable)
+                end
+
+                LeavingEvent = Players.PlayerRemoving:Connect(function(Player)
+                    if Player == LocalPlayer and AutoSaveOnRejoin.Value then
+                        GuiLibrary.ConfigSystem.functions:WriteConfigs(GuiLibrary.ConfigTable)
+                    end
+                end)
+            else
+                if LeavingEvent then
+                    LeavingEvent:Disconnect()
+                end
+            end
+        end
+    })
+
+    AutoSaveOnRejoin = AutoSaveConfig:CreateToggle({
+        Name = "On rejoin or leave",
+        Default = true,
+        Function = function(v)
+        end 
+    })
+
+    AutoSaveDelay = AutoSaveConfig:CreateSlider({
+        Name = "Delay",
+        Function = function(v)
+		end,
+        Min = 1,
+        Max = 60,
+        Default = 15,
+        Round = 0
+    })
+end)
+
+runFunction(function()
+    local ClickGuiEnabled = false
+    local LibrarySettings = Tabs.Misc:CreateToggle({
+        Name = "ClickGui",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                ClickGuiEnabled = callback
+            end
+        end
+    })
+
+    LibSounds = LibrarySettings:CreateToggle({
+        Name = "Sounds",
+        Default = true,
+        Function = function(v)
+            if ClickGuiEnabled then
+                GuiLibrary.Sounds = v
+            end
+        end 
+    })
+
+    Notifications = LibrarySettings:CreateToggle({
+        Name = "Notifications",
+        Default = true,
+        Function = function(v)
+            if ClickGuiEnabled then
+                GuiLibrary.Notifications = v
+            end
+        end 
+    })
+
+    ChatNotifications = LibrarySettings:CreateToggle({
+        Name = "ChatNotifications",
+        Default = true,
+        Function = function(v)
+            if ClickGuiEnabled then
+                GuiLibrary.ChatNotifications = v
+            end
+        end 
+    })
+
+    LibrarySize = LibrarySettings:CreateSlider({
+        Name = "Size",
+        Function = function(v)
+            if ClickGuiEnabled then
+                GuiLibrary.UIScale.Scale = v
+            end
+		end,
+        Min = 1,
+        Max = 10,
+        Default = SliderScaleValue,
+        Round = 1
+    })
+end)
+
+runFunction(function()
+    Discord = Tabs.Misc:CreateToggle({
+        Name = "CopyDiscordInvite",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                toclipboard("https://discord.gg/gPkD8BdbMA")
+                Discord:Toggle(true)
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    DeleteConfig = Tabs.Misc:CreateToggle({
+        Name = "DeleteConfig",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                Mana.Activated = false
+                DeleteConfig:Toggle(false)
+                GuiLibrary.ScreenGui:Destroy()
+                if isfile("Mana/Config/" .. game.PlaceId .. ".json") then delfile("Mana/Config/" .. game.PlaceId .. ".json") end
+                wait(1)
+                Functions:RunFile("MainScript.lua")
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    Reinject = Tabs.Misc:CreateToggle({
+        Name = "ReInject",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                Mana.Activated = false
+                Reinject:Toggle(false)
+                GuiLibrary.ScreenGui:Destroy()
+                wait(1)
+                Functions:RunFile("MainScript.lua")
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    ToggleGui = Tabs.Misc:CreateToggle({
+        Name = "ToggleGui",
+        Keybind = nil,
+        Callback = function(callback)
+            GuiLibrary:ToggleLibrary()
+        end
+    })
+end)
+
+runFunction(function()
+    Uninject = Tabs.Misc:CreateToggle({
+        Name = "Uninject",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                Mana.Activated = false
+                Uninject:Toggle(false)
+                wait(0.1)
+                GuiLibrary.ScreenGui:Destroy()
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    local Themes = {Value = "Default"}
+    UpdateTheme = Tabs.Misc:CreateToggle({
+        Name = "SelectTheme",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                GuiLibrary.ThemeManager:ApplyTheme(Themes.Value)  -- ("Original", Themes.Value)
+            end
+        end
+    })
+
+    Themes = UpdateTheme:CreateDropDown({
+        Name = "Theme",
+        List = {"DefaultTheme", "DarkTheme", "LightTheme", "KawaiiTheme"},
+        --List = {"DefaultTheme", "DarkTheme", "LightTheme", "BlueTheme", "GreenTheme", "RedTheme", "PurpleTheme", "KawaiiTheme"},
+        Default = "KawaiiTheme",
+        Function = function(v) 
+            GuiLibrary.ThemeManager:ApplyTheme(v) -- ("Original", v)
+        end
+    })
+end)
+
+local Button = Instance.new("TextButton")
+local Corner = Instance.new("UICorner")
+Button.Name = "GuiButton"
+Button.Position = UDim2.new(1, -700, 0, -32)
+Button.Text = "Mana"
+Button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.Size = UDim2.new(0, 32, 0, 32)
+Button.BorderSizePixel = 0
+Button.BackgroundTransparency = 0.5
+Button.Parent = GuiLibrary.ScreenGui
+Corner.Parent = Button
+Corner.CornerRadius = UDim.new(0, 8)
+
+Button.MouseButton1Click:Connect(function()
+    GuiLibrary:ToggleLibrary()
+end)
+
+UserInputService.InputBegan:Connect(function(Input)
+    if Input.KeyCode == Enum.KeyCode.RightShift or Input.KeyCode == Enum.KeyCode.N then
+        GuiLibrary:ToggleLibrary()
+    end
+end)
+
+print("[ManaV2ForRoblox/MainScript.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
+print("[ManaV2ForRoblox/MainScript.lua]: Loaded newest version.")
+
+UniversalScript = Functions:RunFile("Scripts/Universal.lua")
+--GameScript = Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
+
+LocalPlayer.OnTeleport:Connect(function(State)
+    if State == Enum.TeleportState.Started then
+        local QueueTeleportFunction = [[
+            if Mana.Developer then 
+                loadstring(readfile("NewMana/MainScript.lua"))()
+            else 
+                loadstring(readfile("Mana/MainScript.lua"))()
+            end
+        ]]
+        queueteleport(QueueTeleportFunction)
+    end
+end)
