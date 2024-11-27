@@ -426,6 +426,7 @@ runFunction(function()
     })
 end)
 
+--[[
 runFunction(function()
     local Themes = {Value = "Default"}
     UpdateTheme = Tabs.Misc:CreateToggle({
@@ -448,6 +449,7 @@ runFunction(function()
         end
     })
 end)
+]]
 
 local Button = Instance.new("TextButton")
 local Corner = Instance.new("UICorner")
