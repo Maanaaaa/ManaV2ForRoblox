@@ -5,11 +5,6 @@ Loadstring:
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/MainScript.lua"))()
 ```
-and
-```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/NewestMainScript.lua"))()
-```
-(they both work the same)
 
 ## Supported Game's Features:
 ```
