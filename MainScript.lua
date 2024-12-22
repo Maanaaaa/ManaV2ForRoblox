@@ -1,5 +1,7 @@
 --[[
     Credits to anyones code I used or looked at
+
+    Removed the key system permamently.
 ]]
 
 repeat task.wait() until game:IsLoaded()
@@ -78,7 +80,7 @@ do
             Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath,
             Method = "GET"
         })
-        if not betterisfile(filepath) then
+        if not betterisfile(filepath) and not Mana.Developer then -- auto update workspace files
                 local context = req.Body
                 writefile(filepath, context)
             return loadstring(context)()
@@ -93,13 +95,6 @@ do
         end
     end
 end
-
---[[
-if not _G.KeySystemDone then
-    if Mana then Mana = nil end
-    return Functions:RunFile("NewestMainScript.lua")
-end
-]]
 
 Mana.CustomFileSystem = Functions
 
@@ -238,6 +233,28 @@ task.spawn(function() -- so it doesn't stop script loading
                 })
 
                 GuiLibrary:CreateNotification("Whitelist", "Successfully whitelisted as whitelisted and developer!", 10, true, "warn")
+            elseif _G.Helper then
+                Mana.Whitelisted = true
+
+                Tabs.Private = GuiLibrary:CreateTab({
+                    Name = "Private",
+                    Color = Color3.fromRGB(243, 247, 5),
+                    Visible = true,
+                    Callback = function() end
+                })
+
+                GuiLibrary:CreateNotification("Whitelist", "Successfully whitelisted as whitelisted and helper!", 10, true, "warn")
+            elseif _G.Tester then
+                Mana.Whitelisted = true
+
+                Tabs.Private = GuiLibrary:CreateTab({
+                    Name = "Private",
+                    Color = Color3.fromRGB(243, 247, 5),
+                    Visible = true,
+                    Callback = function() end
+                })
+
+                GuiLibrary:CreateNotification("Whitelist", "Successfully whitelisted as whitelisted and tester!", 10, true, "warn")
             end
             if Mana.Whitelisted or Mana.Developer then
                 TextChatService.OnIncomingMessage = function(Message, ChatStyle)
@@ -418,6 +435,7 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 Mana.Activated = false
+                Mana = nil
                 Uninject:Toggle(false)
                 wait(0.1)
                 GuiLibrary.ScreenGui:Destroy()
@@ -476,10 +494,10 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 print("[ManaV2ForRoblox/MainScript.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
-print("[ManaV2ForRoblox/MainScript.lua]: Loaded newest version.")
+--print("[ManaV2ForRoblox/MainScript.lua]: Loaded newest version.")
 
 UniversalScript = Functions:RunFile("Scripts/Universal.lua")
---GameScript = Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
+GameScript = Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
 
 LocalPlayer.OnTeleport:Connect(function(State)
     if State == Enum.TeleportState.Started then
