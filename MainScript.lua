@@ -496,7 +496,7 @@ end)
 print("[ManaV2ForRoblox/MainScript.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
 --print("[ManaV2ForRoblox/MainScript.lua]: Loaded newest version.")
 
-UniversalScript = Functions:RunFile("Scripts/Universal.lua")
+UniversalScript = Functions:RunFile("Universal.lua")
 GameScript = Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
 
 LocalPlayer.OnTeleport:Connect(function(State)
