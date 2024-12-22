@@ -82,7 +82,7 @@ do
         })
         if not betterisfile(filepath) and not Mana.Developer then -- auto update workspace files
                 local context = req.Body
-                writefile(filepath, context)
+                writefile("Mana/" .. filepath, context)
             return loadstring(context)()
         else
             if isfile("NewMana/" .. filepath) then
