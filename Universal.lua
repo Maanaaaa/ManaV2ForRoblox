@@ -1,5 +1,7 @@
 --[[
     Credits to anyones code i used or looked at
+
+    Made by Maanaaaa and Wowzers
 ]]
 
 repeat task.wait() until game:IsLoaded()
@@ -27,12 +29,11 @@ local HumanoidRootPart = Character.HumanoidRootPart
 local Humanoid = Character.Humanoid
 local workspace = workspace
 local Workspace = workspace
-local game = game -- just don't ask what i'm doing oaky?
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 local PlayerGui = LocalPlayer.PlayerGui
 local Backpack = LocalPlayer.Backpack
-local Animate = LocalPlayer.Character:FindFirstChild("Animate") -- bc in Arsenal it's missing
+local Animate = LocalPlayer.Character:FindFirstChild("Animate")
 local LightingTime = Lighting.TimeOfDay
 local workspaceGravity = workspace.Gravity
 local PlayerWalkSpeed = Humanoid.WalkSpeed
@@ -43,12 +44,18 @@ local OldFov = Camera.FieldOfView
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local CurrentTool = nil
+local allplayers = {}
 
+local Mana = shared.Mana
 local GuiLibrary = Mana.GuiLibrary
 local Tabs = Mana.Tabs
 local Functions = Mana.Functions
 local RunLoops = Mana.RunLoops
 local EntityLibrary = Mana.EntityLibrary
+local connections = Mana.Connections
+local friends = Mana.Friends
+local guifont = GuiLibrary.Font
+Mana.StartTick = startTick
 
 local getasset = getcustomasset
 local function runFunction(func) func() end
@@ -80,38 +87,42 @@ end
 
 local cachedassets = {}
 local function GetCustomAsset(path)
-    if not betterisfile(path) then
-        spawn(function()
-            local textlabel = Instance.new("TextLabel")
-            textlabel.Size = UDim2.new(1, 0, 0, 36)
-            textlabel.Text = "Downloading "..path
-            textlabel.BackgroundTransparency = 1
-            textlabel.TextStrokeTransparency = 0
-            textlabel.TextSize = 30
-            textlabel.Font = Library.Font
-            textlabel.TextColor3 = Color3.new(1, 1, 1)
-            textlabel.Position = UDim2.new(0, 0, 0, -36)
-            textlabel.Parent = ScreenGui
-            repeat wait() until betterisfile(path)
-            textlabel:Remove()
-        end)
-        local req = requestfunc({
-            Url = "https://raw.githubusercontent.com/Maan04ka/NewManaV2ForRoblox/main/" .. path:gsub("Mana/Assets", "Assets"),
-            Method = "GET"
-        })
-        writefile(path, req.Body)
+    if Mana.Developer then
+        return getasset("NewMana/" .. path)
+    else
+        if not betterisfile(path) then
+            spawn(function()
+                local textlabel = Instance.new("TextLabel")
+                textlabel.Size = UDim2.new(1, 0, 0, 36)
+                textlabel.Text = "Downloading "..path
+                textlabel.BackgroundTransparency = 1
+                textlabel.TextStrokeTransparency = 0
+                textlabel.TextSize = 30
+                textlabel.Font = GuiLibrary.Font
+                textlabel.TextColor3 = Color3.new(1, 1, 1)
+                textlabel.Position = UDim2.new(0, 0, 0, -36)
+                textlabel.Parent = GuiLibrary.ScreenGui
+                repeat wait() until betterisfile(path)
+                textlabel:Remove()
+            end)
+            local req = requestfunc({
+                Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. path:gsub("Mana/Assets", "Assets"),
+                Method = "GET"
+            })
+            writefile(path, req.Body)
+        end
+        if cachedassets[path] == nil then
+            cachedassets[path] = getasset(path) 
+        end
+        return cachedassets[path]
     end
-    if cachedassets[path] == nil then
-        cachedassets[path] = getasset(path) 
-    end
-    return cachedassets[path]
 end
 
 local spawn = function(func) 
     return coroutine.wrap(func)()
 end
 
-function CreateCoreNotification(title, text, duration)
+local function CreateCoreNotification(title, text, duration)
 	StarterGui:SetCore("SendNotification", {
 		Title = title,
 		Text = text,
@@ -128,9 +139,9 @@ while IsAlive() and wait(0.1) do
 end
 ]]
 
-local function IsAlive(Player, headCheck)
+local function IsAlive(Player, headCheck, humanoidRootPartCheckDisabled)
     local Player = Player or LocalPlayer
-    if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and (Player.Character:FindFirstChild("HumanoidRootPart")) and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
+    if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and (humanoidRootPartCheckDisabled == false and Player.Character:FindFirstChild("HumanoidRootPart")) and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
         return true
     else
         return false
@@ -190,24 +201,39 @@ local function GetColorFromPlayer(Player)
     if Player.Team ~= nil then return Player.TeamColor.Color end
 end
 
-local function ConvertHealthToColor(Health, MaxHealth) 
-    local Precent = (Health / MaxHealth) * 100
-    if Precent < 70 then 
-        return Color3.fromRGB(255, 196, 0)
-    elseif Precent < 45 then
-        return Color3.fromRGB(255, 71, 71)
+local function ConvertHealthToColor(Health, MaxHealth)
+    -- Input validation
+    if type(Health) ~= "number" or type(MaxHealth) ~= "number" then
+        return Color3.fromRGB(255, 255, 255)
     end
-    return Color3.fromRGB(96, 253, 48)
+    
+    if MaxHealth <= 0 then
+        return Color3.fromRGB(255, 0, 0)
+    end
+    
+    if Health <= 0 then
+        return Color3.fromRGB(255, 0, 0)
+    end
+    
+    local Percent = math.clamp((Health / MaxHealth) * 100, 0, 100)
+    
+    if Percent >= 70 then
+        return Color3.fromRGB(96, 253, 48) -- Green
+    elseif Percent >= 45 then
+        return Color3.fromRGB(255, 196, 0) -- Yellow
+    else
+        return Color3.fromRGB(255, 71, 71) -- Red
+    end
 end
 
-function IsVisible(Position, WallCheck, ...)
+local function IsVisible(Position, WallCheck, ...)
     if not WallCheck then
         return true
     end
     return #Camera:GetPartsObscuringTarget({Position}, {Camera, LocalPlayer.Character, ...}) == 0
 end
 
-function GetClosestPlayerToMouse(Fov, TeamCheck, AimPart, WallCheck)
+local function GetClosestPlayerToMouse(Fov, TeamCheck, AimPart, WallCheck)
     local AimFov = Fov
     local TargetPosition = nil
     for _, Player in pairs(Players:GetPlayers()) do
@@ -283,17 +309,17 @@ local function FindTouchInterest(Tool)
     return Tool and Tool:FindFirstChildWhichIsA("TouchTransmitter", true)
 end
 
-local ToolAddedConnection = LocalPlayer.Character.ChildAdded:Connect(function(Child)
+table.insert(connections, LocalPlayer.Character.ChildAdded:Connect(function(Child)
     if Child:IsA("Tool") then
         CurrentTool = Child
     end
-end)
+end))
 
-local ToolRemovedConnection = LocalPlayer.Character.ChildRemoved:Connect(function(Child)
+table.insert(connections, LocalPlayer.Character.ChildRemoved:Connect(function(Child)
     if Child:IsA("Tool") then
         CurrentTool = nil
     end
-end)
+end))
 
 -- CanClick is from vape
 local function CanClick()
@@ -311,36 +337,116 @@ local function CanClick()
     return true
 end
 
+local function GetNearInstances(Radius, Player, RequiredInstance, IgnoreInstances)
+    local Instances = {}
+    local UselessInstances = {}
+
+    local function IsIgnored(Instance)
+        if IgnoreInstances == nil then
+            return false
+        end
+        for _, v in pairs(IgnoreInstances) do
+            if Instance:IsA(v) then
+                return true
+            end
+        end
+        return false
+    end
+
+    for _, Instance in next, workspace:GetDescendants() do
+        if (not RequiredInstance or Instance:IsA(RequiredInstance)) and not IsIgnored(Instance) then
+            if Instance:IsA("ClickDetector") and RequiredInstance == not "ClickDetector" then
+                Instance = Instance.Parent
+            end
+            local Distance = (Instance.Position - Player.Character.HumanoidRootPart.Position).Magnitude
+            if Distance <= Radius then
+                table.insert(Instances, Instance)
+            end
+        else
+            if IsIgnored(Instance) then
+                table.insert(UselessInstances, Instance)
+            end
+        end
+    end
+
+    return Instances
+end
+
+local function isFriend(name)
+    for _, friend in next, friends do
+        if friend == name or name == friend then
+            return true
+        end
+    end
+    return false
+end
+
+for a, player in next, Players:GetPlayers() do
+    if player ~= LocalPlayer then
+        table.insert(allplayers, player)
+    end
+end
+
+table.insert(connections, Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        table.insert(allplayers, player)
+    end
+end))
+
+table.insert(connections, Players.PlayerRemoving:Connect(function(player)
+    for i, v in next, allplayers do
+        if v == player then
+            table.remove(allplayers, i)
+        end
+    end
+end))
+
 --[[
     ToDo list:
-    Add SilentAim - Done
-    Rewrite Reach - Done
+    Add normal ESP
     Rewrite FastFall - Next update
     Rewrite ForwardTP - Next update
     Rewrite HighJump + LongJump - Next update
     Rewrite SpinBot - Next update
-    Rewrite ESP - Done
-    Rewrite Tracers - Next update
-    Rewrite AntiVoid - Next update
+    Add PlayerFollow
+    Add PlayerJumpscare
+    Add TurnInToBall
+    Add J3rk0ff + all things that are connected with it
+    Add SoundPlayer (Visual/Utility + in FE/Trolling way)
 
 ]]
--- Combat tab
 
+-- Combat tab
+--[[
 runFunction(function()
     local SilentAim = {Enabled = false}
     local AimPart = {Value = "Head"}
     local AimHeld = {Value = "RMB"}
     local SilentAimSmoothness = {Value = 100}
     local SilentAimCircle = {Value = false}
+    local CircleTransparency = {Value = 0}
     local SilentAimCircleFilled = {Value = false}
     local SilentAimFov = {Value = 70}
     local SilentAimWallCheck = {Value = false}
     local SilentAimTeamCheck = {Value = false}
     local SilentAimAutoFire = {Value = false}
     local SilentAimAutoFireToolCheck = {Value = false}
+    local SilentAimShowTarget = {Value = false}
+    local SilentAimShowTargetFill = {Value = false}
+    local SilentAimShowTargetFillColor = {Value = "255, 255, 255"}
+    local SilentAimShowTargetFillTrasnparency = {Value = 0}
+    local SilentAimShowTargetOutline = {Value = false}
+    local SilentAimShowTargetOutlineColor = {Value = "255, 255, 255"}
+    local SilentAimShowTargetOutlineTrasnparency = {Value = 0}
+    local SilentAimFriends = {Value = false}
     local Circle
     local CircleUpdateConnection
     local MouseClicked
+    local InputConnection
+    local RightConnection
+    local LeftConnection
+    local OldTarget
+    local HighlightObject
 
     --FireShoot is from vape
 
@@ -354,7 +460,7 @@ runFunction(function()
         end
         if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
             if Player then
-                if CanClick() and GuiLibrary.ClickGui.Tabs == false and not UserInputService:GetFocusedTextBox() then
+                if CanClick() and GuiLibrary.Toggled == false and not UserInputService:GetFocusedTextBox() then
                     if MouseClicked then mouse1release() else mouse1press() end
                     MouseClicked = not MouseClicked
                 else
@@ -369,7 +475,7 @@ runFunction(function()
     end
 
     local function UpdateCircle()
-        if SilentAimCircle then
+        if SilentAimCircle.Value then
             if not Circle then
                 Circle = Drawing.new("Circle")
                 Circle.Filled = SilentAimCircleFilled.Enabled
@@ -411,10 +517,34 @@ runFunction(function()
                     RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
                         if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
                             local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if Player then
-                                AimAt(Player, SilentAimSmoothness.Value, AimPart.Value)
-                                if SilentAimAutoFire.Value then
-                                    FireShoot(SilentAimAutoFireToolCheck.Value)
+                            if Player and IsAlive(Player, AimPart.Value == "Head") then
+                                if SilentAimFriends.Value and isFriend(Player.Name) then 
+                                    print("FRIEND " .. Player.Name)
+                                    return
+                                else
+                                    if SilentAimShowTarget then
+                                        if Player == not OldTarget then
+                                            if HighlightObject then
+                                                HighlightObject:Destroy()
+                                            end
+                                            HighlightObject = Instance.new("Highlight")
+                                            HighlightObject.Parent = Player.Character
+                                            if SilentAimShowTargetFill.Value then
+                                                HighlightObject.FillColor = SilentAimShowTargetFillColor.Value:find("Color3") and SilentAimShowTargetFillColor or Color3.fromRGB(SilentAimShowTargetFillColor.Value)
+                                                HighlightObject.FillTransparency = SilentAimShowTargetFillTrasnparency.Value
+                                            end
+                                            if SilentAimShowTargetOutline.Value then
+                                                HighlightObject.OutlineColor = SilentAimShowTargetOutlineColor.Value:find("Color3") and SilentAimShowTargetOutlineColor or Color3.fromRGB(SilentAimShowTargetOutlineColor.Value)
+                                                HighlightObject.OutlineTransparency = SilentAimShowTargetOutlineTrasnparency.Value
+                                            end
+                                        end
+                                    end
+                                    if Player then
+                                        AimAt(Player, SilentAimSmoothness.Value, AimPart.Value)
+                                        if SilentAimAutoFire.Value then
+                                            FireShoot(SilentAimAutoFireToolCheck.Value)
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -511,13 +641,269 @@ runFunction(function()
         Default = false,
         Function = function(v) end
     })
+
+    SilentAimShowTarget = SilentAim:CreateToggle({
+        Name = "Show Target",
+        Default = false,
+        Callback = function(v)
+            if SilentAimShowTargetFill.MainObject then SilentAimShowTargetFill.MainObject.Visible = v end
+            if SilentAimShowTargetFillColor.MainObject then SilentAimShowTargetFillColor.MainObject.Visible = v end
+        end
+    })
+
+    SilentAimShowTargetFill = SilentAim:CreateToggle({
+        Name = "FillTarget",
+        Default = false,
+        Function = function(v) 
+            if SilentAimShowTargetFillColor.MainObject then SilentAimShowTargetFillColor.MainObject.Visible = v end
+            if SilentAimShowTargetFillTrasnparency.MainObject then SilentAimShowTargetFillTrasnparency.MainObject.Visible = v end
+        end
+    })
+
+    SilentAimShowTargetFillColor = SilentAim:CreateTextBox({
+        Name = "Fill Color",
+        PlaceholderText = "Color (RGB)",
+        Function = function(v) end
+    })
+
+    SilentAimShowTargetFillTrasnparency = SilentAim:CreateSlider({
+        Name = "Fill Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1,
+    })
+
+    SilentAimShowTargetOutline = SilentAim:CreateToggle({
+        Name = "Outline Target",
+        Default = false,
+        Function = function(v) 
+            if SilentAimShowTargetOutlineColor.MainObject then SilentAimShowTargetOutlineColor.MainObject.Visible = v end
+            if SilentAimShowTargetOutlineTrasnparency.MainObject then SilentAimShowTargetOutlineTrasnparency.MainObject.Visible = v end
+        end
+    })
+
+    SilentAimShowTargetOutlineColor = SilentAim:CreateTextBox({
+        Name = "Outline Color",
+        PlaceholderText = "Color (RGB)",
+        Function = function(v) end
+    })
+
+    SilentAimShowTargetOutlineTrasnparency = SilentAim:CreateSlider({
+        Name = "Outline Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1,
+    })
+
+    SilentAimFriends = SilentAim:CreateToggle({
+        Name = "WhitelistFriends",
+        Default = false,
+        Function = function(v) end
+    })
+end)
+]]
+
+runFunction(function()
+    local SilentAim = {Enabled = false}
+    local AimPart = {Value = "Head"}
+    local AimHeld = {Value = "RMB"}
+    local SilentAimSmoothness = {Value = 100}
+    local SilentAimCircle = {Value = false}
+    local SilentAimCircleTransparency = {Value = 0}
+    local SilentAimCircleFilled = {Value = false}
+    local SilentAimFov = {Value = 70}
+    local SilentAimWallCheck = {Value = false}
+    local SilentAimTeamCheck = {Value = false}
+    local SilentAimAutoFire = {Value = false}
+    local SilentAimAutoFireToolCheck = {Value = false}
+    local Circle
+    local CircleUpdateConnection
+    local MouseClicked
+    local connection
+    local LeftConnection
+    local RightConnection
+
+    --FireShoot is from vape
+
+    local function FireShoot(ToolCheck)
+        local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+
+        if ToolCheck then
+            if CurrentTool == nil then
+                return 
+            end
+        end
+        if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
+            if Player then
+                if CanClick() and GuiLibrary.ClickGui.Tabs == false and not UserInputService:GetFocusedTextBox() then
+                    if MouseClicked then mouse1release() else mouse1press() end
+                    MouseClicked = not MouseClicked
+                else
+                    if MouseClicked then mouse1release() end
+                    MouseClicked = false
+                end
+            else
+                if MouseClicked then mouse1release() end
+                MouseClicked = false
+            end
+        end
+    end
+
+    local function UpdateCircle()
+        if SilentAimCircle then
+            if not Circle then
+                Circle = Drawing.new("Circle")
+                Circle.Filled = SilentAimCircleFilled.Enabled
+                Circle.Thickness = 3
+                Circle.Radius = SilentAimFov.Value
+                Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                Circle.Visible = true
+                Circle.Transparency = SilentAimCircleTransparency.Value
+
+                CircleUpdateConnection = Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+                    Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                end)
+            end
+        else
+            if Circle then
+                Circle:Destroy()
+                Circle = nil
+            end
+            if CircleUpdateConnection then
+                CircleUpdateConnection:Disconnect()
+            end
+        end
+    end
+
+    local SilentAim = Tabs.Combat:CreateToggle({
+        Name = "SilentAim",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                connection = UserInputService.InputBegan:Connect(function(Input)
+                    if (AimHeld.Value == "RMB" and Input.UserInputType == Enum.UserInputType.MouseButton2) then
+                        RightConnection = true
+                        LeftConnection = false
+                    elseif (AimHeld.Value == "LMB" and Input.UserInputType == Enum.UserInputType.MouseButton1) then
+                        LeftConnection = true
+                        RightConnection = false
+                    end
+
+                    RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
+                        if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
+                            local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+                            if Player then
+                                AimAt(Player, SilentAimSmoothness.Value, AimPart.Value)
+                                if SilentAimAutoFire.Value then
+                                    FireShoot(SilentAimAutoFireToolCheck.Value)
+                                end
+                            end
+                        end
+                    end)
+                end)
+            else
+                connection:Disconnect()
+                RunService:UnbindFromRenderStep("SilentAim")
+            end
+        end
+    })
+
+    AimPart = SilentAim:CreateDropDown({
+        Name = "Aim Part",
+        Function = function(v) end,
+        List = {"Head", "HumanoidRootPart"},
+        Default = "Head",
+    })
+
+    AimHeld = SilentAim:CreateDropDown({
+        Name = "Mouse Held",
+        Function = function(v) end,
+        List = {"LMB", "RMB"},
+        Default = "RMB",
+    })
+
+    SilentAimSmoothness = SilentAim:CreateSlider({
+        Name = "Smoothness",
+        Function = function(v) end,
+        Min = 1,
+        Max = 100,
+        Default = 10,
+        Round = 0,
+    })
+
+    SilentAimFov = SilentAim:CreateSlider({
+        Name = "Fov",
+        Function = function(v) end,
+        Min = 1,
+        Max = 120,
+        Default = 70,
+        Round = 0,
+    })
+
+    SilentAimTeamCheck = SilentAim:CreateToggle({
+        Name = "Team Check",
+        Default = false,
+        Function = function(v) end
+    })
+
+    SilentAimWallCheck = SilentAim:CreateToggle({
+        Name = "Wall Check",
+        Default = false,
+        Function = function(v) end
+    })
+
+    SilentAimCircle = SilentAim:CreateToggle({
+        Name = "FOV Circle",
+        Default = false,
+        Function = function(v) 
+            if SilentAimCircleTransparency.MainObject then SilentAimCircleTransparency.MainObject.Visible = v end
+            if SilentAimCircleFilled.MainObject then SilentAimCircleFilled.MainObject.Visible = v end
+			if v then
+				UpdateCircle()
+			end
+        end
+    })
+    
+    SilentAimCircleTransparency = SilentAim:CreateSlider({
+        Name = "Circle Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1,
+    })
+
+    SilentAimCircleFilled = SilentAim:CreateToggle({
+        Name = "Circle Filled",
+        Default = false,
+        Function = function(v) end
+    })
+
+    SilentAimAutoFire = SilentAim:CreateToggle({
+        Name = "Auto Fire",
+        Default = false,
+        Function = function(v) 
+            if SilentAimAutoFireToolCheck.MainObject then SilentAimAutoFireToolCheck.MainObject.Visible = v end
+        end
+    })
+
+    SilentAimAutoFireToolCheck = SilentAim:CreateToggle({
+        Name = "Tool Check",
+        Default = false,
+        Function = function(v) end
+    })
     
 end)
 
 runFunction(function()
     local AutoClickerMode = {Value = "Click"}
     local AutoClickerCPS = {Value = 15}
-    AutoClicker = Tabs.Combat:CreateToggle({
+
+    local AutoClicker = Tabs.Combat:CreateToggle({
         Name = "AutoClicker",
         Keybind = nil,
         Callback = function(callback)
@@ -531,7 +917,7 @@ runFunction(function()
                             end
                         end
                     elseif AutoClickerMode.Value == "Tool" then
-                        if CurrentTool == not nil and CanClick() then
+                        if CurrentTool == not nil and CurrentTool:IsA("Tool") and CanClick() then
                             CurrentTool:Active()
                         end
                     end
@@ -564,7 +950,7 @@ runFunction(function()
     local PlayerAddedConnection
 
     local function UpdatePlayer(Player)
-        if IsPlayerTargetable(Player, true) then
+        if IsAlive(Player, ReachExpandPart.Value == "Head") and IsPlayerTargetable(Player, true) then
             if ReachExpandPart.Value == "HumanoidRootPart" then
                 Player.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
             elseif ReachExpandPart.Value == "Head" then
@@ -586,8 +972,7 @@ runFunction(function()
                 end)
             else
                 for _, Player in next, Players:GetPlayers() do
-                    Player.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
-                    Player.Character.Head.Size = Vector3.new((ReachExpand.Value / 10), (ReachExpand.Value / 10), (ReachExpand.Value / 10))
+                    UpdatePlayer(Player)
                 end
                 if PlayerAddedConnection then
                     PlayerAddedConnection:Disconnect()
@@ -994,9 +1379,11 @@ end)
 
 runFunction(function()
     local HighJumpMode = {Value = "Velocity"}
+    local HighJumpJumps = {Value = 5}
     local JumpMode = {Value = "Toggle"}
     local HighJumpHeight = {Value = 20}
     local HighJumpForce = {Value = 25}
+    local connection
 
     HighJump = Tabs.Movement:CreateToggle({
         Name = "HighJump",
@@ -1006,67 +1393,48 @@ runFunction(function()
                 local Character = LocalPlayer.Character
                 local Humanoid = Character.Humanoid
                 local HumanoidRootPart = Character.HumanoidRootPart
-                local VelocityX = HumanoidRootPart.Velocity.X
-                local VelocityY = HumanoidRootPart.Velocity.Y
-                local VelocityZ = HumanoidRootPart.Velocity.Z
 
                 if JumpMode.Value == "Toggle" then
                     if HighJumpMode.Value == "Jump" then
                         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                         task.wait()
-                        workspace.Gravity = 5
                         spawn(function()
-                            for i = 1, HighJumpForce.Value do
+                            for i = 1, HighJumpJumps.Value do
                                 wait()
                                 Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             end
                         end)
-                        spawn(function()
-                            for i = 1, HighJumpForce.Value / 28 do
-                                task.wait(0.1)
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-                                task.wait(0.1)
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                            end
-                        end)
-                        HighJump:Toggle(false, false)
                     elseif HighJumpMode.Value == "Velocity" then
-                        HumanoidRootPart.Velocity = Vector3.new(VelocityX, VelocityY + HighJumpHeight.Value, VelocityZ)
-                        HighJump:Toggle(false, false)
+                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        HumanoidRootPart.Velocity = HumanoidRootPart.Velocity + Vector3.new(0, HighJumpHeight.Value, 0)
                     elseif HighJumpMode.Value == "TP" then
-                        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value / 1.5, 0)
-                        HighJump:Toggle(false, false)
+                        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value, 0)
                     end
+                    HighJump:Toggle(false, false) 
                 elseif JumpMode.Value == "Normal" then
                     RunLoops:BindToRenderStep("HighJump", function()
-                        UserInputService.JumpRequest:Connect(function()
+                        connection = table.insert(connections, UserInputService.JumpRequest:Connect(function()
                             if HighJumpMode.Value == "Jump" then
                                 Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                                 task.wait()
                                 workspace.Gravity = 5
                                 spawn(function()
-                                    for i = 1, HighJumpForce.Value do
+                                    for i = 1, HighJumpJumps.Value do
                                         wait()
                                         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                                     end
                                 end)
-                                spawn(function()
-                                    for i = 1, HighJumpForce.Value / 28 do
-                                        task.wait(0.1)
-                                        Humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-                                        task.wait(0.1)
-                                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                    end
-                                end)
                             elseif HighJumpMode.Value == "Velocity" then
-                                HumanoidRootPart.Velocity = Vector3.new(VelocityX, VelocityY + HighJumpHeight.Value, VelocityZ)
+                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                                HumanoidRootPart.Velocity = HumanoidRootPart.Velocity + Vector3.new(0, HighJumpHeight.Value, 0)
                             elseif HighJumpMode.Value == "TP" then
-                                HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value / 1.5, 0)
+                                HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value, 0)
                             end
-                        end)
+                        end))
                     end)
                 end
             else
+                if connection then connection:Disconnect(); connection:disconnect() end
                 RunLoops:UnbindFromRenderStep("HighJump")
                 workspace.Gravity = 196.19999694824
             end
@@ -1083,12 +1451,18 @@ runFunction(function()
                 if HighJumpHeight.MainObject then
                     HighJumpHeight.MainObject.Visible = true
                 end
+                if HighJumpJumps.MainObject then
+                    HighJumpJumps.MainObject.Visible = false
+                end
             elseif v == "Jump" then
                 if HighJumpHeight.MainObject then
                     HighJumpHeight.MainObject.Visible = false
                 end
                 if HighJumpForce.MainObject then
                     HighJumpForce.MainObject.Visible = true
+                end
+                if HighJumpJumps.MainObject then
+                    HighJumpJumps.MainObject.Visible = true
                 end
             end
         end,
@@ -1098,9 +1472,18 @@ runFunction(function()
 
     JumpMode = HighJump:CreateDropDown({
         Name = "Mode",
-        Function = function(v) end,
+        Callback = function(v) end,
         List = {"Toggle", "Normal"},
         Default = "Toggle"
+    })
+
+    HighJumpJumps = HighJump:CreateSlider({
+        Name = "Jumps",
+        Function = function() end,
+        Min = 0,
+        Max = 100,
+        Default = 5,
+        Round = 0
     })
 
     HighJumpHeight = HighJump:CreateSlider({
@@ -1125,6 +1508,7 @@ end)
 runFunction(function()
     local LongJumpMode = {Value = "Velocity"}
     local LongJumpPower = {Value = 2}
+
     LongJump = Tabs.Movement:CreateToggle({
         Name = "LongJump",
         Keybind = nil,
@@ -1136,9 +1520,6 @@ runFunction(function()
                 local OldVelocity = HumanoidRootPart.Velocity
                 if LongJumpMode.Value == "CFrame" then
                     Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    if not callback then return end
-                    Humanoid.WalkSpeed = 15
-                    workspace.Gravity = 23
                     HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -0.2, -2.1)
                     Humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
                     wait(0.1)
@@ -1147,15 +1528,12 @@ runFunction(function()
                     wait(0.1)
                     HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0.2, 0)
                     Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                    LongJump:Toggle(false)
                 elseif LongJumpMode.Value == "Velocity" then
-                    local NewVelocity = (OldVelocity * LongJumpPower.Value) / 2.5
-                    local NewVelocityY = OldVelocity.Y
-                    HumanoidRootPart.Velocity = Vector3.new(NewVelocity.X, NewVelocityY, NewVelocity.X)
-                    LongJump:Toggle(false)
+                    local NewVelocity = OldVelocity * LongJumpPower.Value -- (OldVelocity * LongJumpPower.Value) / 2.5
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    HumanoidRootPart.Velocity = Vector3.new(NewVelocity.X, OldVelocity.Y, NewVelocity.X)
                 end
-            else
-                workspace.Gravity = 196.19999694824
+                LongJump:Toggle(false)
             end
         end
     })
@@ -1229,6 +1607,11 @@ runFunction(function()
                         local VelocityX = HumanoidRootPart.Velocity.X
                         local VelocityZ = HumanoidRootPart.Velocity.Z
 
+                        if JumpPowerValue.Value > Humanoid.JumpPower then
+                            Humanoid.JumpPower = JumpPowerValue.Value
+                            Humanoid.UseJumpPower = true
+                        end
+
                         if SpeedMode.Value == "Velocity" then
                             local Velocity = Humanoid.MoveDirection * (SpeedValue.Value * 5) * Delta
                             local NewVelocity = Vector3.new(Velocity.X / 10, 0, Velocity.Z / 10)
@@ -1255,7 +1638,6 @@ runFunction(function()
                             Character.Animate.Disabled = true
                         end
 
-                        Humanoid.JumpPower = JumpPowerValue.Value
                     end
                 end)
             else
@@ -1530,6 +1912,255 @@ runFunction(function()
 end)
 
 runFunction(function()
+    local ChamsMode = {Value = "SelectionBox"}
+    local ChamsAdorneePart = {Value = "HumanoidRootPart"}
+    local ChamsSelectionBoxLineThickness = {Value = 0}
+    local ChamsSelectionBoxSurfaceTransparency = {Value = 0}
+    local ChamsBoxHandleAdornmentSizeX = {Value = 1}
+    local ChamsBoxHandleAdornmentSizeY = {Value = 1}
+    local ChamsBoxHandleAdornmentSizeZ = {Value = 1}
+    local ChamsBoxHandleAdornmentAlwaysOnTop = {Value = true}
+    local ChamsHighlightOutline = {Value = true}
+    local ChamsHighlightOutlineTransparency = {Value = 0}
+    local ChamsHighlightFill = {Value = false}
+    local ChamsHighlightFillTransparency = {Value = 0}
+    local ChamsTransparency = {Value = 0.6}
+    local ChamsTeamColor = {Value = false}
+    local ChamsTeammates = {Value = false}
+    local PlayerAddedConnection
+
+    local ChamsFolder = Instance.new("Folder")
+    ChamsFolder.Parent = workspace
+    ChamsFolder.Name = "ChamsFolder"
+
+    local ObjectsName = {
+        "SelectionBoxObject",
+        "BoxHandleAdornmentObject",
+        "HighlightObject"
+    }
+
+    local function RemoveChams(Player)
+        local Character = Player.Character
+        if not Character then return end
+
+        for _, Object in ipairs(ObjectsName) do
+            local Object = Character:FindFirstChild(Object)
+            if Object then
+                Object:Destroy()
+            end
+        end
+    end
+
+    local function UpdateChams(Player)
+        if IsAlive(Player) then
+            local Character = Player.Character
+            if not Character then return end
+            local AdorneePart = ChamsAdorneePart.Value == "Full Character" and Character or Character:FindFirstChild(ChamsAdorneePart.Value)
+            local color = ChamsTeamColor.Value and Player.Team and Player.TeamColor or Color3.fromRGB(255, 0, 0)
+
+            if ChamsMode.Value == "SelectionBox" then
+                local BoxObject = Character:FindFirstChild("SelectionBoxObject")
+                if not BoxObject then
+                    BoxObject = Instance.new("SelectionBox")
+                    BoxObject.Name = "SelectionBoxObject"
+                    BoxObject.Parent = Character
+                end
+                BoxObject.Adornee = AdorneePart
+                BoxObject.LineThickness = ChamsSelectionBoxLineThickness.Value
+                BoxObject.SurfaceColor3 = color
+                BoxObject.SurfaceTransparency = ChamsSelectionBoxSurfaceTransparency.Value
+                BoxObject.Transparency = ChamsTransparency.Value
+            elseif ChamsMode.Value == "BoxHandleAdornment" then
+                local BoxObject = Character:FindFirstChild("BoxHandleAdornmentObject")
+                if not BoxObject then
+                    BoxObject = Instance.new("BoxHandleAdornment")
+                    BoxObject.Name = "BoxHandleAdornmentObject"
+                    BoxObject.Parent = Character
+                end
+                BoxObject.Adornee = AdorneePart
+                BoxObject.Size = Vector3.new(ChamsBoxHandleAdornmentSizeX.Value, ChamsBoxHandleAdornmentSizeY.Value, ChamsBoxHandleAdornmentSizeZ.Value)
+                BoxObject.AlwaysOnTop = ChamsBoxHandleAdornmentAlwaysOnTop.Value
+                BoxObject.Color3 = color
+                BoxObject.Transparency = ChamsTransparency.Value
+            elseif ChamsMode.Value == "Highlight" then
+                local HighlightObject = Character:FindFirstChild("HighlightObject")
+                if not HighlightObject then
+                    HighlightObject = Instance.new("Highlight")
+                    HighlightObject.Name = "HighlightObject"
+                    HighlightObject.Parent = Character
+                end
+                HighlightObject.Adornee = AdorneePart
+                HighlightObject.FillColor = ChamsHighlightFill.Value and color or Color3.fromRGB(255, 255, 255)
+                HighlightObject.FillTransparency = ChamsHighlightFillTransparency.Value
+                HighlightObject.OutlineColor = color
+                HighlightObject.OutlineTransparency = ChamsHighlightOutline.Value and ChamsHighlightOutlineTransparency.Value or 1
+            end
+        end
+    end
+
+    local Chams = Tabs.Render:CreateToggle({
+        Name = "Chams",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                for _, Player in next, Players:GetPlayers() do
+                    UpdateChams(Player)
+                end
+
+                PlayerAddedConnection = Players.PlayerAdded:Connect(function(Player)
+                    UpdateChams(Player)
+                end)
+            else
+                for _, Player in next, Players:GetPlayers() do
+                    RemoveChams(Player)
+                end
+                if PlayerAddedConnection then
+                    PlayerAddedConnection:Disconnect()
+                end
+            end
+        end
+    })
+
+    ChamsAdorneePart = Chams:CreateDropDown({
+        Name = "Attach Part",
+        List = {"Head", "HumanoidRootPart", "Full Character"},
+        Default = "Full Character",
+        Callback = function(v) end
+    })
+
+    ChamsMode = Chams:CreateDropDown({
+        Name = "Mode",
+        List = {"SelectionBox", "BoxHandleAdornment", "Highlight"},
+        Default = "SelectionBox",
+        Callback = function(v)
+            local modeVisibility = {
+                SelectionBox = {ChamsSelectionBoxLineThickness, ChamsSelectionBoxSurfaceTransparency},
+                BoxHandleAdornment = {ChamsBoxHandleAdornmentSizeX, ChamsBoxHandleAdornmentSizeY, ChamsBoxHandleAdornmentSizeZ},
+                Highlight = {ChamsHighlightOutline, ChamsHighlightFill}
+            }
+    
+            for _, group in pairs(modeVisibility) do
+                for _, item in ipairs(group) do
+                    if item.MainObject then
+                        item.MainObject.Visible = false
+                    end
+                end
+            end
+    
+            for _, item in ipairs(modeVisibility[v]) do
+                if item.MainObject then
+                    item.MainObject.Visible = true
+                end
+            end
+        end
+    })
+
+    ChamsSelectionBoxLineThickness = Chams:CreateSlider({
+        Name = "Line Thickness",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+
+    ChamsSelectionBoxSurfaceTransparency = Chams:CreateSlider({
+        Name = "Surface Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    ChamsBoxHandleAdornmentSizeX = Chams:CreateSlider({
+        Name = "Box Size X",
+        Function = function(v) end,
+        Min = 1,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    ChamsBoxHandleAdornmentSizeY = Chams:CreateSlider({
+        Name = "Box Size Y",
+        Function = function(v) end,
+        Min = 1,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    ChamsBoxHandleAdornmentSizeZ = Chams:CreateSlider({
+        Name = "Box Size Z",
+        Function = function(v) end,
+        Min = 1,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    ChamsHighlightOutline = Chams:CreateToggle({
+        Name = "Outline",
+        Default = true,
+        Function = function(v)
+            if ChamsHighlightOutlineTransparency.MainObject then
+                ChamsHighlightOutlineTransparency.MainObject.Visible = v
+            end
+        end
+    })
+
+    ChamsHighlightOutlineTransparency = Chams:CreateSlider({
+        Name = "Outline Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+
+    ChamsHighlightFill = Chams:CreateToggle({
+        Name = "Fill",
+        Default = true,
+        Function = function(v)
+            if ChamsHighlightFillTransparency.MainObject then
+                ChamsHighlightFillTransparency.MainObject.Visible = v
+            end
+        end
+    })
+
+    ChamsHighlightFillTransparency = Chams:CreateSlider({
+        Name = "Fill Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+
+    ChamsTransparency = Chams:CreateSlider({
+        Name = "Chams Transparency",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+
+    ChamsTeammates = Chams:CreateToggle({
+        Name = "Teammates",
+        Default = false,
+        Function = function(v) end
+    })
+
+    ChamsTeamColor = Chams:CreateToggle({
+        Name = "TeamColor",
+        Default = false,
+        Function = function(v) end
+    })
+end)
+
+runFunction(function()
     local ChinaHatTrail
     local ChinaHatEnabled = false
     ChinaHat = Tabs.Render:CreateToggle({
@@ -1589,6 +2220,7 @@ if GuiLibrary.Device ~= "Mobile" then
                 end
             end
         })
+
         CrossHairId = CustomCrossHair:CreateTextBox({
             Name = "CrossHairID",
             PlaceholderText = "Cross Hair ID",
@@ -1598,89 +2230,63 @@ if GuiLibrary.Device ~= "Mobile" then
     end)
 end
 
+--[[
 runFunction(function()
-    local EspMode = {Value = "SelectionBox"}
-    local EspAdorneePart = {Value = "HumanoidRootPart"}
-    local EspSelectionBoxLineThickness = {Value = 0}
-    local EspSelectionBoxSurfaceTransparency = {Value = 0}
-    local EspBoxHandleAdornmentSizeX = {Value = 1}
-    local EspBoxHandleAdornmentSizeY = {Value = 1}
-    local EspBoxHandleAdornmentSizeZ = {Value = 1}
-    local EspBoxHandleAdornmentAlwaysOnTop = {Value = true}
-    local EspHighlightOutline = {Value = true}
-    local EspHighlightOutlineTransparency = {Value = 0}
-    local EspHighlightFill = {Value = false}
-    local EspHighlightFillTransparency = {Value = 0}
-    local EspTransparency = {Value = 0.6}
-    local EspTeamColor = {Value = false}
-    local EspTeammates = {Value = false}
-    local PlayerAddedConnection
+    local EspMode = {Value = "Image"}
+    local NameMode = {Value = "Username"}
+    local HealthBar = {Value = false}
+    local Distance = {Value = false}
 
     local ESPFolder = Instance.new("Folder")
-    ESPFolder.Parent = workspace
-    ESPFolder.Name = "ESPFolder"
-
-    local ObjectsName = {
-        "SelectionBoxObject",
-        "BoxHandleAdornmentObject",
-        "HighlightObject"
-    }
+    ESPFolder.Parent = Workspace
+    local PlayersTable = {}
+    local PlayerAddedConnection
+    local PlayerRemovingConnection
 
     local function RemoveEsp(Player)
-        local Character = Player.Character
-        if not Character then return end
+        local Image = ESPFolder:FindFirstChild(Player.Name)
 
-        for _, Object in ipairs(ObjectsName) do
-            local Object = Character:FindFirstChild(Object)
-            if Object then
-                Object:Destroy()
-            end
+        if Image then
+            Image:Destroy()
         end
     end
 
     local function UpdateEsp(Player)
-        if IsAlive(Player) then
-            local Character = Player.Character
-            if not Character then return end
-            local AdorneePart = EspAdorneePart.Value == "Full Character" and Character or Character:FindFirstChild(EspAdorneePart.Value)
-            local color = EspTeamColor.Value and Player.Team and Player.TeamColor or Color3.fromRGB(255, 0, 0)
+        if EspMode.Value == "Image" then
+            local Image
+            if PlayersTable[Player.Name] then
+                if ESPFolder:FindFirstChild(Player.Name) then
+                    Image = ESPFolder[Player.Name]
+                    Image.Visible = false
+                else
+                    Image = Instance.new("ImageLabel")
+                    Image.BackgroundTransparency = 1
+                    Image.BorderSizePixel = 0
+                    Image.Image = GetCustomAsset("Assets/EspFrame.png") --GetCustomAsset("Assets/EspFrame.png")
+                    Image.Visible = false
+                    Image.Name = Player.Name
+                    Image.Parent = ESPFolder
+                    Image.Size = UDim2.new(0, 256, 0, 256)
+                end
+                print(1)
 
-            if EspMode.Value == "SelectionBox" then
-                local BoxObject = Character:FindFirstChild("SelectionBoxObject")
-                if not BoxObject then
-                    BoxObject = Instance.new("SelectionBox")
-                    BoxObject.Name = "SelectionBoxObject"
-                    BoxObject.Parent = Character
+                if IsAlive(Player) and Player ~= LocalPlayer and Player.Team ~= tostring(LocalPlayer.Team) then
+                    print(2)
+                    local Character = Player.Character
+                    local Humanoid = Character.Humanoid
+                    local HumanoidRootPart = Character.HumanoidRootPart
+                    local RootPos, RootVis = Camera:WorldToViewportPoint(HumanoidRootPart.Position)
+                    local RootSize = (HumanoidRootPart.Size.X * 1200) * (Camera.ViewportSize.X / 1920)
+                    local HeadPos, HeadVis = Camera:WorldToViewportPoint(HumanoidRootPart.Position + Vector3.new(0, 1 + (Humanoid.RigType == Enum.HumanoidRigType.R6 and 2 or Humanoid.HipHeight), 0))
+                    local LegPos, LegVis = Camera:WorldToViewportPoint(HumanoidRootPart.Position - Vector3.new(0, 1 + (Humanoid.RigType == Enum.HumanoidRigType.R6 and 2 or Humanoid.HipHeight), 0))
+                    RootPos = RootPos
+                    if RootVis then
+                        print(RootVis)
+                        Image.Visible = RootVis
+                        Image.Size = UDim2.new(0, RootSize / RootPos.Z, 0, HeadPos.Y - LegPos.Y)
+                        Image.Position = UDim2.new(0, RootPos.X - Image.Size.X.Offset / 2, 0, (RootPos.Y - Image.Size.Y.Offset / 2) - 36)
+                    end
                 end
-                BoxObject.Adornee = AdorneePart
-                BoxObject.LineThickness = EspSelectionBoxLineThickness.Value
-                BoxObject.SurfaceColor3 = color
-                BoxObject.SurfaceTransparency = EspSelectionBoxSurfaceTransparency.Value
-                BoxObject.Transparency = EspTransparency.Value
-            elseif EspMode.Value == "BoxHandleAdornment" then
-                local BoxObject = Character:FindFirstChild("BoxHandleAdornmentObject")
-                if not BoxObject then
-                    BoxObject = Instance.new("BoxHandleAdornment")
-                    BoxObject.Name = "BoxHandleAdornmentObject"
-                    BoxObject.Parent = Character
-                end
-                BoxObject.Adornee = AdorneePart
-                BoxObject.Size = Vector3.new(EspBoxHandleAdornmentSizeX.Value, EspBoxHandleAdornmentSizeY.Value, EspBoxHandleAdornmentSizeZ.Value)
-                BoxObject.AlwaysOnTop = EspBoxHandleAdornmentAlwaysOnTop.Value
-                BoxObject.Color3 = color
-                BoxObject.Transparency = EspTransparency.Value
-            elseif EspMode.Value == "Highlight" then
-                local HighlightObject = Character:FindFirstChild("HighlightObject")
-                if not HighlightObject then
-                    HighlightObject = Instance.new("Highlight")
-                    HighlightObject.Name = "HighlightObject"
-                    HighlightObject.Parent = Character
-                end
-                HighlightObject.Adornee = AdorneePart
-                HighlightObject.FillColor = EspHighlightFill.Value and color or Color3.fromRGB(255, 255, 255)
-                HighlightObject.FillTransparency = EspHighlightFillTransparency.Value
-                HighlightObject.OutlineColor = color
-                HighlightObject.OutlineTransparency = EspHighlightOutline.Value and EspHighlightOutlineTransparency.Value or 1
             end
         end
     end
@@ -1690,158 +2296,81 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                for _, Player in next, Players:GetPlayers() do
-                    UpdateEsp(Player)
-                end
+                RunLoops:BindToHeartbeat("ESP", function()
+                    for _, Player in next, Players:GetPlayers() do
+                        PlayersTable[Player.Name] = Player.Name
+                        UpdateEsp(Player)
+                    end
+                end)
 
                 PlayerAddedConnection = Players.PlayerAdded:Connect(function(Player)
                     UpdateEsp(Player)
                 end)
+
+                PlayerRemovingConnection = Players.PlayerRemoving:Connect(function(Player)
+                    RemoveEsp(Player)
+                end)
             else
+                RunLoops:UnbindFromRenderStep("ESP")
                 for _, Player in next, Players:GetPlayers() do
                     RemoveEsp(Player)
                 end
                 if PlayerAddedConnection then
                     PlayerAddedConnection:Disconnect()
                 end
+                if PlayerRemovingConnection then
+                    PlayerRemovingConnection:Disconnect()
+                end
             end
         end
-    })
-
-    EspAdorneePart = Esp:CreateDropDown({
-        Name = "Attach Part",
-        List = {"Head", "HumanoidRootPart", "Full Character"},
-        Default = "Full Character",
-        Callback = function(v) end
     })
 
     EspMode = Esp:CreateDropDown({
         Name = "Mode",
-        List = {"SelectionBox", "BoxHandleAdornment", "Highlight"},
-        Default = "SelectionBox",
+        List = {"Image"},
+        Default = "Image",
         Callback = function(v)
-            local modeVisibility = {
-                SelectionBox = {EspSelectionBoxLineThickness, EspSelectionBoxSurfaceTransparency},
-                BoxHandleAdornment = {EspBoxHandleAdornmentSizeX, EspBoxHandleAdornmentSizeY, EspBoxHandleAdornmentSizeZ},
-                Highlight = {EspHighlightOutline, EspHighlightFill}
-            }
-    
-            for _, group in pairs(modeVisibility) do
-                for _, item in ipairs(group) do
-                    if item.MainObject then
-                        item.MainObject.Visible = false
-                    end
-                end
-            end
-    
-            for _, item in ipairs(modeVisibility[v]) do
-                if item.MainObject then
-                    item.MainObject.Visible = true
-                end
+
+        end
+    })
+
+    EspName = Esp:CreateToggle({
+        Name = "Name",
+        Default = false,
+        Function = function(v)
+            if NameMode.MainObject then
+                NameMode.MainObject.Visible = v
             end
         end
     })
 
-    EspSelectionBoxLineThickness = Esp:CreateSlider({
-        Name = "Line Thickness",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
+    NameMode = Esp:CreateDropDown({
+        Name = "Name Mode",
+        List = {"Username", "DisplayName"},
+        Default = "Username",
+        Callback = function(v)
 
-    EspSelectionBoxSurfaceTransparency = Esp:CreateSlider({
-        Name = "Surface Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 10,
-        Default = 1,
-        Round = 1
+        end
     })
+    NameMode.MainObject.Visible = false
 
-    EspBoxHandleAdornmentSizeX = Esp:CreateSlider({
-        Name = "Box Size X",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    EspBoxHandleAdornmentSizeY = Esp:CreateSlider({
-        Name = "Box Size Y",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    EspBoxHandleAdornmentSizeZ = Esp:CreateSlider({
-        Name = "Box Size Z",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    EspHighlightOutline = Esp:CreateToggle({
-        Name = "Outline",
-        Default = true,
+    HealthBar = Esp:CreateToggle({
+        Name = "HealthBar",
+        Default = false,
         Function = function(v)
-            EspHighlightOutlineTransparency.MainObject.Visible = v
+
         end
     })
 
-    EspHighlightOutlineTransparency = Esp:CreateSlider({
-        Name = "Outline Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    EspHighlightFill = Esp:CreateToggle({
-        Name = "Fill",
-        Default = true,
+    Distance = Esp:CreateToggle({
+        Name = "Distance",
+        Default = false,
         Function = function(v)
-            EspHighlightFillTransparency.MainObject.Visible = v
+
         end
     })
-
-    EspHighlightFillTransparency = Esp:CreateSlider({
-        Name = "Fill Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    EspTransparency = Esp:CreateSlider({
-        Name = "ESP Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    EspTeammates = Esp:CreateToggle({
-        Name = "Teammates",
-        Default = false,
-        Function = function(v) end
-    })
-
-    EspTeamColor = Esp:CreateToggle({
-        Name = "TeamColor",
-        Default = false,
-        Function = function(v) end
-    })
-end)
+end)    
+]]
 
 runFunction(function()
     local NewFov = {Value = 80}
@@ -1872,6 +2401,7 @@ end)
 runFunction(function()
     local LightingParameters = {}
 	local LightingChanged = false
+    local connection
     Fullbright = Tabs.Render:CreateToggle({
         Name = "Fullbright",
         Keybind = nil,
@@ -1889,7 +2419,7 @@ runFunction(function()
                 Lighting.GlobalShadows = false
                 Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
                 LightingChanged = false
-                Lighting.Changed:Connect(function()
+                connection = table.insert(connections, Lighting.Changed:Connect(function()
                     if not LightingChanged and callback then
                         LightingParameters.Brightness = Lighting.Brightness
                         LightingParameters.ClockTime = Lighting.ClockTime
@@ -1904,8 +2434,10 @@ runFunction(function()
                         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
                         LightingChanged = false
                     end
-                end)
+                end))
             else
+                connection:Disconnect()
+                connection:disconnect()
                 for Name, Value in pairs(LightingParameters) do
                     Lighting[Name] = Value
                 end
@@ -1914,74 +2446,376 @@ runFunction(function()
     })  
 end)
 
+-- I SWEAR TO FUCKING GOD IF THIS SHIT DOESN'T WORK IMA HONESTLY FUCK LUA
 runFunction(function()
-    local Hours = {Value = 13}
-    local Minutes = {Value = 0}
-    local Seconds = {Value = 0}
-    local TimeOfDayEnabled = false
-    local Connection
-    TimeOfDay = Tabs.Render:CreateToggle({
-        Name = "TimeOfDay",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                TimeOfDayEnabled = true
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
-                LightingChangedConnection = Lighting.Changed:Connect(function()
-                    Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
-                end)
-            else
-                TimeOfDayEnabled = false
-                Lighting.TimeOfDay = LightingTime
-
-                if LightingChangedConnection then
-                    LightingChangedConnection:Disconnect()
+    local NameTags = {Enabled = false}
+    local NameTagsMode = {Value = "Username"}
+    local NameTagsHP = {Value = false}
+    local NameTagsDistance = {Value = false}
+    local NameTagsMaxDistance = {Value = 1000}
+    
+    -- Connection THE FUCKING STORAGE for the SHITTY cleanup
+    local connections = {}
+    
+    -- Create folder and parent it properly
+    local espfolder = Instance.new("Folder")
+    espfolder.Name = "ESPFolder"
+    
+    -- Use a safe parent
+    if game:GetService("CoreGui") then
+        espfolder.Parent = game:GetService("CoreGui")
+    else
+        espfolder.Parent = workspace
+    end
+    
+    -- Clean up any existing ESP folder to prevent the stupid duplicates
+    for _, existing in pairs(game:GetService("CoreGui"):GetChildren()) do
+        if existing.Name == "ESPFolder" and existing ~= espfolder then
+            existing:Destroy()
+        end
+    end
+    
+    -- Convert health to the appropriate color
+    local function ConvertHealthToColor(Health, MaxHealth)
+        if type(Health) ~= "number" or type(MaxHealth) ~= "number" or MaxHealth <= 0 or Health <= 0 then
+            return Color3.fromRGB(255, 0, 0)
+        end
+        
+        local Percent = math.clamp((Health / MaxHealth) * 100, 0, 100)
+        
+        if Percent >= 70 then
+            return Color3.fromRGB(96, 253, 48) 
+        elseif Percent >= 45 then
+            return Color3.fromRGB(255, 196, 0) 
+        else
+            return Color3.fromRGB(255, 71, 71) 
+        end
+    end
+    
+    local billboardGuis = {}
+    
+    -- Function to check if a player is alive
+    local aliveCache = {}
+    local lastAliveCheck = {}
+    local function IsAlive(player)
+        if not player then player = game:GetService("Players").LocalPlayer end
+        
+        -- Use cached result if checked recently
+        local now = tick()
+        if lastAliveCheck[player.Name] and now - lastAliveCheck[player.Name] < 0.2 then
+            return aliveCache[player.Name]
+        end
+        
+        -- Perform the actual fucking check
+        local character = player.Character
+        local isAlive = character and 
+                       character:FindFirstChild("Humanoid") and 
+                       character:FindFirstChild("HumanoidRootPart") and 
+                       character.Humanoid.Health > 0
+        
+        -- Cache the result
+        aliveCache[player.Name] = isAlive
+        lastAliveCheck[player.Name] = now
+        
+        return isAlive
+    end
+    
+    -- Clean up existing nametag for a player(s)
+    local function CleanupPlayerNameTag(plr)
+        local playerName = typeof(plr) == "string" and plr or plr.Name
+        
+        if billboardGuis[playerName] then
+            if billboardGuis[playerName].Parent then
+                billboardGuis[playerName]:Destroy()
+            end
+            billboardGuis[playerName] = nil
+        end
+    end
+    
+    local textLabelProps = {
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 1, 0),
+        Font = Enum.Font.SourceSansBold,
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 16,
+        TextStrokeTransparency = 0.4,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        RichText = true,
+        Name = "NameTagText"
+    }
+    
+    local function CreateNameTag(plr)
+        if not plr or not plr.Character or not plr.Character:FindFirstChild("Head") then
+            return nil
+        end
+        
+        CleanupPlayerNameTag(plr)
+        
+        local billboardGui = Instance.new("BillboardGui")
+        local textLabel = Instance.new("TextLabel")
+        
+        -- Configure billboardGui
+        billboardGui.Name = "NameTag_" .. plr.Name
+        billboardGui.Adornee = plr.Character.Head
+        billboardGui.AlwaysOnTop = true
+        billboardGui.Size = UDim2.new(0, 200, 0, 50)
+        billboardGui.StudsOffset = Vector3.new(0, 1.2, 0)
+        billboardGui.MaxDistance = NameTagsMaxDistance.Value
+        billboardGui.Parent = espfolder
+        
+        for prop, value in pairs(textLabelProps) do
+            textLabel[prop] = value
+        end
+        textLabel.Parent = billboardGui
+        
+        billboardGuis[plr.Name] = billboardGui
+        return billboardGui
+    end
+    
+    local function UpdateNameTag(plr)
+        local billboardGui = billboardGuis[plr.Name]
+        if not billboardGui or not billboardGui.Parent then return end
+        
+        local LocalPlayer = game:GetService("Players").LocalPlayer
+        local character = plr.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not humanoid or not rootPart then return end
+        
+        local textLabel = billboardGui:FindFirstChild("NameTagText")
+        if not textLabel then return end
+        
+        local nameText = NameTagsMode.Value == "Username" and plr.Name or plr.DisplayName
+        local parts = {nameText}
+        
+        if NameTagsHP.Value then
+            local health = math.floor(humanoid.Health)
+            local maxHealth = math.floor(humanoid.MaxHealth)
+            local healthColor = ConvertHealthToColor(health, maxHealth)
+            
+            table.insert(parts, string.format(" <font color=\"rgb(%d,%d,%d)\">%d HP</font>", 
+                math.floor(healthColor.R * 255), 
+                math.floor(healthColor.G * 255), 
+                math.floor(healthColor.B * 255), 
+                health))
+        end
+        
+        -- Add distance information if it's enabled
+        if NameTagsDistance.Value and IsAlive(LocalPlayer) then
+            local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+            table.insert(parts, string.format(" [%dm]", distance))
+        end
+        
+        -- Set the final text
+        textLabel.Text = table.concat(parts)
+        
+        -- Only adjust text size if needed
+        if NameTagsDistance.Value and IsAlive(LocalPlayer) then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+            local scaleFactor = math.clamp(1 - (distance / NameTagsMaxDistance.Value) * 0.5, 0.5, 1)
+            if math.abs(textLabel.TextSize - (16 * scaleFactor)) > 0.5 then
+                textLabel.TextSize = 16 * scaleFactor
+            end
+        end
+    end
+    
+    -- Update all nametags with current settings
+    local function UpdateAllNameTags()
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and IsAlive(plr) then
+                if billboardGuis[plr.Name] and billboardGuis[plr.Name].Parent then
+                    UpdateNameTag(plr)
+                else
+                    CreateNameTag(plr)
                 end
             end
         end
-    })
+    end
+    
+    -- Clean up all the shown nametags
+    local function CleanupAllNameTags()
+        for name, gui in pairs(billboardGuis) do
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+            billboardGuis[name] = nil
+        end
         
-    Hours = TimeOfDay:CreateSlider({
-        Name = "Hours",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+        -- Clear caches
+        aliveCache = {}
+        lastAliveCheck = {}
+    end
+    
+    -- Disconnect all event connections
+    local function DisconnectAll()
+        for _, connection in pairs(connections) do
+            if typeof(connection) == "RBXScriptConnection" and connection.Connected then
+                connection:Disconnect()
             end
-        end,
-        Min = 0,
-        Max = 24,
-        Default = 13,
-        Round = 0
+        end
+        connections = {}
+    end
+
+    NameTags = Tabs.Render:CreateToggle({
+        Name = "NameTags",
+        Keybind = nil,
+        Callback = function(callback)
+            NameTags.Enabled = callback
+            
+            -- Always clean up previous state
+            RunLoops:UnbindFromRenderStep("NameTags")
+            DisconnectAll()
+            
+            if callback then
+                -- Clean up any existing tags first
+                CleanupAllNameTags()
+                
+                -- Add player removing event
+                local playerRemovingConn = game:GetService("Players").PlayerRemoving:Connect(function(plr)
+                    if NameTags.Enabled then
+                        CleanupPlayerNameTag(plr)
+                    end
+                end)
+                table.insert(connections, playerRemovingConn)
+                
+                -- Create the render step to update nametags
+                local lastFullUpdate = 0
+                RunLoops:BindToRenderStep("NameTags", function()
+                    local now = tick()
+                    local Players = game:GetService("Players")
+                    local LocalPlayer = Players.LocalPlayer
+                    
+                    -- Only do a full update every 0.5 seconds
+                    if now - lastFullUpdate > 0.5 then
+                        lastFullUpdate = now                      
+                        for _, plr in pairs(Players:GetPlayers()) do
+                            if plr ~= LocalPlayer then
+                                if IsAlive(plr) and (not billboardGuis[plr.Name] or not billboardGuis[plr.Name].Parent) then
+                                    CreateNameTag(plr)
+                                elseif (not IsAlive(plr)) and billboardGuis[plr.Name] then
+                                    CleanupPlayerNameTag(plr)
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Update only visible nametags every frame for smooth distance/health updates
+                    for name, gui in pairs(billboardGuis) do
+                        local plr = Players:FindFirstChild(name)
+                        if plr and gui.Parent and IsAlive(plr) then
+                            UpdateNameTag(plr)
+                        end
+                    end
+                end)
+            else
+                -- Clean up when disabled
+                CleanupAllNameTags()
+            end
+        end
+    })
+
+    NameTagsMode = NameTags:CreateDropDown({
+        Name = "Name Mode",
+        List = {"Username", "DisplayName"},
+        Default = "Username",
+        Function = function(val)
+            NameTagsMode.Value = val
+            if NameTags.Enabled then
+                UpdateAllNameTags()
+            end
+        end
+    })
+
+    NameTagsHP = NameTags:CreateToggle({
+        Name = "Health",
+        Default = false,
+        Function = function(val)
+            NameTagsHP.Value = val
+            if NameTags.Enabled then
+                UpdateAllNameTags()
+            end
+        end
+    })
+
+    NameTagsDistance = NameTags:CreateToggle({
+        Name = "Distance",
+        Default = false,
+        Function = function(val)
+            NameTagsDistance.Value = val
+            if NameTags.Enabled then
+                UpdateAllNameTags()
+            end
+        end
     })
     
-    Minutes = TimeOfDay:CreateSlider({
-        Name = "Minutes",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+    NameTagsMaxDistance = NameTags:CreateSlider({
+        Name = "Max Distance",
+        Min = 100,
+        Max = 10000,
+        Default = 1000,
+        Round = 0,
+        Function = function(val)
+            NameTagsMaxDistance.Value = val
+            if NameTags.Enabled then
+                UpdateAllNameTags()
             end
-        end,
-        Min = 0,
-        Max = 64,
-        Default = 0,
-        Round = 0
+        end
     })
     
-    Seconds = TimeOfDay:CreateSlider({
-        Name = "Seconds",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+    -- Clean up on script end
+    game:GetService("Players").LocalPlayer.OnTeleport:Connect(function()
+        if NameTags.Enabled then
+            RunLoops:UnbindFromRenderStep("NameTags")
+            DisconnectAll()
+            CleanupAllNameTags()
+        end
+    end)
+end)
+
+runFunction(function()
+    local RainbowSkinEnabled = false
+    RainbowSkin = Tabs.Render:CreateToggle({
+        Name = "RainbowSkin",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                while RainbowSkinEnabled and task.wait(0.1) do
+                    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                    for _,part in pairs(Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Color = Color3.new(math.random(), math.random(), math.random())
+                        end
+                    end
+                end
+            else
+                RainbowSkinEnabled = false
             end
-        end,
-        Min = 0,
-        Max = 64,
-        Default = 0,
-        Round = 0
+        end
     })
 end)
 
---[[next update
+runFunction(function()
+    ViewClip = Tabs.Render:CreateToggle({
+        Name = "ViewClip",
+        Keybind = nil,
+        Callback = function(callback) 
+            if callback then
+                LocalPlayer.DevCameraOcclusionMode = "Invisicam"
+            else
+                LocalPlayer.DevCameraOcclusionMode = "Zoom"
+            end
+        end
+    })
+end)
+
+--[[somewhen
 runFunction(function()
     local TracerStartPoint = {Value = "Mouse"}
     local TracerThickness = {Value = 2}
@@ -2083,62 +2917,379 @@ runFunction(function()
 end)
 ]]
 
---[[ next update
+--[[
 runFunction(function()
-    local Tracers = {Enabled = false}
-
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local Camera = workspace.CurrentCamera
+    local LocalPlayer = Players.LocalPlayer
+    
+    local TracerStartPoint = {Value = "Bottom"}
+    local TracerThickness = {Value = 2}
+    local TracerTransparency = {Value = 0}
+    local TracerTeamCheck = {Value = true}
+    local TracerColor = {Value = Color3.fromRGB(255, 255, 255)}
+    local Lines = {}
+    local PlayerRemovingConnection
+    
+    -- Helper function to check if a player is alive
+    local function IsAlive(player)
+        local character = player.Character
+        return character and 
+               character:FindFirstChild("Humanoid") and 
+               character:FindFirstChild("HumanoidRootPart") and 
+               character.Humanoid.Health > 0
+    end
+    
+    local function UpdateTracers()
+        -- Clear old lines first
+        for playerName, line in pairs(Lines) do
+            if not Players:FindFirstChild(playerName) then
+                line:Remove()
+                Lines[playerName] = nil
+            else
+                line.Visible = false -- Hide all lines, we'll show only valid ones
+            end
+        end
+        
+        -- Update or create new lines
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and IsAlive(player) and 
+               (not TracerTeamCheck.Value or player.Team ~= LocalPlayer.Team) then
+                
+                local character = player.Character
+                if character then
+                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                    if humanoidRootPart then
+                        -- Get the bottom position of the HumanoidRootPart
+                        local position = humanoidRootPart.Position - Vector3.new(0, humanoidRootPart.Size.Y/2, 0)
+                        local vector, onScreen = Camera:WorldToViewportPoint(position)
+                        
+                        if onScreen then
+                            -- Create or get existing line
+                            local line = Lines[player.Name]
+                            if not line then
+                                line = Drawing.new("Line")
+                                Lines[player.Name] = line
+                            end
+                            
+                            -- Set line properties
+                            line.Thickness = TracerThickness.Value
+                            line.Transparency = 1 - TracerTransparency.Value
+                            line.Color = TracerColor.Value
+                            
+                            -- Set start position based on user preference
+                            if TracerStartPoint.Value == "Mouse" then
+                                line.From = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
+                            elseif TracerStartPoint.Value == "Center" then
+                                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                            elseif TracerStartPoint.Value == "Bottom" then
+                                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                            end
+                            
+                            -- Set end position to player
+                            line.To = Vector2.new(vector.X, vector.Y)
+                            line.Visible = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Clean up all lines
+    local function CleanupLines()
+        for _, line in pairs(Lines) do
+            line:Remove()
+        end
+        Lines = {}
+    end
+    
+    -- HSV to RGB conversion function
+    local function HSVtoRGB(h, s, v)
+        local r, g, b
+        
+        local i = math.floor(h * 6)
+        local f = h * 6 - i
+        local p = v * (1 - s)
+        local q = v * (1 - f * s)
+        local t = v * (1 - (1 - f) * s)
+        
+        i = i % 6
+        
+        if i == 0 then r, g, b = v, t, p
+        elseif i == 1 then r, g, b = q, v, p
+        elseif i == 2 then r, g, b = p, v, t
+        elseif i == 3 then r, g, b = p, q, v
+        elseif i == 4 then r, g, b = t, p, v
+        elseif i == 5 then r, g, b = v, p, q
+        end
+        
+        return Color3.fromRGB(r * 255, g * 255, b * 255)
+    end
+    
+    -- Vape v4 style Color Picker implementation
+    local function CreateVapeColorPicker(parent, default, callback)
+        local colorPickerFrame = Instance.new("Frame")
+        colorPickerFrame.Name = "ColorPicker"
+        colorPickerFrame.Size = UDim2.new(1, 0, 0, 120)
+        colorPickerFrame.BackgroundTransparency = 1
+        colorPickerFrame.Parent = parent
+        
+        -- Create the hue slider (rainbow)
+        local hueSlider = Instance.new("Frame")
+        hueSlider.Name = "HueSlider"
+        hueSlider.Size = UDim2.new(1, -20, 0, 15)
+        hueSlider.Position = UDim2.new(0, 10, 0, 10)
+        hueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        hueSlider.BorderSizePixel = 0
+        hueSlider.Parent = colorPickerFrame
+        
+        -- Create rainbow gradient for hue slider
+        local hueGradient = Instance.new("UIGradient")
+        hueGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
+            ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+            ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
+            ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+        })
+        hueGradient.Parent = hueSlider
+        
+        -- Hue slider knob
+        local hueKnob = Instance.new("Frame")
+        hueKnob.Name = "HueKnob"
+        hueKnob.Size = UDim2.new(0, 5, 1, 6)
+        hueKnob.Position = UDim2.new(0, 0, 0, -3)
+        hueKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        hueKnob.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        hueKnob.BorderSizePixel = 1
+        hueKnob.Parent = hueSlider
+        
+        -- Create saturation/value picker area
+        local svPicker = Instance.new("Frame")
+        svPicker.Name = "SVPicker"
+        svPicker.Size = UDim2.new(1, -20, 0, 80)
+        svPicker.Position = UDim2.new(0, 10, 0, 35)
+        svPicker.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Will be updated based on hue
+        svPicker.BorderSizePixel = 0
+        svPicker.Parent = colorPickerFrame
+        
+        -- Create white gradient (horizontal - saturation)
+        local saturationGradient = Instance.new("UIGradient")
+        saturationGradient.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        saturationGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+        })
+        saturationGradient.Rotation = 90
+        saturationGradient.Parent = svPicker
+        
+        -- Create black gradient (vertical - value)
+        local valueFrame = Instance.new("Frame")
+        valueFrame.Name = "ValueFrame"
+        valueFrame.Size = UDim2.new(1, 0, 1, 0)
+        valueFrame.BackgroundTransparency = 1
+        valueFrame.BorderSizePixel = 0
+        valueFrame.Parent = svPicker
+        
+        local valueGradient = Instance.new("UIGradient")
+        valueGradient.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        valueGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+        })
+        valueGradient.Parent = valueFrame
+        
+        -- SV picker knob
+        local svKnob = Instance.new("Frame")
+        svKnob.Name = "SVKnob"
+        svKnob.Size = UDim2.new(0, 6, 0, 6)
+        svKnob.Position = UDim2.new(1, -3, 0, -3)
+        svKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        svKnob.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        svKnob.BorderSizePixel = 1
+        svKnob.ZIndex = 2
+        svKnob.Parent = svPicker
+        
+        -- Current color display
+        local currentColor = Instance.new("Frame")
+        currentColor.Name = "CurrentColor"
+        currentColor.Size = UDim2.new(0, 30, 0, 15)
+        currentColor.Position = UDim2.new(1, -40, 0, 10)
+        currentColor.BackgroundColor3 = default
+        currentColor.BorderColor3 = Color3.fromRGB(30, 30, 30)
+        currentColor.BorderSizePixel = 1
+        currentColor.Parent = colorPickerFrame
+        
+        -- Variables to track color state
+        local hue, sat, val = 0, 1, 1
+        local dragging = nil
+        
+        -- Update functions
+        local function updateHue(hueValue)
+            hue = hueValue
+            svPicker.BackgroundColor3 = HSVtoRGB(hue, 1, 1)
+            local color = HSVtoRGB(hue, sat, val)
+            currentColor.BackgroundColor3 = color
+            TracerColor.Value = color
+            callback(color)
+        end
+        
+        local function updateSV(satValue, valValue)
+            sat = satValue
+            val = valValue
+            local color = HSVtoRGB(hue, sat, val)
+            currentColor.BackgroundColor3 = color
+            TracerColor.Value = color
+            callback(color)
+        end
+        
+        -- Input handlers
+        hueSlider.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = "hue"
+                local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+                hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -3)
+                updateHue(relativeX)
+            end
+        end)
+        
+        svPicker.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = "sv"
+                local relativeX = math.clamp((input.Position.X - svPicker.AbsolutePosition.X) / svPicker.AbsoluteSize.X, 0, 1)
+                local relativeY = math.clamp((input.Position.Y - svPicker.AbsolutePosition.Y) / svPicker.AbsoluteSize.Y, 0, 1)
+                svKnob.Position = UDim2.new(relativeX, -3, relativeY, -3)
+                updateSV(relativeX, 1 - relativeY)
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                if dragging == "hue" then
+                    local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+                    hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -3)
+                    updateHue(relativeX)
+                elseif dragging == "sv" then
+                    local relativeX = math.clamp((input.Position.X - svPicker.AbsolutePosition.X) / svPicker.AbsoluteSize.X, 0, 1)
+                    local relativeY = math.clamp((input.Position.Y - svPicker.AbsolutePosition.Y) / svPicker.AbsoluteSize.Y, 0, 1)
+                    svKnob.Position = UDim2.new(relativeX, -3, relativeY, -3)
+                    updateSV(relativeX, 1 - relativeY)
+                end
+            end
+        end)
+        
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = nil
+            end
+        end)
+        
+        -- Initialize with default color
+        updateHue(0) -- Start with red
+        updateSV(1, 1) -- Full saturation and value
+        
+        return colorPickerFrame
+    end
+    
     Tracers = Tabs.Render:CreateToggle({
         Name = "Tracers",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-
+                -- Create player removing connection
+                PlayerRemovingConnection = Players.PlayerRemoving:Connect(function(player)
+                    if Lines[player.Name] then
+                        Lines[player.Name]:Remove()
+                        Lines[player.Name] = nil
+                    end
+                end)
+                
+                -- Bind the update function to RenderStepped
+                RunLoops:BindToRenderStep("Tracers", UpdateTracers)
             else
-
+                -- Unbind the update function
+                RunLoops:UnbindFromRenderStep("Tracers")
+                
+                -- Disconnect player removing connection
+                if PlayerRemovingConnection then
+                    PlayerRemovingConnection:Disconnect()
+                    PlayerRemovingConnection = nil
+                end
+                
+                -- Clean up lines
+                CleanupLines()
             end
         end
     })
+    
+    TracerStartPoint = Tracers:CreateDropDown({
+        Name = "Start Point",
+        Function = function(v)
+            TracerStartPoint.Value = v
+        end,
+        List = {"Center", "Mouse", "Bottom"},
+        Default = "Bottom"
+    })
+    
+    TracerThickness = Tracers:CreateSlider({
+        Name = "Thickness",
+        Function = function(v)
+            TracerThickness.Value = v
+        end,
+        Min = 0.1,
+        Max = 4,
+        Default = 2,
+        Round = 1
+    })
+    
+    TracerTransparency = Tracers:CreateSlider({
+        Name = "Transparency",
+        Function = function(v)
+            TracerTransparency.Value = v
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    
+    TracerTeamCheck = Tracers:CreateToggle({
+        Name = "Team Check",
+        Default = true,
+        Callback = function(callback)
+            TracerTeamCheck.Value = callback
+        end
+    })
+    
+    -- Create a section for color picker
+    local ColorSection = Tracers:CreateDivider("Tracer Color")
+    
+    -- Create the color picker
+    local colorPickerContainer = Instance.new("Frame")
+    colorPickerContainer.Name = "ColorPickerContainer"
+    colorPickerContainer.Size = UDim2.new(1, 0, 0, 140)
+    colorPickerContainer.BackgroundTransparency = 1
+    colorPickerContainer.Parent = ColorSection -- Assuming Section returns the instance
+    
+    -- Create the color picker UI
+    CreateVapeColorPicker(colorPickerContainer, Color3.fromRGB(255, 255, 255), function(color)
+        TracerColor.Value = color
+    end)
 end)
 ]]
 
-runFunction(function()
-    local RainbowSkinEnabled = false
-    RainbowSkin = Tabs.Render:CreateToggle({
-        Name = "RainbowSkin",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                while RainbowSkinEnabled and task.wait(0.1) do
-                    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    for _,part in pairs(Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Color = Color3.new(math.random(), math.random(), math.random())
-                        end
-                    end
-                end
-            else
-                RainbowSkinEnabled = false
-            end
-        end
-    })
-end)
-
-runFunction(function()
-    ViewClip = Tabs.Render:CreateToggle({
-        Name = "ViewClip",
-        Keybind = nil,
-        Callback = function(callback) 
-            if callback then
-                LocalPlayer.DevCameraOcclusionMode = "Invisicam"
-            else
-                LocalPlayer.DevCameraOcclusionMode = "Zoom"
-            end
-        end
-    })
-end)
-
 -- Utility tab
-
 runFunction(function()
     AntiAFK = Tabs.Utility:CreateToggle({
         Name = "AntiAFK",
@@ -2151,7 +3302,7 @@ runFunction(function()
                     end
                 else
                     GuiLibrary:CreateNotification("AntiAFK", "Missing getconnections function.", 10, false, "error")
-                    AntiKick:Toggle(true)
+                    AntiAFK:Toggle(true)
                 end
             else
                 for i,v in next, getconnections(LocalPlayer.Idled) do
@@ -2327,7 +3478,7 @@ runFunction(function()
                         First = true
                     end
                 else
-                    GuiLibrary:CreateNotification("AntiKick", "Missing hookmetamethod function.", 10, false, "error")
+                    GuiLibrary:CreateNotification("AntiKick", "Missing hookmetamethod function.", 10, false)
                     AntiKick:Toggle(true)
                     return
                 end
@@ -2335,6 +3486,74 @@ runFunction(function()
         end
     })
 end)
+
+--[[doesn't work, 2 days of work in nothing :sob:
+runFunction(function()
+    local Mode = {Value = "Toggle"}
+    local Radius = {Value = 10}
+    local Delay = {Value = 1}
+    local AutoClickDetector = Tabs.Utility:CreateToggle({
+        Name = "AutoClickDetector",
+        Keybind = nil,
+        Callback = function(callback) 
+            if callback then 
+                if fireclickdetector then
+                    if Mode.Value == "Toggle" then
+                        RunLoops:BindToHeartbeat("AutoClickDetector", function(Delta)
+                            local NearClickDetectors = GetNearInstances(Radius.Value, LocalPlayer, "ClickDetector")
+
+                            if NearClickDetectors and NearClickDetectors[1] then
+                                for _, ClickDetector in pairs(NearClickDetectors) do
+                                    fireclickdetector(ClickDetector)
+                                end
+                            end
+                        end)
+                    elseif Mode.Value == "Button" then
+                        local NearClickDetectors = GetNearInstances()
+
+                        if NearClickDetectors and NearClickDetectors[1] then
+                            for _, ClickDetector in pairs(NearClickDetectors) do
+                                fireclickdetector(ClickDetector)
+                            end
+                        end
+                    end
+                else
+                    GuiLibrary:CreateNotification("AutoClickDetector", "Missing fireclickdetector function.", 10, false)
+                    AntiKick:Toggle(true)
+                    return
+                end
+            else
+                RunLoops:UnbindFromHeartbeat("AutoClickDetector")
+            end
+        end
+    })
+
+    local Mode = AutoClickDetector:CreateDropDown({
+        Name = "Mode",
+        List = {"Toggle", "Button"},
+        Default = "Toggle",
+        Callback = function(v) end
+    })
+
+    local Delay = AutoClickDetector:CreateSlider({
+        Name = "Delay (seconds)",
+        Function = function(v) end,
+        Min = 0,
+        Max = 5,
+        Default = 0.1,
+        Round = 1
+    })
+
+    local Radius = AutoClickDetector:CreateSlider({
+        Name = "Radius (studs)",
+        Function = function(v) end,
+        Min = 0,
+        Max = 500,
+        Default = 10,
+        Round = 0
+    })
+end)
+]]
 
 runFunction(function()
     local AutoRejoinDelay = {Value = 5}
@@ -2411,7 +3630,6 @@ end)
 ]]
 
 if Animate and CheckForAllAnimateParams(Animate) == true then
-    print("CustomAnimations running.")
     runFunction(function()
         local IdleAnimation1 = {Value = ""}
         local IdleAnimation2 = {Value = ""}
@@ -2527,6 +3745,347 @@ if Animate and CheckForAllAnimateParams(Animate) == true then
 end
 
 runFunction(function()
+    local commandbar
+    local connection
+    Tabs.Utility:CreateToggle({
+        Name = "ConsoleCommands",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                commandbar = Instance.new("Frame")
+                local inputField = Instance.new("Frame")
+                local textBox = Instance.new("TextBox")
+                local arrow = Instance.new("TextLabel")
+
+                commandbar.Name = "commandbar"
+                commandbar.BackgroundColor3 = Color3.fromRGB(45.00000111758709, 45.00000111758709, 45.00000111758709)
+                commandbar.BorderColor3 = Color3.fromRGB(184.00000423192978, 184.00000423192978, 184.00000423192978)
+                commandbar.Position = UDim2.new(0, 0, 1, -30)
+                commandbar.Size = UDim2.new(1, 0, 0, 30)
+                commandbar.Parent = CoreGui.DevConsoleMaster.DevConsoleWindow
+
+                inputField.Name = "inputfield"
+                inputField.BackgroundTransparency = 1
+                inputField.ClipsDescendants = true
+                inputField.Position = UDim2.new(0, 30, 0, 0)
+                inputField.Size = UDim2.new(1, -30, 0, 30)
+                inputField.Parent = commandbar
+
+                textBox.BackgroundTransparency = 1
+                textBox.ClearTextOnFocus = false
+                textBox.Font = Enum.Font.Code
+                textBox.PlaceholderText = "command line"
+                textBox.Text = ""
+                textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+                textBox.TextSize = 15
+                textBox.TextXAlignment = Enum.TextXAlignment.Left
+                textBox.Size = UDim2.new(1, 0, 1, 0)
+                textBox.Parent = inputField
+                textBox.ZIndex = 50
+
+                arrow.Name = "arrow"
+                arrow.BackgroundTransparency = 1
+                arrow.Font = Enum.Font.Code
+                arrow.Text = "> "
+                arrow.TextColor3 = Color3.fromRGB(255, 255, 255)
+                arrow.TextSize = 15
+                arrow.TextXAlignment = Enum.TextXAlignment.Right
+                arrow.Size = UDim2.new(0, 30, 1, 0)
+                arrow.Parent = commandbar
+
+                connection = table.insert(connections, textBox.FocusLost:Connect(function(enterpressed)
+                    if enterpressed then
+                        local suc, res = pcall(function()
+                            loadstring(textBox.Text)()
+                        end)
+                        if not suc then
+                            error(res)
+                        end
+                        textBox.Text = ""
+                    end
+                end))
+            else
+                commandbar:Destroy()
+                if connection then connection:Disconnect() end
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    local GodMode = {Enabled = false}
+    local Mode = {Value = "Heal"}
+    local HealthThreshold = {Value = 100}
+    local connection
+    local notificationCooldown = 0
+    local lastNotificationTime = 0
+    local isInitialized = false
+    local retryAttempts = 0
+    local maxRetryAttempts = 5
+    local retryDelay = 2
+    local originalJumpPower
+    local originalWalkSpeed
+    local originalHealth
+    local originalMaxHealth
+    local damageHistory = {}
+    local damageProtection = {active = false, cooldown = 0}
+    
+    local function cleanupConnections()
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+    end
+    
+    local function restoreOriginalValues(humanoid)
+        if originalJumpPower and humanoid then
+            humanoid.JumpPower = originalJumpPower
+        end
+        
+        if originalWalkSpeed and humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+        end
+        
+        if originalHealth and humanoid then
+            humanoid.Health = originalHealth
+        end
+        
+        if originalMaxHealth and humanoid then
+            humanoid.MaxHealth = originalMaxHealth
+        end
+    end
+    
+    local function showNotification(title, message, duration)
+        local currentTime = tick()
+        if currentTime - lastNotificationTime >= notificationCooldown then
+            GuiLibrary:CreateNotification(title, message, duration or 3)
+            lastNotificationTime = currentTime
+            notificationCooldown = duration or 3
+        end
+    end
+    
+    local function initializeGodMode(character, humanoid, hrp)
+        if not character or not humanoid or not hrp then return false end
+        
+        originalJumpPower = humanoid.JumpPower
+        originalWalkSpeed = humanoid.WalkSpeed
+        originalHealth = humanoid.Health
+        originalMaxHealth = humanoid.MaxHealth
+        
+        isInitialized = true
+        retryAttempts = 0
+        
+        return true
+    end
+    
+    local function applyHealMode(humanoid)
+        if not connection then
+            connection = humanoid.GetPropertyChangedSignal("Health"):Connect(function()
+                local targetHealth = HealthThreshold.Value
+                
+                if humanoid.Health < targetHealth then
+                    table.insert(damageHistory, {
+                        time = tick(),
+                        oldHealth = humanoid.Health,
+                        damage = originalHealth - humanoid.Health
+                    })
+                    
+                    if #damageHistory > 10 then
+                        table.remove(damageHistory, 1)
+                    end
+                    
+                    if not damageProtection.active then
+                        damageProtection.active = true
+                        damageProtection.cooldown = tick() + 0.5
+                        humanoid.Health = targetHealth
+                    end
+                    
+                    if tick() > damageProtection.cooldown then
+                        damageProtection.active = false
+                    end
+                end
+            end)
+        end
+    end
+    
+    local function applyHRPMode(character, hrp)
+        cleanupConnections()
+        
+        if hrp then
+            local clone = hrp:Clone()
+            clone.Transparency = 1
+            clone.CanCollide = false
+            
+            local weld = Instance.new("Weld")
+            weld.Part0 = hrp
+            weld.Part1 = clone
+            weld.C0 = CFrame.new()
+            weld.C1 = CFrame.new()
+            weld.Parent = hrp
+            
+            hrp.CanCollide = false
+            hrp.Transparency = 1
+            
+            clone.Parent = character
+            hrp.Name = "RealHRP"
+            clone.Name = "HumanoidRootPart"
+        end
+    end
+    
+    local function applyAntiKnockbackMode(character, humanoid)
+        cleanupConnections()
+        
+        if humanoid then
+            humanoid.StateChanged:Connect(function(oldState, newState)
+                if newState == Enum.HumanoidStateType.Ragdoll or 
+                   newState == Enum.HumanoidStateType.FallingDown then
+                    task.wait()
+                    humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                end
+            end)
+            
+            if humanoid.RigType == Enum.HumanoidRigType.R6 then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CustomPhysicalProperties = PhysicalProperties.new(math.huge, 0, 0)
+                    end
+                end
+            else
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("MeshPart") and part.Name ~= "HumanoidRootPart" then
+                        part.CustomPhysicalProperties = PhysicalProperties.new(math.huge, 0, 0)
+                    end
+                end
+            end
+        end
+    end
+    
+    local function applyInvulnerabilityMode(character, humanoid)
+        cleanupConnections()
+        
+        if humanoid then
+            humanoid.MaxHealth = math.huge
+            humanoid.Health = math.huge
+            
+            connection = humanoid.GetPropertyChangedSignal("Health"):Connect(function()
+                if humanoid.Health < math.huge then
+                    humanoid.Health = math.huge
+                end
+            end)
+        end
+    end
+    
+    GodMode = Tabs.Utility:CreateToggle({
+        Name = "GodMode",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                RunLoops:BindToHeartbeat("GodMode", function()
+                    if IsAlive(LocalPlayer, false, true) then
+                        local Character = LocalPlayer.Character
+                        local Humanoid = Character.Humanoid
+                        local HumanoidRootPart = Character.HumanoidRootPart
+                        
+                        if not isInitialized then
+                            if not initializeGodMode(Character, Humanoid, HumanoidRootPart) then
+                                retryAttempts = retryAttempts + 1
+                                if retryAttempts >= maxRetryAttempts then
+                                    showNotification("GodMode", "Failed to initialize after multiple attempts. Please try again.", 5)
+                                    GodMode:Toggle(false)
+                                    return
+                                end
+                                showNotification("GodMode", "Initializing... Attempt " .. retryAttempts .. "/" .. maxRetryAttempts, 1)
+                                task.wait(retryDelay)
+                                return
+                            end
+                            showNotification("GodMode", "Successfully initialized!", 2)
+                        end
+                        
+                        if Mode.Value == "Heal" then
+                            applyHealMode(Humanoid)
+                        elseif Mode.Value == "HRP" then
+                            applyHRPMode(Character, HumanoidRootPart)
+                        elseif Mode.Value == "AntiKnockback" then
+                            applyAntiKnockbackMode(Character, Humanoid)
+                        elseif Mode.Value == "Invulnerability" then
+                            applyInvulnerabilityMode(Character, Humanoid)
+                        end
+                    else
+                        isInitialized = false
+                        cleanupConnections()
+                        if retryAttempts < maxRetryAttempts then
+                            retryAttempts = retryAttempts + 1
+                            showNotification("GodMode", "Character not found. Retrying... (" .. retryAttempts .. "/" .. maxRetryAttempts .. ")", 2)
+                            task.wait(retryDelay)
+                        else
+                            showNotification("GodMode", "Unable to find character after multiple attempts. Please try again.", 5)
+                            GodMode:SetState(false)
+                        end
+                    end
+                end)
+            else
+                isInitialized = false
+                retryAttempts = 0
+                cleanupConnections()
+                RunLoops:UnbindFromHeartbeat("GodMode")
+                
+                if IsAlive(LocalPlayer, false, true) then
+                    local Character = LocalPlayer.Character
+                    local Humanoid = Character.Humanoid
+                    
+                    restoreOriginalValues(Humanoid)
+                    
+                    if Mode.Value == "HRP" then
+                        local realHRP = Character:FindFirstChild("RealHRP")
+                        local fakeHRP = Character:FindFirstChild("HumanoidRootPart")
+                        
+                        if realHRP and fakeHRP then
+                            realHRP.Name = "HumanoidRootPart"
+                            realHRP.Transparency = 0
+                            realHRP.CanCollide = true
+                            fakeHRP:Destroy()
+                        end
+                    end
+                end
+                
+                showNotification("GodMode", "Disabled", 2)
+            end
+        end
+    })
+
+    Mode = GodMode:CreateDropDown({
+        Name = "Mode",
+        List = {"Heal", "HRP", "AntiKnockback", "Invulnerability"},
+        Default = "Heal",
+        Function = function(v)
+            if GodMode.Enabled then
+                isInitialized = false
+                cleanupConnections()
+                showNotification("GodMode", "Mode changed to " .. v .. ". Reinitializing...", 2)
+            end
+        end
+    })
+    
+    HealthThreshold = GodMode:CreateSlider({
+        Name = "Health Threshold",
+        Min = 1,
+        Max = 200,
+        Default = 100,
+        Round = 0,
+        Function = function(val) 
+            if Mode.Value == "Heal" and GodMode.Enabled and connection then
+                cleanupConnections()
+                
+                if IsAlive(LocalPlayer, false, true) then
+                    local Humanoid = LocalPlayer.Character.Humanoid
+                    applyHealMode(Humanoid)
+                end
+            end
+        end
+    })
+end)
+
+runFunction(function()
     local ProximityPromptsHoldDuration = {Value = 0.1}
     local FastProximityPromptsEnabled = false
     local ChangedObjects = {}
@@ -2640,165 +4199,169 @@ runFunction(function()
 end)
 
 -- World tab
-
---[[
-runFunction(function()
-    local AntiVoidMode = {Value = "Part"}
-    local AntiVoidPartMode = {Value = "Velocity"}
-    local AntiVoidPartTransparency = {Value = 0}
-    local AntiVoidJumpDelay = {Value = 0.2}
-    local AntiVoidEnabled = false
-    local AntiVoidPart
-
-    AntiVoid = Tabs.World:CreateToggle({
-        Name = "AntiVoid",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                AntiVoidEnabled = true
-                spawn(function()
-                    RunLoops:BindToHeartbeat("AntiVoid", function()
-                        if IsAlive() then
-                            local Character = LocalPlayer.Character
-                            local HumanoidRootPart = Character.HumanoidRootPart
-                            local Humanoid = Character.Humanoid
-                            
-                            local RaycastParams = RaycastParams.new()
-                            RaycastParams.RespectCanCollide = true
-                            local LastRaycast
-
-                            if AntiVoidMode.Value == "Part" then
-                                if not AntiVoidPart or not AntiVoidPart.Parent then
-                                    AntiVoidPart = Instance.new("Part")
-                                    AntiVoidPart.Parent = workspace
-                                    AntiVoidPart.Size = Vector3.new(2100, 0.5, 2000)
-                                    AntiVoidPart.CFrame = HumanoidRootPart.CFrame - Vector3.new(0, 20, 0)
-                                    AntiVoidPart.Transparency = AntiVoidPartTransparency.Value
-                                    AntiVoidPart.Anchored = true
-                                    AntiVoidPart.Touched:Connect(function(Toucher)
-                                        if AntiVoidPartMode.Value == "Jump" then
-                                            if Toucher.Parent.Name == LocalPlayer.Name then
-                                                Humanoid:ChangeState("Jumping")
-                                                wait(AntiVoidJumpDelay.Value)
-                                                Humanoid:ChangeState("Jumping")
-                                                wait(AntiVoidJumpDelay.Value)
-                                                Humanoid:ChangeState("Jumping")
-                                                Humanoid:ChangeState("Jumping")
-                                            end
-                                        elseif AntiVoidPartMode.Value == "Veocity" then
-                                            if Character:WaitForChild("HumanoidRootPart").Position.Y < 20 then
-                                                local BodyVelocity = Instance.new("BodyVelocity", HumanoidRootPart)
-                                                workspace.Gravity = 0
-                                                BodyVelocity.Velocity = Vector3.new(HumanoidRootPart.Velocity.X, 300, HumanoidRootPart.Velocity.Z)
-                                                task.wait(0.5)
-                                                BodyVelocity:Destroy()
-                                                workspace.Gravity = 196.2
-                                            end
-                                        end
-                                    end)
-                                end
-                            elseif AntiVoidMode.Value == "BodyVelocity" then
-                                if Character:WaitForChild("HumanoidRootPart").Position.Y < 20 then
-                                    local BodyVelocity = Instance.new("BodyVelocity", HumanoidRootPart)
-                                    workspace.Gravity = 0
-                                    BodyVelocity.Velocity = Vector3.new(HumanoidRootPart.Velocity.X, 300, HumanoidRootPart.Velocity.Z)
-                                    task.wait(0.5)
-                                    BodyVelocity:Destroy()
-                                    workspace.Gravity = 196.2
-                                end
-                            end
-                        end
-                    end)
-                end)
-            else
-                AntiVoidEnabled = false
-                RunLoops:UnbindFromHeartbeat("AntiVoid")
-
-                if AntiVoidPart then
-                    AntiVoidPart:Destroy()
-                end
-            end
-        end
-    })
-
-    AntiVoidMode = AntiVoid:CreateDropDown({
-        Name = "Mode",
-        Function = function(v) end,
-        List = {"Part", "BodyVelocity"},
-        Default = "Velocity"
-    })
-
-    AntiVoidPartMode = AntiVoid:CreateDropDown({
-        Name = "PartMode",
-        Function = function(v) 
-            if v == "Jump" then
-                if AntiVoidJumpDelay.MainObject then
-                    AntiVoidJumpDelay.MainObject.Visible = true
-                end
-            elseif v == "Velocity" then
-                if AntiVoidJumpDelay.MainObject then
-                    AntiVoidJumpDelay.MainObject.Visible = false
-                end
-            end
-        end,
-        List = {"Jump", "Velocity"},
-        Default = "Velocity"
-    })
-
-    AntiVoidPartTransparency = AntiVoid:CreateSlider({
-        Name = "Part Transparency",
-        Function = function(v)
-            if AntiVoidEnabled and AntiVoidPart then
-                AntiVoidPart.Transparency = v
-            end
-        end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    AntiVoidJumpDelay = AntiVoid:CreateSlider({
-        Name = "Jump Delay",
-        Function = function(v) end,
-        Min = 0,
-        Max = 5,
-        Default = 0.2,
-        Round = 1
-    })
-end)
-]]
-
 runFunction(function()
     local AntiVoid = {Enabled = false}
-    local AntiVoidMode = {Value = ""}
-    local AntiVoidPartTransparency = {Value = 0.5}
-    local AntiVoidPart
+    local Mode = {Value = "Jump"}
+    local Delay = {Value = 0.1}
+    local BounceForce = {Value = 150}
+    local TPtoSpawnLocation = {Value = false}
+    local positionsaveinterval = 0.5
+    local LastSafePosition = nil
+    local LastSaveTime = 0
+    local PositionSaveAccumulator = 0
+    local IsBeingRescued = false
+    local AntiVoidPlatform = nil
+    local voidYpos = -200
+    local oldjumppower
+    local connection
+
+    local function isOnGround()
+        if not IsAlive() then return false end
+        
+        local character = LocalPlayer.Character
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not rootPart then return false end
+        
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {character}
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        
+        local result = workspace:Raycast(
+            rootPart.Position,
+            Vector3.new(0, -10, 0),
+            rayParams
+        )
+        
+        return result ~= nil and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall
+    end
+    
+    local function savePosition()
+        if not IsAlive() or not isOnGround() then return end
+        
+        local rootPart = LocalPlayer.Character.HumanoidRootPart
+        LastSafePosition = rootPart.CFrame
+    end
+    
+    local function RescueFromVoid()
+        local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        oldjumppower = Humanoid.JumpPower
+        if not IsAlive() or IsBeingRescued then return end
+        
+        if RootPart.Position.Y <= voidYpos then
+            IsBeingRescued = true
+            
+            if Mode.Value == "Jump" and AntiVoidPlatform then
+                AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos, RootPart.Position.Z)
+                
+                Humanoid.JumpPower = BounceForce.Value
+                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            else
+                if LastSafePosition then
+                    print("A")
+                    RootPart.CFrame = LastSafePosition
+                    Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                else
+                    local spawnLocation = nil
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("SpawnLocation") and obj.Enabled then
+                            spawnLocation = obj
+                            break
+                        end
+                    end
+                    
+                    if spawnLocation and TPtoSpawnLocation.Value then
+                        print("B")
+                        RootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 5, 0)
+                        Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                    else
+                        print("ABSing")
+                        RootPart.CFrame = CFrame.new(RootPart.Position.X, math.abs(voidYpos), RootPart.Position.Z)
+                        Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                    end
+                end
+            end
+            
+            task.delay(Delay.Value, function()
+                Humanoid.JumpPower = oldjumppower
+                IsBeingRescued = false
+            end)
+        end
+    end
 
     AntiVoid = Tabs.World:CreateToggle({
         Name = "AntiVoid",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                local AntiVoidPart = Instance.new("Part", Workspace)
-                AntiVoidPart.Name = "AntiVoid"
-                AntiVoidPart.Size = Vector3.new(2100, 0.5, 2000)
-                AntiVoidPart.Position = Vector3.new(160.5, 25, 247.5)
-                AntiVoidPart.Transparency = 0.4
-                AntiVoidPart.Anchored = true
-                AntiVoidPart.Touched:connect(function(Part)
-                if Part.Parent:WaitForChild("Humanoid") and Part.Parent.Name == LocalPlayer.Name then
-                    game.Players.LocalPlayer.Character.Humanoid:ChangeState("Jumping")
-                    wait(0.2)
-                    game.Players.LocalPlayer.Character.Humanoid:ChangeState("Jumping")
-                    wait(0.2)
-                    game.Players.LocalPlayer.Character.Humanoid:ChangeState("Jumping")
-                end
-            end)
-            else
+                RunLoops:BindToRenderStep("AntiVoid", function()
+                    if Mode.Value == "Jump" then
+                        if not AntiVoidPlatform then
+                            AntiVoidPlatform = Instance.new("Part")
+                            AntiVoidPlatform.Name = "AntiVoidPlatform"
+                            AntiVoidPlatform.Size = Vector3.new(400, 1, 400)
+                            AntiVoidPlatform.Anchored = true
+                            AntiVoidPlatform.CanCollide = true
+                            AntiVoidPlatform.Transparency = 1
+                            AntiVoidPlatform.Parent = workspace
+                        end
 
+                        connection = RunService.Stepped:Connect(function(deltaTime)
+                            local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if AntiVoid.Enabled then
+                                savePosition(deltaTime)
+                                RescueFromVoid()
+                                
+                                if Mode.Value == "Jump" and AntiVoidPlatform and RootPart and RootPart.Position.Y > (voidYpos + math.abs(voidYpos)) then
+                                    AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos - 50, RootPart.Position.Z)
+                                end
+                            end
+                        end)
+                    end
+                end)
+            else
+                RunLoops:UnbindFromRenderStep("AntiVoid")
+                if AntiVoidPlatform then
+                    AntiVoidPlatform:Destroy()
+                end
+                if connection then
+                    connection:Disconnect()
+                end
             end
         end
+    })
+
+    Mode = AntiVoid:CreateDropDown({
+        Name = "Mode",
+        Function = function(v) end,
+        List = {"Jump", "Teleport"},
+        Default = "Jump"
+    })
+
+    Delay = AntiVoid:CreateSlider({
+        Name = "PosCheckDelay",
+        Function = function(v) end,
+        Min = 0,
+        Max = 1,
+        Default = 0.1,
+        Round = 1
+    })
+
+    BounceForce = AntiVoid:CreateSlider({
+        Name = "Bounce Force",
+        Function = function(v) end,
+        Min = 0,
+        Max = 500,
+        Default = 150,
+        Round = 0
+    })
+
+    TPtoSpawnLocation = AntiVoid:CreateToggle({
+        Name = "TP to Spawn Location",
+        Default = false,
+        Function = function(v) end
     })
 end)
 
@@ -2848,6 +4411,7 @@ runFunction(function()
     local SunRaysObject
     local OldLightingObjects
     local CustomLightingEnabled = false
+    local LightingChangedConnection
     CustomLighting = Tabs.World:CreateToggle({
         Name = "Lighting",
         Keybind = nil,
@@ -2874,7 +4438,7 @@ runFunction(function()
                 SunRaysObject.Intensity = SunRaysIntensity.Value
                 SunRaysObject.Spread = Spread.Value
 
-                Lighting.LightingChanged:Connect(function()
+                LightingChangedConnection = Lighting.LightingChanged:Connect(function()
                     if Lighting:FindFirstChild("BloomObject") then
                         local BloomObject = Lighting:FindFirstChild("BloomObject")
                         BloomObject.Parent = Lighting
@@ -2904,6 +4468,7 @@ runFunction(function()
                     end
                 end)
             else
+                LightingChangedConnection:Disconnect()
                 CustomLightingEnabled = false
                 Lighting.ShadowSoftness = OldLighting.ShadowSoftness
                 Lighting.Brightness = OldLighting.Brightness
@@ -3010,6 +4575,7 @@ runFunction(function()
     local OldSkyObjects = {}
     local SkyEnabled = false
     local SkyObject
+    local SkyChangedObject
     CustomSky = Tabs.World:CreateToggle({
         Name = "Sky",
         Keybind = nil,
@@ -3036,7 +4602,7 @@ runFunction(function()
                 SkyObject.SunAngularSize = SunSize.Value
                 SkyObject.MoonAngularSize = MoonSize.Value
 
-                SkyObject.Changed:Connect(function()
+                SkyChangedObject = SkyObject.Changed:Connect(function()
                     SkyObject.SkyboxBk = "rbxassetid://" .. SkyBack.Value
                     SkyObject.SkyboxDn = "rbxassetid://" .. SkyDown.Value
                     SkyObject.SkyboxFt = "rbxassetid://" .. SkyFront.Value
@@ -3049,6 +4615,7 @@ runFunction(function()
                     SkyObject.MoonAngularSize = MoonSize.Value
                 end)
 			else
+                SkyChangedObject:Disconnect()
                 SkyEnabled = false
 				if SkyObject then 
                     SkyObject:Destroy() 
@@ -3144,11 +4711,80 @@ runFunction(function()
     })
 end)
 
+runFunction(function()
+    local TimeOfDay = {Enabled = false}
+    local Hours = {Value = 13}
+    local Minutes = {Value = 0}
+    local Seconds = {Value = 0}
+    local TimeOfDayEnabled = false
+    local Connection
+    TimeOfDay = Tabs.Render:CreateToggle({
+        Name = "TimeOfDay",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                TimeOfDayEnabled = true
+                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+                Connection = Lighting.Changed:Connect(function()
+                    Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+                end)
+            else
+                TimeOfDayEnabled = false
+                Lighting.TimeOfDay = LightingTime
+
+                if Connection then
+                    Connection:Disconnect()
+                end
+            end
+        end
+    })
+        
+    Hours = TimeOfDay:CreateSlider({
+        Name = "Hours",
+        Function = function()
+            if TimeOfDayEnabled then 
+                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+            end
+        end,
+        Min = 0,
+        Max = 24,
+        Default = 13,
+        Round = 0
+    })
+    
+    Minutes = TimeOfDay:CreateSlider({
+        Name = "Minutes",
+        Function = function()
+            if TimeOfDayEnabled then 
+                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+            end
+        end,
+        Min = 0,
+        Max = 64,
+        Default = 0,
+        Round = 0
+    })
+    
+    Seconds = TimeOfDay:CreateSlider({
+        Name = "Seconds",
+        Function = function()
+            if TimeOfDayEnabled then 
+                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+            end
+        end,
+        Min = 0,
+        Max = 64,
+        Default = 0,
+        Round = 0
+    })
+end)
+
 print("[ManaV2ForRoblox/Universal.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
 
 -- Private part
 
-if Mana.Developer or Mana.Whitelisted then
+--[[
+if (Mana.Developer and Mana.Whitelisted) and Tabs.Private then
     local PrivateStartTick = tick()
 
     runFunction(function()
@@ -3270,3 +4906,6 @@ if Mana.Developer or Mana.Whitelisted then
 
     print("[ManaV2ForRoblox/Universal.lua]: Loaded private version in " .. tostring(tick() - PrivateStartTick) .. ". \n Loaded with private features in " .. tostring(tick() - startTick) .. ".")
 end
+]]
+
+--Mana.GuiLibrary:LoadConfig()
