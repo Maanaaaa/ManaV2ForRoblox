@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
+local lplr = Players.LocalPlayer
 local Character = LocalPlayer.Character
 local HumanoidRootPart = Character.HumanoidRootPart
 local Humanoid = Character.Humanoid
@@ -51,11 +52,17 @@ local GuiLibrary = Mana.GuiLibrary
 local Tabs = Mana.Tabs
 local Functions = Mana.Functions
 local RunLoops = Mana.RunLoops
-local EntityLibrary = Mana.EntityLibrary
 local connections = Mana.Connections
 local friends = Mana.Friends
+local playersHandler = Mana.EntityHandler
+local toolHandler = Mana.ToolHandler
 local guifont = GuiLibrary.Font
 Mana.StartTick = startTick
+
+playersHandler:start()
+toolHandler:start()
+CurrentTool = toolHandler.currentTool
+--print(CurrentTool)
 
 local getasset = getcustomasset
 local function runFunction(func) func() end
@@ -155,6 +162,71 @@ end
 local function IsPlayerTargetable(plr, target)
     return plr ~= LocalPlayer and plr and IsAlive(plr) and TargetCheck(plr, target)
 end
+
+--[[
+local function GetClosestPlayer(MaxDistance, TeamCheck, lowesthealth)
+	local MaximumDistance = MaxDistance
+	local Target = nil
+    local lowest = 100
+    local unsorted = {}
+    local humanoids = {}
+    local sorted = {}
+
+    local function sortByHealth()
+        for i, player in next, unsorted do
+            if IsAlive(player) then
+                table.insert(humanoids, player.Character.Humanoid.Health)
+            end
+        end
+        table.sort(humanoids, function(a, b)
+            return a.health < b.health
+        end)
+
+        for i, v in next, humanoids do
+            table.insert(sorted, v.player)
+        end
+    end
+
+    local function checkPlayer(v, byHealth)
+        sortByHealth()
+        if v.Character ~= nil then
+            if v.Character:FindFirstChild("HumanoidRootPart") ~= nil then
+                if v.Character:FindFirstChild("Humanoid") ~= nil and v.Character:FindFirstChild("Humanoid").Health ~= 0 then
+                    local ScreenPoint = Camera:WorldToScreenPoint(v.Character:WaitForChild("HumanoidRootPart", math.huge).Position)
+                    local VectorDistance = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                    
+                    if byHealth then
+                        if v == sorted[1] then
+                            Target = v
+                        end
+                    else
+                        if VectorDistance < MaximumDistance then
+                            Target = v
+                        end
+                    end
+                end
+            end
+        end
+        sortByHealth()
+        return sorted[1]
+    end
+
+	for _, v in next, Players:GetPlayers() do
+		if v.Name ~= LocalPlayer.Name then
+            table.insert(unsorted, player)
+			if TeamCheck then
+				if v.Team ~= LocalPlayer.Team then
+					checkPlayer(v)
+				end
+			else
+				checkPlayer(v)
+			end
+		end
+	end
+
+	return Target
+end
+]]
 
 local function GetClosestPlayer(MaxDisance, TeamCheck)
 	local MaximumDistance = MaxDisance
@@ -309,17 +381,15 @@ local function FindTouchInterest(Tool)
     return Tool and Tool:FindFirstChildWhichIsA("TouchTransmitter", true)
 end
 
-table.insert(connections, LocalPlayer.Character.ChildAdded:Connect(function(Child)
-    if Child:IsA("Tool") then
-        CurrentTool = Child
+local function findToolWithTouchInterest(plr)
+    for _, tool in next, plr.Backpack do
+        local touchInterest = FindTouchInterest(tool)
+        if touchInterest then
+            return tool
+        end
     end
-end))
-
-table.insert(connections, LocalPlayer.Character.ChildRemoved:Connect(function(Child)
-    if Child:IsA("Tool") then
-        CurrentTool = nil
-    end
-end))
+    return
+end
 
 -- CanClick is from vape
 local function CanClick()
@@ -373,7 +443,7 @@ local function GetNearInstances(Radius, Player, RequiredInstance, IgnoreInstance
 end
 
 local function isFriend(name)
-    for _, friend in next, friends do
+    for _, friend in next, playersHandler.players do
         if friend == name or name == friend then
             return true
         end
@@ -381,32 +451,11 @@ local function isFriend(name)
     return false
 end
 
-for a, player in next, Players:GetPlayers() do
-    if player ~= LocalPlayer then
-        table.insert(allplayers, player)
-    end
-end
-
-table.insert(connections, Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        table.insert(allplayers, player)
-    end
-end))
-
-table.insert(connections, Players.PlayerRemoving:Connect(function(player)
-    for i, v in next, allplayers do
-        if v == player then
-            table.remove(allplayers, i)
-        end
-    end
-end))
-
 --[[
     ToDo list:
     Add normal ESP
     Rewrite FastFall - Next update
     Rewrite ForwardTP - Next update
-    Rewrite HighJump + LongJump - Next update
     Rewrite SpinBot - Next update
     Add PlayerFollow
     Add PlayerJumpscare
@@ -729,11 +778,11 @@ runFunction(function()
 
     --FireShoot is from vape
 
-    local function FireShoot(ToolCheck)
-        local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+    local function fireShoot(ToolCheck)
+        local Player = playersHandler:getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
 
         if ToolCheck then
-            if CurrentTool == nil then
+            if toolHandler.currentTool == nil then
                 return 
             end
         end
@@ -795,11 +844,11 @@ runFunction(function()
 
                     RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
                         if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
-                            local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if Player then
-                                AimAt(Player, SilentAimSmoothness.Value, AimPart.Value)
+                            local plr = playersHandler:getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+                            if plr and playersHandler:isAlive(plr, AimPart.Value == "Head") then
+                                AimAt(plr, SilentAimSmoothness.Value, AimPart.Value)
                                 if SilentAimAutoFire.Value then
-                                    FireShoot(SilentAimAutoFireToolCheck.Value)
+                                    fireShoot(SilentAimAutoFireToolCheck.Value)
                                 end
                             end
                         end
@@ -917,8 +966,8 @@ runFunction(function()
                             end
                         end
                     elseif AutoClickerMode.Value == "Tool" then
-                        if CurrentTool == not nil and CurrentTool:IsA("Tool") and CanClick() then
-                            CurrentTool:Active()
+                        if toolHandler.currentTool == not nil and CurrentTool:IsA("Tool") and CanClick() then
+                            toolHandler.currentTool:Active()
                         end
                     end
                 end
@@ -947,14 +996,16 @@ runFunction(function()
     local Reach = {Enabled = false}
     local ReachExpandPart = {Value = "Head"}
     local ReachExpand = {Value = 0}
-    local PlayerAddedConnection
+    local connection
+    local edited = {}
 
-    local function UpdatePlayer(Player)
-        if IsAlive(Player, ReachExpandPart.Value == "Head") and IsPlayerTargetable(Player, true) then
+    local function UpdatePlayer(plr)
+        if not edited[plr] then edited[plr] = true end
+        if playersHandler:isAlive(plr, ReachExpandPart.Value == "Head") and playersHandler:isPlayerTargetable(plr, true) then
             if ReachExpandPart.Value == "HumanoidRootPart" then
-                Player.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
+                plr.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
             elseif ReachExpandPart.Value == "Head" then
-                Player.Character.Head.Size = Vector3.new((ReachExpand.Value / 10), (ReachExpand.Value / 10), (ReachExpand.Value / 10))
+                plr.Character.Head.Size = Vector3.new((ReachExpand.Value / 10), (ReachExpand.Value / 10), (ReachExpand.Value / 10))
             end
         end
     end
@@ -964,18 +1015,24 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                for _, Player in next, Players:GetPlayers() do
-                    UpdatePlayer(Player)
+                for _, plr in next, playersHandler.players do
+                    UpdatePlayer(plr)
                 end
-                PlayerAddedConnection = Players.PlayerAdded:Connect(function(Player)
-                    UpdatePlayer(Player)
+                connection = Players.PlayerAdded:Connect(function(plr)
+                    UpdatePlayer(plr)
                 end)
             else
-                for _, Player in next, Players:GetPlayers() do
-                    UpdatePlayer(Player)
+                if connection then
+                    connection:Disconnect()
                 end
-                if PlayerAddedConnection then
-                    PlayerAddedConnection:Disconnect()
+                for _, plr in next, Players:GetPlayers() do
+                    plr.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+                    plr.Character.Head.Size = Vector3.new(1, 1, 1)
+                end
+                for _, plr in next, playersHandler.players do
+                    if edited[plr] then
+                        edited[plr] = nil
+                    end
                 end
             end
         end
@@ -1000,14 +1057,15 @@ end)
 -- Movement tab
 
 runFunction(function()
-    AutoWalk = Tabs.Movement:CreateToggle({
+    local autoWalk = {Enabled = false}
+    autoWalk = Tabs.Movement:CreateToggle({
         Name = "AutoWalk",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 RunLoops:BindToRenderStep("AutoWalk", function()
-                    if IsAlive() then
-                        LocalPlayer.Character.Humanoid:Move(Vector3.new(0, 0, -1), true)
+                    if playersHandler:isAlive() then
+                        playersHandler.character.humanoid:Move(Vector3.new(0, 0, -1), true)
                     end
                 end)
             else
@@ -2816,6 +2874,7 @@ runFunction(function()
 end)
 
 --[[somewhen
+this was made by Wowzers
 runFunction(function()
     local TracerStartPoint = {Value = "Mouse"}
     local TracerThickness = {Value = 2}
@@ -3611,23 +3670,93 @@ runFunction(function()
     })
 end)
 
---[[
+-- not making support for old chat version bc boblox will remove it on 30 april
 runFunction(function()
-    local SpamMessage = {Value = ""}
-    local Delay  = {Value = 1}
-    ChatSpammer = Tabs.Utility:CreateToggle({
+    local chatSpammer = {Enabled = false}
+    local mode = {Value = "Random"}
+    local spamMessages = {List = {}}
+    local delay = {Value = 1}
+    local hideFloodMessage = {Value = false}
+    local connection, max, current = nil, 0, 1
+
+    chatSpammer = Tabs.Utility:CreateToggle({
         Name = "ChatSpammer",
         Keybind = nil,
         Callback = function(callback) 
-            if callback then 
-                LocalPlayer.CameraMaxZoomDistance = 99999999
+            if callback then
+                if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+                    repeat
+                        local msg
+                        if mode.Value == "Random" then
+                            if #spamMessages.List == 0 then
+                                msg = "Maanaaaa was here"
+                            else
+                                msg = spamMessages.List[math.random(1, #spamMessages.List)]
+                            end
+                        elseif mode.Value == "Order" then
+                            max = #spamMessages.List
+                            if #spamMessages.List == 0 then
+                                msg = "Maanaaaa was here"
+                            end
+                            if spamMessages.List[current] then
+                                msg = spamMessages.List[current]
+                                current = current + 1
+                                if current > max then
+                                    current = 1
+                                end
+                            else
+                                current = 1
+                            end
+                        end
+                        TextChatService.ChatInputBarConfiguration.TargetTextChannel:SendAsync(msg)
+                        wait(delay.Value)
+                    until not chatSpammer.Enabled
+                end
+                if hideFloodMessage.Value then
+                    connection = CoreGui.ExperienceChat:FindFirstChild("RCTScrollContentView").ChildAdded:Connect(function(msg)
+                        if msg.ContentText == "You must wait before sending another message." then
+                            msg.Visible = false
+                            print("detected flood message")
+                        end
+                    end)
+                end
             else
-                LocalPlayer.CameraMaxZoomDistance = OldCameraMaxZoomDistance
+                if connection then
+                    connection:Disconnect()
+                end
             end
         end
     })
+
+    mode = chatSpammer:CreateDropDown({
+        Name = "Mode",
+        List = {"Random", "Order"},
+        Default = "Random",
+        Callback = function(v) end
+    })
+
+    spamMessages = chatSpammer:CreateTextList({
+        Name = "SpamMessages",
+        PlaceholderText = "Messages to spam",
+        DefaultList = {},
+        Function = function(v) end,
+    })
+
+    delay = chatSpammer:CreateSlider({
+        Name = "Delay",
+        Function = function(v) end,
+        Min = 0,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    hideFloodMessage = chatSpammer:CreateToggle({
+        Name = "HideFloodMessage",
+        Default = false,
+        Function = function(callback) end
+    })
 end)
-]]
 
 if Animate and CheckForAllAnimateParams(Animate) == true then
     runFunction(function()
@@ -4260,7 +4389,6 @@ runFunction(function()
                 Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             else
                 if LastSafePosition then
-                    print("A")
                     RootPart.CFrame = LastSafePosition
                     Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
                 else
@@ -4273,11 +4401,9 @@ runFunction(function()
                     end
                     
                     if spawnLocation and TPtoSpawnLocation.Value then
-                        print("B")
                         RootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 5, 0)
                         Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
                     else
-                        print("ABSing")
                         RootPart.CFrame = CFrame.new(RootPart.Position.X, math.abs(voidYpos), RootPart.Position.Z)
                         Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
                     end
@@ -4364,6 +4490,112 @@ runFunction(function()
         Function = function(v) end
     })
 end)
+
+--[[next week
+runFunction(function()
+    local atmosphereModule = {Enabled = false}
+    local color = {Value = Color3.fromRGB(255, 255, 255)}
+    local decay = {Value = Color3.fromRGB(255, 255, 255)}
+    local density = {Value = 0.5}
+    local glare = {Value = 0.5}
+    local haze = {Value = 0.5}
+    local offset = {Value = 0.5}
+    local atmosphere
+
+    atmosphereModule = Tabs.World:CreateToggle({
+        Name = "Atmopshere",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                atmosphere = Instance.new("Atmosphere")
+                atmosphere.Color = color.Value
+                atmosphere.Decay = decay.Value
+                atmosphere.Density = density.Value
+                atmosphere.Glare = glare.Value
+                atmosphere.Haze = haze.Value
+                atmosphere.Offset = offset.Value
+                atmosphere.Parent = Lighting
+            else
+                if atmosphere then
+                    atmosphere:Destroy()
+                end
+            end
+        end
+    })
+
+    color = atmosphereModule:CreateColorSlider({
+        Name = "Color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Color = v
+            end
+        end
+    })
+
+    decay = atmosphereModule:CreateColorSlider({
+        Name = "Decay",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Decay = v
+            end
+        end
+    })
+
+    density = atmosphereModule:CreateSlider({
+        Name = "Density",
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Density = v
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0.5,
+        Round = 3
+    })
+
+    glare = atmosphereModule:CreateSlider({
+        Name = "Glare",
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Glare = v
+            end
+        end,
+        Min = 0,
+        Max = 10,
+        Default = 5,
+        Round = 2
+    })
+
+    haze = atmosphereModule:CreateSlider({
+        Name = "Haze",
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Haze = v
+            end
+        end,
+        Min = 0,
+        Max = 10,
+        Default = 5,
+        Round = 2
+    })
+
+    offset = atmosphereModule:CreateSlider({
+        Name = "Offset",
+        Function = function(v)
+            if atmosphere then
+                atmosphere.Offset = v
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0.5,
+        Round = 3
+    })
+end)
+]]
 
 runFunction(function()
     local GravityValue = {Value = 18}
@@ -4718,7 +4950,7 @@ runFunction(function()
     local Seconds = {Value = 0}
     local TimeOfDayEnabled = false
     local Connection
-    TimeOfDay = Tabs.Render:CreateToggle({
+    TimeOfDay = Tabs.World:CreateToggle({
         Name = "TimeOfDay",
         Keybind = nil,
         Callback = function(callback)
@@ -4778,6 +5010,57 @@ runFunction(function()
         Round = 0
     })
 end)
+
+-- FE + Trolling tab
+--[[
+runFunction(function()
+    local PlayerFollow = {Enabled = false}
+    local mode = {Value = "Closest"}
+    local player = {Value = ""}
+
+
+    PlayerFollow = Tabs.FE:CreateToggle({
+        Name = "PlayerFollow",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                RunLoops:BindToHeartbeat("PlayerFollow", function()
+                    if IsAlive() then
+                        if mode.Value == "Closest" then
+                            local closestplr = GetClosestPlayer(10000000, false)
+                            if closestplr and IsAlive(closestplr) then
+                                local plrhumanoidRootPart = closestplr.Character.HumanoidRootPart
+                                local humanoidRootPart = LocalPlayer.Character.HumanoidRootPart
+                                local backVector = plrhumanoidRootPart.CFrame.LookVector / 2
+                                humanoidRootPart.CFrame = plrhumanoidRootPart - backVector
+                            else
+                                warn("no plr or not alive")
+                            end
+                        elseif mode.Value == "Custom" then
+
+                        end
+                    end
+                end)
+            else
+
+            end
+        end
+    })
+
+    mode = PlayerFollow:CreateDropDown({
+        Name = "Mode",
+        List = {"Closest", "Custom"},
+        Default = "Closest",
+        Function = function(v)
+            if v == "Custom" then
+                if player.MainObject then player.MainObject.Visible = true end
+            else
+                if player.MainObject then player.MainObject.Visible = false end
+            end
+        end
+    })
+end)
+]]
 
 print("[ManaV2ForRoblox/Universal.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
 

@@ -79,7 +79,7 @@ do
             Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. filepath,
             Method = "GET"
         })
-        if betterisfile(filepath) and shared.ManaDeveloper then
+        if isfile("NewMana/"..filepath) and shared.ManaDeveloper then
             print("MEEEEEEE " .. filepath)
             return loadstring(readfile("NewMana/" .. filepath))()
         elseif not betterisfile(filepath) and not shared.ManaDeveloper then -- auto update workspace files
@@ -141,11 +141,15 @@ end
 
 shared.Mana = Mana
 local GuiLibrary = Functions:RunFile("GuiLibrary.lua")--loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/refs/heads/main/GuiLibrary.lua"))()
---local EntityLibrary = loadstring(game)
+local entityHandler = Functions:RunFile("Libraries/playersHandler.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/refs/heads/main/libraries/entity.lua"))()
+local toolHandler = Functions:RunFile("Libraries/toolHandler.lua")
+local whitelistHandler = Functions:RunFile("Libraries/whiltelistHandler.lua")
 Mana.GuiLibrary = GuiLibrary
 Mana.Functions = Functions
 Mana.RunLoops = RunLoops
---Mana.EntityLibrary = EntityLibrary
+Mana.EntityHandler = entityHandler
+Mana.ToolHandler = toolHandler
+Mana.WhitelistHandler = whitelistHandler
 Mana.Activated = true
 Mana.Whitelisted = false
 
@@ -201,7 +205,6 @@ local Tabs = {
         TabIcon = "PlayerImage.png",
         Callback = function() end
     }),
-    --[[
     FE = GuiLibrary:CreateTab({
         Name = "FE + Trolling",
         Color = Color3.fromRGB(255, 0, 34),
@@ -209,7 +212,6 @@ local Tabs = {
         TabIcon = "Utility.png",
         Callback = function() end
     })
-    ]]
     --[[
     SessionInfo = GuiLibrary:CreateCustomTab({
         Name = "Session info",
@@ -551,6 +553,7 @@ GuiLibrary:Toggle()
 
 -- Chat commands
 
+--[[
 runFunction(function()
     local whilelist = HttpService:JSONDecode(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/Whitelist/refs/heads/main/Whitelist.json"))
     local commands = {
@@ -668,3 +671,4 @@ runFunction(function()
         end
     end
 end)
+]]
