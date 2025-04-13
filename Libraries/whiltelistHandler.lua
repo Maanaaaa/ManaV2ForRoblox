@@ -1,3 +1,0 @@
-local whitelistHandler = {}
-
-return whitelistHandler
