@@ -1,0 +1,3 @@
+local whitelistHandler = {}
+
+return whitelistHandler
