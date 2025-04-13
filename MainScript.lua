@@ -142,13 +142,13 @@ end
 shared.Mana = Mana
 local GuiLibrary = Functions:RunFile("GuiLibrary.lua")--loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/refs/heads/main/GuiLibrary.lua"))()
 local entityHandler = Functions:RunFile("Libraries/playersHandler.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/refs/heads/main/libraries/entity.lua"))()
-local toolHandler = Functions:RunFile("Libraries/toolHandler.lua")
+--local toolHandler = Functions:RunFile("Libraries/toolHandler.lua")
 local whitelistHandler = Functions:RunFile("Libraries/whiltelistHandler.lua")
 Mana.GuiLibrary = GuiLibrary
 Mana.Functions = Functions
 Mana.RunLoops = RunLoops
 Mana.EntityHandler = entityHandler
-Mana.ToolHandler = toolHandler
+--Mana.ToolHandler = toolHandler
 Mana.WhitelistHandler = whitelistHandler
 Mana.Activated = true
 Mana.Whitelisted = false
