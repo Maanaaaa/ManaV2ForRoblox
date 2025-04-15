@@ -54,7 +54,7 @@ local Functions = Mana.Functions
 local RunLoops = Mana.RunLoops
 local connections = Mana.Connections
 local friends = Mana.Friends
-local playersHandler = Mana.EntityHandler
+local playersHandler = Mana.PlayersHandler
 local toolHandler = Mana.ToolHandler
 local guifont = GuiLibrary.Font
 Mana.StartTick = startTick
@@ -138,7 +138,7 @@ local function CreateCoreNotification(title, text, duration)
 end
 
 --[[
-while IsAlive() and wait(0.1) do
+while isAlive() and wait(0.1) do
     local Tool = Character:FindFirstChildWhichIsA("Tool")
     if Tool then
         CurrentTool = Tool
@@ -146,7 +146,7 @@ while IsAlive() and wait(0.1) do
 end
 ]]
 
-local function IsAlive(Player, headCheck, humanoidRootPartCheckDisabled)
+local function isAlive(Player, headCheck, humanoidRootPartCheckDisabled)
     local Player = Player or LocalPlayer
     if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and (humanoidRootPartCheckDisabled == false and Player.Character:FindFirstChild("HumanoidRootPart")) and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
         return true
@@ -159,12 +159,12 @@ local function TargetCheck(plr, check)
 	return (check and plr.Character.Humanoid.Health > 0 and plr.Character:FindFirstChild("ForceField") == nil or check == false)
 end
 
-local function IsPlayerTargetable(plr, target)
-    return plr ~= LocalPlayer and plr and IsAlive(plr) and TargetCheck(plr, target)
+local function isPlayerTargetable(plr, target)
+    return plr ~= LocalPlayer and plr and isAlive(plr) and TargetCheck(plr, target)
 end
 
 --[[
-local function GetClosestPlayer(MaxDistance, TeamCheck, lowesthealth)
+local function getClosestPlayer(MaxDistance, TeamCheck, lowesthealth)
 	local MaximumDistance = MaxDistance
 	local Target = nil
     local lowest = 100
@@ -174,7 +174,7 @@ local function GetClosestPlayer(MaxDistance, TeamCheck, lowesthealth)
 
     local function sortByHealth()
         for i, player in next, unsorted do
-            if IsAlive(player) then
+            if isAlive(player) then
                 table.insert(humanoids, player.Character.Humanoid.Health)
             end
         end
@@ -228,7 +228,7 @@ local function GetClosestPlayer(MaxDistance, TeamCheck, lowesthealth)
 end
 ]]
 
-local function GetClosestPlayer(MaxDisance, TeamCheck)
+local function getClosestPlayer(MaxDisance, TeamCheck)
 	local MaximumDistance = MaxDisance
 	local Target = nil
 
@@ -305,13 +305,13 @@ local function IsVisible(Position, WallCheck, ...)
     return #Camera:GetPartsObscuringTarget({Position}, {Camera, LocalPlayer.Character, ...}) == 0
 end
 
-local function GetClosestPlayerToMouse(Fov, TeamCheck, AimPart, WallCheck)
+local function getClosestPlayerToMouse(Fov, TeamCheck, AimPart, WallCheck)
     local AimFov = Fov
     local TargetPosition = nil
     for _, Player in pairs(Players:GetPlayers()) do
         if Player ~= LocalPlayer then
             local Character = Player.Character
-            if IsAlive(Player) and Character:FindFirstChild(AimPart) then
+            if isAlive(Player) and Character:FindFirstChild(AimPart) then
                 if not TeamCheck or ((TeamCheck and Player.Team ~= LocalPlayer.Team) or (TeamCheck and (Player.Team == nil or Player.Team == "nil") and Player.Neutral == true)) then
                     local ScreenPosition, OnScreen = Camera:WorldToViewportPoint(Character[AimPart].Position)
                     if OnScreen then
@@ -500,7 +500,7 @@ runFunction(function()
     --FireShoot is from vape
 
     local function FireShoot(ToolCheck)
-        local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+        local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
 
         if ToolCheck then
             if CurrentTool == nil then
@@ -565,8 +565,8 @@ runFunction(function()
 
                     RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
                         if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
-                            local Player = GetClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if Player and IsAlive(Player, AimPart.Value == "Head") then
+                            local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+                            if Player and isAlive(Player, AimPart.Value == "Head") then
                                 if SilentAimFriends.Value and isFriend(Player.Name) then 
                                     print("FRIEND " .. Player.Name)
                                     return
@@ -779,7 +779,7 @@ runFunction(function()
     --FireShoot is from vape
 
     local function fireShoot(ToolCheck)
-        local Player = playersHandler:getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+        local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
 
         if ToolCheck then
             if toolHandler.currentTool == nil then
@@ -844,8 +844,8 @@ runFunction(function()
 
                     RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
                         if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
-                            local plr = playersHandler:getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if plr and playersHandler:isAlive(plr, AimPart.Value == "Head") then
+                            local plr = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+                            if plr and isAlive(plr, AimPart.Value == "Head") then
                                 AimAt(plr, SilentAimSmoothness.Value, AimPart.Value)
                                 if SilentAimAutoFire.Value then
                                     fireShoot(SilentAimAutoFireToolCheck.Value)
@@ -1001,7 +1001,7 @@ runFunction(function()
 
     local function UpdatePlayer(plr)
         if not edited[plr] then edited[plr] = true end
-        if playersHandler:isAlive(plr, ReachExpandPart.Value == "Head") and playersHandler:isPlayerTargetable(plr, true) then
+        if isAlive(plr, ReachExpandPart.Value == "Head") and isPlayerTargetable(plr, true) then
             if ReachExpandPart.Value == "HumanoidRootPart" then
                 plr.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
             elseif ReachExpandPart.Value == "Head" then
@@ -1015,7 +1015,7 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                for _, plr in next, playersHandler.players do
+                for _, plr in next, Players:GetPlayers() do
                     UpdatePlayer(plr)
                 end
                 connection = Players.PlayerAdded:Connect(function(plr)
@@ -1141,19 +1141,19 @@ runFunction(function()
                     Tool.Parent = Backpack
                     Tool.RequiresHandle = false
                     Tool.Activated:Connect(function()
-                        if IsAlive() and callback then
+                        if isAlive() and callback then
                             LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
                 elseif ClickTPMode.Value == "Click" then
                     MouseConnection1 = Mouse.Button1Down:Connect(function()
-                        if IsAlive() and callback and ClickTPMode.Value == "Click" then 
+                        if isAlive() and callback and ClickTPMode.Value == "Click" then 
                             LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
                 elseif ClickTPMode.Value == "RightClick" then
                     MouseConnection2 = Mouse.Button2Down:Connect(function()
-                        if IsAlive() and callback and ClickTPMode.Value == "RightClick" then 
+                        if isAlive() and callback and ClickTPMode.Value == "RightClick" then 
                             LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
@@ -1334,7 +1334,7 @@ runFunction(function()
         Callback = function(callback)
             if callback and not Teleporting then
                 Teleporting = true
-                if IsAlive() then
+                if isAlive() then
                     local Humanoid = LocalPlayer.Character.Humanoid
                     local HumanoidRootPart = LocalPlayer.Character.HumanoidRootPart
                     local LookVector = HumanoidRootPart.CFrame.LookVector
@@ -1372,7 +1372,7 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback)
             if callback and not Teleporting then
-                if IsAlive() then
+                if isAlive() then
                     Teleporting = true
                     local Humanoid = LocalPlayer.Character.Humanoid
                     local HumanoidRootPart = LocalPlayer.Character.HumanoidRootPart
@@ -1620,7 +1620,7 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
-                if IsAlive() then
+                if isAlive() then
                     RunLoops:BindToStepped("Phase", function()
                         for i, v in pairs(LocalPlayer.Character:GetChildren()) do 
                             if v:IsA("BasePart") and v.CanCollide then 
@@ -1657,7 +1657,7 @@ runFunction(function()
             if callback then
                 SpeedEnabled = callback
                 RunLoops:BindToHeartbeat("Speed", function(Delta)
-                    if IsAlive() then
+                    if isAlive() then
                         local Character = LocalPlayer.Character
                         local Humanoid = Character.Humanoid
                         local HumanoidRootPart = Character.HumanoidRootPart
@@ -1803,7 +1803,7 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("SpinBot", function()
-                    if IsAlive() then
+                    if isAlive() then
                         local Character = LocalPlayer.Character
                         local HumanoidRootPart = Character.HumanoidRootPart
                         local OldVelocity = HumanoidRootPart.RotVelocity
@@ -1878,7 +1878,7 @@ runFunction(function()
             if callback then
                 task.spawn(function()
 					repeat
-						if IsAlive() then
+						if isAlive() then
                             local Character = LocalPlayer.Character
                             local HumanoidRootPart = Character.HumanoidRootPart
                             if not BreadcrumbsTrail then
@@ -2010,7 +2010,7 @@ runFunction(function()
     end
 
     local function UpdateChams(Player)
-        if IsAlive(Player) then
+        if isAlive(Player) then
             local Character = Player.Character
             if not Character then return end
             local AdorneePart = ChamsAdorneePart.Value == "Full Character" and Character or Character:FindFirstChild(ChamsAdorneePart.Value)
@@ -2227,7 +2227,7 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("ChinaHat", function()
-					if IsAlive() then
+					if isAlive() then
 						if ChinaHatTrail == nil or ChinaHatTrail.Parent == nil then
 							ChinaHatTrail = Instance.new("Part")
 							ChinaHatTrail.CFrame =  LocalPlayer.Character.Head.CFrame * CFrame.new(0, 1.1, 0)
@@ -2328,7 +2328,7 @@ runFunction(function()
                 end
                 print(1)
 
-                if IsAlive(Player) and Player ~= LocalPlayer and Player.Team ~= tostring(LocalPlayer.Team) then
+                if isAlive(Player) and Player ~= LocalPlayer and Player.Team ~= tostring(LocalPlayer.Team) then
                     print(2)
                     local Character = Player.Character
                     local Humanoid = Character.Humanoid
@@ -2555,7 +2555,7 @@ runFunction(function()
     -- Function to check if a player is alive
     local aliveCache = {}
     local lastAliveCheck = {}
-    local function IsAlive(player)
+    local function isAlive(player)
         if not player then player = game:GetService("Players").LocalPlayer end
         
         -- Use cached result if checked recently
@@ -2663,7 +2663,7 @@ runFunction(function()
         end
         
         -- Add distance information if it's enabled
-        if NameTagsDistance.Value and IsAlive(LocalPlayer) then
+        if NameTagsDistance.Value and isAlive(LocalPlayer) then
             local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
             table.insert(parts, string.format(" [%dm]", distance))
         end
@@ -2672,7 +2672,7 @@ runFunction(function()
         textLabel.Text = table.concat(parts)
         
         -- Only adjust text size if needed
-        if NameTagsDistance.Value and IsAlive(LocalPlayer) then
+        if NameTagsDistance.Value and isAlive(LocalPlayer) then
             local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
             local scaleFactor = math.clamp(1 - (distance / NameTagsMaxDistance.Value) * 0.5, 0.5, 1)
             if math.abs(textLabel.TextSize - (16 * scaleFactor)) > 0.5 then
@@ -2687,7 +2687,7 @@ runFunction(function()
         local LocalPlayer = Players.LocalPlayer
         
         for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and IsAlive(plr) then
+            if plr ~= LocalPlayer and isAlive(plr) then
                 if billboardGuis[plr.Name] and billboardGuis[plr.Name].Parent then
                     UpdateNameTag(plr)
                 else
@@ -2755,9 +2755,9 @@ runFunction(function()
                         lastFullUpdate = now                      
                         for _, plr in pairs(Players:GetPlayers()) do
                             if plr ~= LocalPlayer then
-                                if IsAlive(plr) and (not billboardGuis[plr.Name] or not billboardGuis[plr.Name].Parent) then
+                                if isAlive(plr) and (not billboardGuis[plr.Name] or not billboardGuis[plr.Name].Parent) then
                                     CreateNameTag(plr)
-                                elseif (not IsAlive(plr)) and billboardGuis[plr.Name] then
+                                elseif (not isAlive(plr)) and billboardGuis[plr.Name] then
                                     CleanupPlayerNameTag(plr)
                                 end
                             end
@@ -2767,7 +2767,7 @@ runFunction(function()
                     -- Update only visible nametags every frame for smooth distance/health updates
                     for name, gui in pairs(billboardGuis) do
                         local plr = Players:FindFirstChild(name)
-                        if plr and gui.Parent and IsAlive(plr) then
+                        if plr and gui.Parent and isAlive(plr) then
                             UpdateNameTag(plr)
                         end
                     end
@@ -2885,7 +2885,7 @@ runFunction(function()
 
     local function UpdateTracers()
         for _, Player in pairs(Players:GetPlayers()) do
-            if IsAlive(Player) and Player ~= LocalPlayer and (not TracerTeamCheck.Value or Player.Team ~= LocalPlayer.Team) then
+            if isAlive(Player) and Player ~= LocalPlayer and (not TracerTeamCheck.Value or Player.Team ~= LocalPlayer.Team) then
                 local Line = Drawing.new("Line")
                 Lines[Player.Name] = Line
 
@@ -2993,7 +2993,7 @@ runFunction(function()
     local PlayerRemovingConnection
     
     -- Helper function to check if a player is alive
-    local function IsAlive(player)
+    local function isAlive(player)
         local character = player.Character
         return character and 
                character:FindFirstChild("Humanoid") and 
@@ -3014,7 +3014,7 @@ runFunction(function()
         
         -- Update or create new lines
         for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and IsAlive(player) and 
+            if player ~= LocalPlayer and isAlive(player) and 
                (not TracerTeamCheck.Value or player.Team ~= LocalPlayer.Team) then
                 
                 local character = player.Character
@@ -4110,7 +4110,7 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("GodMode", function()
-                    if IsAlive(LocalPlayer, false, true) then
+                    if isAlive(LocalPlayer, false, true) then
                         local Character = LocalPlayer.Character
                         local Humanoid = Character.Humanoid
                         local HumanoidRootPart = Character.HumanoidRootPart
@@ -4158,7 +4158,7 @@ runFunction(function()
                 cleanupConnections()
                 RunLoops:UnbindFromHeartbeat("GodMode")
                 
-                if IsAlive(LocalPlayer, false, true) then
+                if isAlive(LocalPlayer, false, true) then
                     local Character = LocalPlayer.Character
                     local Humanoid = Character.Humanoid
                     
@@ -4205,7 +4205,7 @@ runFunction(function()
             if Mode.Value == "Heal" and GodMode.Enabled and connection then
                 cleanupConnections()
                 
-                if IsAlive(LocalPlayer, false, true) then
+                if isAlive(LocalPlayer, false, true) then
                     local Humanoid = LocalPlayer.Character.Humanoid
                     applyHealMode(Humanoid)
                 end
@@ -4301,7 +4301,7 @@ runFunction(function()
         Keybind = nil,
         Callback = function(callback) 
             if callback then
-                if IsAlive() then 
+                if isAlive() then 
                     LocalPlayer.Character.Humanoid:ChangeState(11)
                 else
                     LocalPlayer.Character.Humanoid:ChangeState(5)
@@ -4345,7 +4345,7 @@ runFunction(function()
     local connection
 
     local function isOnGround()
-        if not IsAlive() then return false end
+        if not isAlive() then return false end
         
         local character = LocalPlayer.Character
         local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -4367,7 +4367,7 @@ runFunction(function()
     end
     
     local function savePosition()
-        if not IsAlive() or not isOnGround() then return end
+        if not isAlive() or not isOnGround() then return end
         
         local rootPart = LocalPlayer.Character.HumanoidRootPart
         LastSafePosition = rootPart.CFrame
@@ -4377,7 +4377,7 @@ runFunction(function()
         local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         local Humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         oldjumppower = Humanoid.JumpPower
-        if not IsAlive() or IsBeingRescued then return end
+        if not isAlive() or IsBeingRescued then return end
         
         if RootPart.Position.Y <= voidYpos then
             IsBeingRescued = true
@@ -5012,7 +5012,6 @@ runFunction(function()
 end)
 
 -- FE + Trolling tab
---[[
 runFunction(function()
     local PlayerFollow = {Enabled = false}
     local mode = {Value = "Closest"}
@@ -5025,10 +5024,10 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("PlayerFollow", function()
-                    if IsAlive() then
+                    if isAlive() then
                         if mode.Value == "Closest" then
-                            local closestplr = GetClosestPlayer(10000000, false)
-                            if closestplr and IsAlive(closestplr) then
+                            local closestplr = getClosestPlayer(10000000, false)
+                            if closestplr and isAlive(closestplr) then
                                 local plrhumanoidRootPart = closestplr.Character.HumanoidRootPart
                                 local humanoidRootPart = LocalPlayer.Character.HumanoidRootPart
                                 local backVector = plrhumanoidRootPart.CFrame.LookVector / 2
@@ -5060,7 +5059,6 @@ runFunction(function()
         end
     })
 end)
-]]
 
 print("[ManaV2ForRoblox/Universal.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
 
@@ -5080,7 +5078,7 @@ if (Mana.Developer and Mana.Whitelisted) and Tabs.Private then
                 if callback then
                     if FakeLagSend.Value then 
                         RunLoops:BindToHeartbeat("SendFakeLag", function() 
-                            if IsAlive() and sethiddenproperty then
+                            if isAlive() and sethiddenproperty then
                                 sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
                             elseif not sethiddenproperty then
                                 GuiLibrary:CreateNotification("FakeLag", "Missing sethiddenproperty function.", 10, false, "error")
@@ -5190,5 +5188,3 @@ if (Mana.Developer and Mana.Whitelisted) and Tabs.Private then
     print("[ManaV2ForRoblox/Universal.lua]: Loaded private version in " .. tostring(tick() - PrivateStartTick) .. ". \n Loaded with private features in " .. tostring(tick() - startTick) .. ".")
 end
 ]]
-
---Mana.GuiLibrary:LoadConfig()
