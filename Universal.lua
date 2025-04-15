@@ -1938,9 +1938,9 @@ runFunction(function()
         Name = "Transparency",
         Function = function(v) end,
         Min = 0,
-        Max = 100,
-        Default = 20,
-        Round = 2
+        Max = 1,
+        Default = 0,
+        Round = 1
     })
 
     BreadcrumbsThick = Breadcrumbs:CreateSlider({
