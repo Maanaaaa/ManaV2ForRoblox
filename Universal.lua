@@ -146,9 +146,9 @@ while isAlive() and wait(0.1) do
 end
 ]]
 
-local function isAlive(Player, headCheck, humanoidRootPartCheckDisabled)
+local function isAlive(Player, headCheck)
     local Player = Player or LocalPlayer
-    if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and (humanoidRootPartCheckDisabled == false and Player.Character:FindFirstChild("HumanoidRootPart")) and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
+    if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and Player.Character:FindFirstChild("HumanoidRootPart") and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
         return true
     else
         return false
