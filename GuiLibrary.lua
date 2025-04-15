@@ -1937,7 +1937,7 @@ function guilibrary:CreateWindow()
                 Label.Size = UDim2.new(0, 170, 0, 32)
                 Label.Font = guipallet.Font
                 Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Label.TextSize = #name > 12 and 22 or 22 - #name
+                Label.TextSize = Label.TextSize = 22 --#name > 12 and 22 or 22 - #name
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 Label.Text = name
             
