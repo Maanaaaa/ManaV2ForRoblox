@@ -141,13 +141,13 @@ end
 
 shared.Mana = Mana
 local GuiLibrary = Functions:RunFile("GuiLibrary.lua")--loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/refs/heads/main/GuiLibrary.lua"))()
-local entityHandler = Functions:RunFile("Libraries/playersHandler.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/refs/heads/main/libraries/entity.lua"))()
+local playersHandler = Functions:RunFile("Libraries/playersHandler.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/refs/heads/main/libraries/entity.lua"))()
 local toolHandler = Functions:RunFile("Libraries/toolHandler.lua")
 --local whitelistHandler = Functions:RunFile("Libraries/whiltelistHandler.lua")
 Mana.GuiLibrary = GuiLibrary
 Mana.Functions = Functions
 Mana.RunLoops = RunLoops
-Mana.EntityHandler = entityHandler
+Mana.PlayersHandler = playersHandler
 Mana.ToolHandler = toolHandler
 --Mana.WhitelistHandler = whitelistHandler
 Mana.Activated = true
@@ -205,6 +205,7 @@ local Tabs = {
         TabIcon = "PlayerImage.png",
         Callback = function() end
     }),
+    --[[
     FE = GuiLibrary:CreateTab({
         Name = "FE + Trolling",
         Color = Color3.fromRGB(255, 0, 34),
@@ -212,6 +213,7 @@ local Tabs = {
         TabIcon = "Utility.png",
         Callback = function() end
     })
+    ]]
     --[[
     SessionInfo = GuiLibrary:CreateCustomTab({
         Name = "Session info",

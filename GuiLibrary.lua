@@ -505,7 +505,7 @@ function guilibrary:RandomString() -- from vape
     return table.concat(array)
 end
 
-function guilibrary:Toggleguilibrary()
+function guilibrary:Toggle()
     if UserInputService:GetFocusedTextBox() == nil then
         if ClickGui.Visible then
             ClickGui.Visible = false
@@ -545,6 +545,7 @@ function guilibrary:playsound(id, volume)
     end
 end
 
+--[[
 function guilibrary:CreateNotification(title, text, delay2, toggled)
     spawn(function()
         if NotificationWindow:FindFirstChild("Background") then NotificationWindow:FindFirstChild("Background"):Destroy() end
@@ -604,6 +605,15 @@ function guilibrary:CreateNotification(title, text, delay2, toggled)
 	        end)
 	    end
     end)
+end
+]]
+
+function guilibrary:CreateNotification(title, text, delay, toggled)
+    StarterGui:SetCore("SendNotification", {
+		Title = title,
+		Text = text,
+		Duration = delay,
+	})
 end
 
 function guilibrary:CreateSessionInfo()
@@ -1212,10 +1222,6 @@ function guilibrary:CreateWindow()
                 ToggleTable.Enabled = bool
             
                 spawn(function()
-                    Callback(bool)
-                end)
-            
-                spawn(function()
                     --guilibrary:CreateNotification(title, (bool and "Enabled " or "Disabled ") .. title, 4, bool)
                 end)
             
@@ -1224,6 +1230,15 @@ function guilibrary:CreateWindow()
                 if not silent then
                     guilibrary:playsound("rbxassetid://421058925", 1)
                 end
+
+                spawn(function()
+                    Callback(bool)
+                end)
+            end
+
+            function ToggleTable:ReToggle(silent)
+                ToggleTable:Toggle(silent)
+                ToggleTable:Toggle(silent)
             end
             
             table.insert(connections, toggle.MouseButton1Click:Connect(function()
@@ -1299,10 +1314,11 @@ function guilibrary:CreateWindow()
                 colorPickerFrame.Size = UDim2.new(1, 0, 0, 132)
                 colorPickerFrame.BackgroundTransparency = 1
                 colorPickerFrame.Parent = optionframe
+                colorsliderapi.MainObject = colorPickerFrame
 
                 moreButton.Name = "MoreButton"
-                moreButton.Size = UDim2.new(0, 10, 0, 5)
-                moreButton.Position = UDim2.new(0, 10 + getTextWidth(name, 15) + 5, 0, 5)
+                moreButton.Size = UDim2.new(0, 12, 0, 6)
+                moreButton.Position = UDim2.new(0, TextService:GetTextSize(name, 15, guipallet.Font, Vector2.new(1000, 1000)).X + 15, 0, 5)
                 moreButton.Rotation = 180
                 moreButton.BackgroundTransparency = 1
                 moreButton.Image = "rbxassetid://14368317595" -- arrow from vapev4
@@ -1490,6 +1506,7 @@ function guilibrary:CreateWindow()
                     val = valValue or val
                     local color = HSVtoRGB(hue, sat, val)
                     rainbow = rainbow or false
+                    value = color
 
                     saturationGradient.Color = ColorSequence.new({
                         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
@@ -1508,6 +1525,7 @@ function guilibrary:CreateWindow()
                             table.remove(guilibrary.rainbowObjects, table.find(guilibrary.rainbowObjects, colorsliderapi))
                         end
                     end
+                    colorsliderapi.Value = color
                     callback(color)
                 end
 
@@ -1836,7 +1854,7 @@ function guilibrary:CreateWindow()
                 DropdownOptions.Position = UDim2.new(0, 0, 1, 0)
                 DropdownOptions.Size = UDim2.new(0, 175, 0, 25)
                 DropdownOptions.Visible = false
-                DropdownOptions.ZIndex = 50
+                DropdownOptions.ZIndex = 54
 
                 DropdownList.Name = "DropdownList"
                 DropdownList.Parent = DropdownOptions
@@ -1922,6 +1940,8 @@ function guilibrary:CreateWindow()
                 local optiontoggleapi = {
                     Name = name,
                     Enabled = value,
+                    Value = value,
+                    Type = "OptionToggle",
                     Callback = Callback
                 }
             
@@ -1937,7 +1957,7 @@ function guilibrary:CreateWindow()
                 Label.Size = UDim2.new(0, 170, 0, 32)
                 Label.Font = guipallet.Font
                 Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Label.TextSize = Label.TextSize = 22 --#name > 12 and 22 or 22 - #name
+                Label.TextSize = 22 --#name > 12 and 22 or 22 - #name
                 Label.TextXAlignment = Enum.TextXAlignment.Left
                 Label.Text = name
             
@@ -1965,12 +1985,18 @@ function guilibrary:CreateWindow()
                     bool = bool or not optiontoggleapi.Enabled
                     value = bool
                     optiontoggleapi.Enabled = bool
+                    optiontoggleapi.Value = bool
             
                     spawn(function()
                         Callback(bool)
                     end)
             
                     ActiveFrame.BackgroundColor3 = (bool and ((guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2)) or guipallet.Color3
+                end
+
+                function optiontoggleapi:ReToggle()
+                    optiontoggleapi:Toggle()
+                    optiontoggleapi:Toggle()
                 end
 
                 optiontoggleapi:Toggle(false)

@@ -62,7 +62,6 @@ Mana.StartTick = startTick
 playersHandler:start()
 toolHandler:start()
 CurrentTool = toolHandler.currentTool
---print(CurrentTool)
 
 local getasset = getcustomasset
 local function runFunction(func) func() end
@@ -146,6 +145,7 @@ while isAlive() and wait(0.1) do
 end
 ]]
 
+-- Players handler part
 local function isAlive(Player, headCheck)
     local Player = Player or LocalPlayer
     if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and Player.Character:FindFirstChild("HumanoidRootPart") and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
@@ -295,6 +295,36 @@ local function ConvertHealthToColor(Health, MaxHealth)
         return Color3.fromRGB(255, 196, 0) -- Yellow
     else
         return Color3.fromRGB(255, 71, 71) -- Red
+    end
+end
+
+local function getCharacter(plr)
+    return plr.Character or plr.CharacterAdded:Wait()
+end
+
+local function getPlrByCharacter(character)
+    for _, plr in next, Players:GetPlayers() do
+        if plr.Character == character then
+            return plr
+        end
+    end
+end
+
+local function getHumanoid(plr)
+    if isAlive(plr) then
+        return getCharacter(plr):FindFirstChildOfClass("Humanoid")
+    end
+end
+
+local function getHumanoidRootPart(plr)
+    if isAlive(plr) then
+        return getCharacter(plr):FindFirstChild("HumanoidRootPart")
+    end
+end
+
+local function getHead(plr)
+    if isAlive(plr) then
+        return getCharacter(plr):FindFirstChild("Head")
     end
 end
 
@@ -454,9 +484,6 @@ end
 --[[
     ToDo list:
     Add normal ESP
-    Rewrite FastFall - Next update
-    Rewrite ForwardTP - Next update
-    Rewrite SpinBot - Next update
     Add PlayerFollow
     Add PlayerJumpscare
     Add TurnInToBall
@@ -757,19 +784,19 @@ end)
 ]]
 
 runFunction(function()
-    local SilentAim = {Enabled = false}
-    local AimPart = {Value = "Head"}
-    local AimHeld = {Value = "RMB"}
-    local SilentAimSmoothness = {Value = 100}
-    local SilentAimCircle = {Value = false}
-    local SilentAimCircleTransparency = {Value = 0}
-    local SilentAimCircleFilled = {Value = false}
-    local SilentAimFov = {Value = 70}
-    local SilentAimWallCheck = {Value = false}
-    local SilentAimTeamCheck = {Value = false}
-    local SilentAimAutoFire = {Value = false}
-    local SilentAimAutoFireToolCheck = {Value = false}
-    local Circle
+    local silentAim = {Enabled = false}
+    local aimPart = {Value = "Head"}
+    local held = {Value = "RMB"}
+    local smoothness = {Value = 100}
+    local circle = {Value = false}
+    local circleTransparency = {Value = 0}
+    local circleFilled = {Value = false}
+    local fov = {Value = 70}
+    local wallCheck = {Value = false}
+    local teamCheck = {Value = false}
+    local autoFire = {Value = false}
+    local toolCheck = {Value = false}
+    local circleObj
     local CircleUpdateConnection
     local MouseClicked
     local connection
@@ -777,9 +804,8 @@ runFunction(function()
     local RightConnection
 
     --FireShoot is from vape
-
     local function fireShoot(ToolCheck)
-        local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
+        local Player = getClosestPlayerToMouse(fov.Value, teamCheck.Value, aimPart.Value, wallCheck.Value)
 
         if ToolCheck then
             if toolHandler.currentTool == nil then
@@ -803,24 +829,24 @@ runFunction(function()
     end
 
     local function UpdateCircle()
-        if SilentAimCircle then
-            if not Circle then
-                Circle = Drawing.new("Circle")
-                Circle.Filled = SilentAimCircleFilled.Enabled
-                Circle.Thickness = 3
-                Circle.Radius = SilentAimFov.Value
-                Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                Circle.Visible = true
-                Circle.Transparency = SilentAimCircleTransparency.Value
+        if circle.Value then
+            if not circleObj then
+                circleObj = Drawing.new("Circle")
+                circleObj.Filled = circleFilled.Enabled
+                circleObj.Thickness = 3
+                circleObj.Radius = fov.Value
+                circleObj.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                circleObj.Visible = true
+                circleObj.Transparency = circleTransparency.Value
 
                 CircleUpdateConnection = Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-                    Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    circleObj.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
                 end)
             end
         else
-            if Circle then
-                Circle:Destroy()
-                Circle = nil
+            if circleObj then
+                circleObj:Destroy()
+                circleObj = nil
             end
             if CircleUpdateConnection then
                 CircleUpdateConnection:Disconnect()
@@ -828,27 +854,27 @@ runFunction(function()
         end
     end
 
-    local SilentAim = Tabs.Combat:CreateToggle({
+    silentAim = Tabs.Combat:CreateToggle({
         Name = "SilentAim",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 connection = UserInputService.InputBegan:Connect(function(Input)
-                    if (AimHeld.Value == "RMB" and Input.UserInputType == Enum.UserInputType.MouseButton2) then
+                    if (held.Value == "RMB" and Input.UserInputType == Enum.UserInputType.MouseButton2) then
                         RightConnection = true
                         LeftConnection = false
-                    elseif (AimHeld.Value == "LMB" and Input.UserInputType == Enum.UserInputType.MouseButton1) then
+                    elseif (held.Value == "LMB" and Input.UserInputType == Enum.UserInputType.MouseButton1) then
                         LeftConnection = true
                         RightConnection = false
                     end
 
                     RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
-                        if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
-                            local plr = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if plr and isAlive(plr, AimPart.Value == "Head") then
-                                AimAt(plr, SilentAimSmoothness.Value, AimPart.Value)
-                                if SilentAimAutoFire.Value then
-                                    fireShoot(SilentAimAutoFireToolCheck.Value)
+                        if (held.Value == "LMB" and LeftConnection) or (held.Value == "RMB" and RightConnection) then
+                            local plr = getClosestPlayerToMouse(fov.Value, teamCheck.Value, aimPart.Value, wallCheck.Value)
+                            if plr and isAlive(plr, aimPart.Value == "Head") then
+                                AimAt(plr, smoothness.Value, aimPart.Value)
+                                if autoFire.Value then
+                                    fireShoot(toolCheck.Value)
                                 end
                             end
                         end
@@ -861,21 +887,21 @@ runFunction(function()
         end
     })
 
-    AimPart = SilentAim:CreateDropDown({
+    aimPart = silentAim:CreateDropDown({
         Name = "Aim Part",
         Function = function(v) end,
         List = {"Head", "HumanoidRootPart"},
         Default = "Head",
     })
 
-    AimHeld = SilentAim:CreateDropDown({
+    held = silentAim:CreateDropDown({
         Name = "Mouse Held",
         Function = function(v) end,
         List = {"LMB", "RMB"},
         Default = "RMB",
     })
 
-    SilentAimSmoothness = SilentAim:CreateSlider({
+    smoothness = silentAim:CreateSlider({
         Name = "Smoothness",
         Function = function(v) end,
         Min = 1,
@@ -884,7 +910,7 @@ runFunction(function()
         Round = 0,
     })
 
-    SilentAimFov = SilentAim:CreateSlider({
+    fov = silentAim:CreateSlider({
         Name = "Fov",
         Function = function(v) end,
         Min = 1,
@@ -893,96 +919,102 @@ runFunction(function()
         Round = 0,
     })
 
-    SilentAimTeamCheck = SilentAim:CreateToggle({
+    teamCheck = silentAim:CreateToggle({
         Name = "Team Check",
         Default = false,
         Function = function(v) end
     })
 
-    SilentAimWallCheck = SilentAim:CreateToggle({
+    wallCheck = silentAim:CreateToggle({
         Name = "Wall Check",
         Default = false,
         Function = function(v) end
     })
 
-    SilentAimCircle = SilentAim:CreateToggle({
+    circle = silentAim:CreateToggle({
         Name = "FOV Circle",
         Default = false,
         Function = function(v) 
-            if SilentAimCircleTransparency.MainObject then SilentAimCircleTransparency.MainObject.Visible = v end
-            if SilentAimCircleFilled.MainObject then SilentAimCircleFilled.MainObject.Visible = v end
+            if circleTransparency.MainObject then circleTransparency.MainObject.Visible = v end
+            if circleFilled.MainObject then circleFilled.MainObject.Visible = v end
 			if v then
 				UpdateCircle()
 			end
         end
     })
     
-    SilentAimCircleTransparency = SilentAim:CreateSlider({
+    circleTransparency = silentAim:CreateSlider({
         Name = "Circle Transparency",
-        Function = function(v) end,
+        Function = function(v) 
+            UpdateCircle()
+        end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1,
     })
 
-    SilentAimCircleFilled = SilentAim:CreateToggle({
+    circleFilled = silentAim:CreateToggle({
         Name = "Circle Filled",
         Default = false,
-        Function = function(v) end
-    })
-
-    SilentAimAutoFire = SilentAim:CreateToggle({
-        Name = "Auto Fire",
-        Default = false,
         Function = function(v) 
-            if SilentAimAutoFireToolCheck.MainObject then SilentAimAutoFireToolCheck.MainObject.Visible = v end
+            UpdateCircle()
         end
     })
 
-    SilentAimAutoFireToolCheck = SilentAim:CreateToggle({
+    autoFire = silentAim:CreateToggle({
+        Name = "Auto Fire",
+        Default = false,
+        Function = function(v) 
+            if toolCheck.MainObject then toolCheck.MainObject.Visible = v end
+        end
+    })
+
+    toolCheck = silentAim:CreateToggle({
         Name = "Tool Check",
         Default = false,
         Function = function(v) end
     })
-    
 end)
 
 runFunction(function()
-    local AutoClickerMode = {Value = "Click"}
-    local AutoClickerCPS = {Value = 15}
+    local autoClicker = {Enabled = false}
+    local mode = {Value = "Click"}
+    local cps = {Value = 15}
 
-    local AutoClicker = Tabs.Combat:CreateToggle({
+    local autoClicker = Tabs.Combat:CreateToggle({
         Name = "AutoClicker",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                while callback and task.wait(1 / AutoClickerCPS.Value) do
-                    if AutoClickerMode.Value == "Click" or AutoClickerMode.Value == "RightClick" then
-                        if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
-                            if GuiLibrary.ClickGui.Tabs.Visible == false and not UserInputService:GetFocusedTextBox() then
-                                local ClickFunction = (AutoClickerMode.Value == "Click" and mouse1click or mouse2click)
-                                ClickFunction()
+                spawn(function()
+                    repeat
+                        if mode.Value == "Click" or mode.Value == "RightClick" then
+                            if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
+                                if GuiLibrary.ClickGui.Tabs.Visible == false and not UserInputService:GetFocusedTextBox() then
+                                    local ClickFunction = (mode.Value == "Click" and mouse1click or mouse2click)
+                                    ClickFunction()
+                                end
+                            end
+                        elseif mode.Value == "Tool" then
+                            if toolHandler.currentTool == not nil and CurrentTool:IsA("Tool") and CanClick() then
+                                toolHandler.currentTool:Active()
                             end
                         end
-                    elseif AutoClickerMode.Value == "Tool" then
-                        if toolHandler.currentTool == not nil and CurrentTool:IsA("Tool") and CanClick() then
-                            toolHandler.currentTool:Active()
-                        end
-                    end
-                end
+                    until not autoClicker.Enabled
+                end)
             end
         end
     })
 
-    AutoClickerMode = AutoClicker:CreateDropDown({
+    mode = autoClicker:CreateDropDown({
         Name = "Mode",
         Function = function(v) end,
         List = {"Click", "RightClick", "Tool"},
         Default = "Click"
     })
 
-    AutoClickerCPS = AutoClicker:CreateSlider({
+    cps = autoClicker:CreateSlider({
         Name = "CPS",
         Function = function() end,
         Min = 0,
@@ -993,41 +1025,42 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local Reach = {Enabled = false}
-    local ReachExpandPart = {Value = "Head"}
-    local ReachExpand = {Value = 0}
+    local reach = {Enabled = false}
+    local expandPart = {Value = "Head"}
+    local expand = {Value = 0}
     local connection
     local edited = {}
 
-    local function UpdatePlayer(plr)
+    local function updatePlayer(plr)
         if not edited[plr] then edited[plr] = true end
-        if isAlive(plr, ReachExpandPart.Value == "Head") and isPlayerTargetable(plr, true) then
-            if ReachExpandPart.Value == "HumanoidRootPart" then
-                plr.Character.HumanoidRootPart.Size = Vector3.new(2 * (ReachExpand.Value / 10), 2 * (ReachExpand.Value / 10), 1 * (ReachExpand.Value / 10))
-            elseif ReachExpandPart.Value == "Head" then
-                plr.Character.Head.Size = Vector3.new((ReachExpand.Value / 10), (ReachExpand.Value / 10), (ReachExpand.Value / 10))
+        if isAlive(plr, expandPart.Value == "Head") and isPlayerTargetable(plr, true) then
+            local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+            if expandPart.Value == "HumanoidRootPart" then
+                getHumanoidRootPart(LocalPlayer).Size = Vector3.new(2 * (expand.Value / 10), 2 * (expand.Value / 10), 1 * (expand.Value / 10))
+            elseif expandPart.Value == "Head" then
+                getHead(LocalPlayer).Size = Vector3.new((expand.Value / 10), (expand.Value / 10), (expand.Value / 10))
             end
         end
     end
 
-    Reach = Tabs.Combat:CreateToggle({
+    reach = Tabs.Combat:CreateToggle({
         Name = "Reach",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 for _, plr in next, Players:GetPlayers() do
-                    UpdatePlayer(plr)
+                    updatePlayer(plr)
                 end
                 connection = Players.PlayerAdded:Connect(function(plr)
-                    UpdatePlayer(plr)
+                    updatePlayer(plr)
                 end)
             else
                 if connection then
                     connection:Disconnect()
                 end
                 for _, plr in next, Players:GetPlayers() do
-                    plr.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
-                    plr.Character.Head.Size = Vector3.new(1, 1, 1)
+                    getHumanoidRootPart(plr).Size = Vector3.new(2, 2, 1)
+                    getHead(plr).Size = Vector3.new(1, 1, 1)
                 end
                 for _, plr in next, playersHandler.players do
                     if edited[plr] then
@@ -1038,14 +1071,14 @@ runFunction(function()
         end
     })
 
-    ReachExpandPart = Reach:CreateDropDown({
+    expandPart = reach:CreateDropDown({
         Name = "Expand Part",
         Function = function(v) end,
         List = {"HumanoidRootPart", "Head"},
         Default = "HumanoidRootPart"
     })
 
-    ReachExpand = Reach:CreateSlider({
+    expand = reach:CreateSlider({
         Name = "Expand Size",
         Min = 1,
         Max = 20,
@@ -1055,7 +1088,6 @@ runFunction(function()
 end)
 
 -- Movement tab
-
 runFunction(function()
     local autoWalk = {Enabled = false}
     autoWalk = Tabs.Movement:CreateToggle({
@@ -1064,8 +1096,8 @@ runFunction(function()
         Callback = function(callback)
             if callback then
                 RunLoops:BindToRenderStep("AutoWalk", function()
-                    if playersHandler:isAlive() then
-                        playersHandler.character.humanoid:Move(Vector3.new(0, 0, -1), true)
+                    if isAlive() then
+                        getHumanoid(LocalPlayer):Move(Vector3.new(0, 0, -1), true)
                     end
                 end)
             else
@@ -1075,110 +1107,60 @@ runFunction(function()
     })
 end)
 
---[[from rektsky and not working
 runFunction(function()
-    local CloneGodmodeSpeed = {Value = 100}
-    local CloneGodmodeConnection
-    local RealCharacter
-    local Clone
-
-    local function MakeClone()
-        RealCharacter = LocalPlayer.Character
-        RealCharacter.Archivable = true
-        Clone = RealCharacter:Clone()
-        Clone.Parent = workspace
-        LocalPlayer.Character = Clone
-    end
-
-    CloneGodmode = Tabs.Movement:CreateToggle({
-        Name = "CloneGodmode",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                spawn(function()
-                    MakeClone()
-                    RunLoops:BindToHeartbeat("CloneGodmode", function()
-                        local Velocity = Clone.Humanoid.MoveDirection * CloneGodmodeSpeed.Value
-                        Clone.HumanoidRootPart.Velocity = Vector3.new(Velocity.X, LocalPlayer.Character.HumanoidRootPart.Velocity.Y, Velocity.Z)
-                    end)
-                end)
-            else
-                if Clone then
-                    Clone:Destroy()
-                end
-                LocalPlayer.Character = RealCharacter
-                if RealCharacter then
-                    RealCharacter.Humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-                end
-                RunLoops:UnbindFromHeartbeat("CloneGodmode")
-            end
-        end
-    })
-
-    CloneGodmodeSpeed = CloneGodmode:CreateSlider({
-        Name = "Speed",
-        Function = function(v) end,
-        Min = 1,
-        Max = 300,
-        Default = 100,
-        Round = 0
-    })
-end)
-]]
-
-runFunction(function()
-    local ClickTPMode = {Value = "Click"}
-    local MouseConnection1
-    local MouseConnection2
-    ClickTP = Tabs.Movement:CreateToggle({
+    local clickTP = {Enabled = false}
+    local mode = {Value = "Click"}
+    local tool
+    local connection
+    local connection2
+    clickTP = Tabs.Movement:CreateToggle({
         Name = "ClickTP",
         Keybind = nil,
         Callback = function(callback) 
             if callback then
-                if ClickTPMode.Value == "Tool" then
-                    local Tool = Instance.new("Tool")
-                    Tool.Name = "TPTool"
-                    Tool.Parent = Backpack
-                    Tool.RequiresHandle = false
-                    Tool.Activated:Connect(function()
+                if mode.Value == "Tool" then
+                    tool = Instance.new("Tool")
+                    tool.Name = "TPTool"
+                    tool.Parent = Backpack
+                    tool.RequiresHandle = false
+                    tool.Activated:Connect(function()
                         if isAlive() and callback then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
+                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
-                elseif ClickTPMode.Value == "Click" then
-                    MouseConnection1 = Mouse.Button1Down:Connect(function()
-                        if isAlive() and callback and ClickTPMode.Value == "Click" then 
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
+                elseif mode.Value == "Click" then
+                    connection = Mouse.Button1Down:Connect(function()
+                        if isAlive() and mode.Value == "Click" then 
+                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
-                elseif ClickTPMode.Value == "RightClick" then
-                    MouseConnection2 = Mouse.Button2Down:Connect(function()
-                        if isAlive() and callback and ClickTPMode.Value == "RightClick" then 
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
+                elseif mode.Value == "RightClick" then
+                    connection2 = Mouse.Button2Down:Connect(function()
+                        if isAlive() and mode.Value == "RightClick" then 
+                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
                         end
                     end)
                 end
             else
-                if MouseConnection1 then 
-                    MouseConnection1:Disconnect()
-                    MouseConnection1 = nil
+                if connection then 
+                    connection:Disconnect()
+                    connection = nil
                 end
-                if MouseConnection2 then 
-                    MouseConnection2:Disconnect()
-                    MouseConnection2 = nil
+                if connection2 then 
+                    connection2:Disconnect()
+                    connection2 = nil
                 end
-                if Backpack:FindFirstChild("TPTool") then
-                    Backpack:FindFirstChild("TPTool"):Destroy()
+                if tool then
+                    tool:Destroy()
                 end
             end
         end
     })
 
-    ClickTPMode = ClickTP:CreateDropDown({
+    mode = clickTP:CreateDropDown({
         Name = "Mode",
         Function = function(v) 
-            ClickTP:Toggle()
-            ClickTP:Toggle()
+            clickTP:ReToggle()
         end,
         List = {"Click", "RightLick", "Tool"},
         Default = "Click"
@@ -1187,45 +1169,44 @@ end)
 
 local FlyEnabled = false
 runFunction(function()
-    local FlySpeed = {Value = 23}
-    local FlyVerticalSpeed = {Value = 20}
-    local FlyMode = {Value = "Normal"}
-    local FlyKeyboardMode = {Value = "LeftShift+Space"}
-    Fly = Tabs.Movement:CreateToggle({
+    local mode = {Value = "Normal"}
+    local keyboardMode = {Value = "LeftShift+Space"}
+    local fly = {Enabled = false}
+    local speed = {Value = 23}
+    local verticalSpeed = {Value = 20}
+    fly = Tabs.Movement:CreateToggle({
         Name = "Fly",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 FlyEnabled = callback
                 RunLoops:BindToHeartbeat("Fly", function(Delta)
-                    local Character = LocalPlayer.Character
-                    local Humanoid = Character.Humanoid
-                    local HumanoidRootPart = Character.HumanoidRootPart
-
+                    local Humanoid = getHumanoid(LocalPlayer)
+                    local HumanoidRootPart = getHumanoidRootPart(LocalPlayer)
                     local MoveDirection = Humanoid.MoveDirection
                     local Velocity = HumanoidRootPart.Velocity
-                    local XDirection = MoveDirection.X * FlySpeed.Value
-                    local ZDirection = MoveDirection.Z * FlySpeed.Value
+                    local XDirection = MoveDirection.X * speed.Value
+                    local ZDirection = MoveDirection.Z * speed.Value
                     local YDirection = 0
 
-                    if FlyVerticalSpeed.Value > 0 then
-                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) and (FlyKeyboardMode.Value == "LeftShift+Space" or FlyKeyboardMode.Value == "LeftCtrl+Space") then 
-                            YDirection = FlyVerticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.E) and FlyKeyboardMode.Value == "Q+E" then
-                            YDirection = FlyVerticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and FlyKeyboardMode.Value == "LeftShift+Space" then
-                            YDirection = -FlyVerticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and FlyKeyboardMode.Value == "LeftShift+Space" then
-                            YDirection = -FlyVerticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.Q) and FlyKeyboardMode.Value == "Q+E" then
-                            YDirection = -FlyVerticalSpeed.Value
+                    if verticalSpeed.Value > 0 then
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) and (keyboardMode.Value == "LeftShift+Space" or keyboardMode.Value == "LeftCtrl+Space") then 
+                            YDirection = verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.E) and keyboardMode.Value == "Q+E" then
+                            YDirection = verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and keyboardMode.Value == "LeftShift+Space" then
+                            YDirection = -verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and keyboardMode.Value == "LeftShift+Space" then
+                            YDirection = -verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.Q) and keyboardMode.Value == "Q+E" then
+                            YDirection = -verticalSpeed.Value
                         end
                     end
 
-                    if FlyMode.Value == "Velocity" then
+                    if mode.Value == "Velocity" then
                         HumanoidRootPart.Velocity = Vector3.new(XDirection, YDirection, ZDirection)
-                    elseif FlyMode.Value == "CFrame" then
-                        local Factor = FlySpeed.Value - Humanoid.WalkSpeed
+                    elseif mode.Value == "CFrame" then
+                        local Factor = speed.Value - Humanoid.WalkSpeed
                         local NewMoveDirection = (MoveDirection * Factor) * Delta
                         local NewCFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, YDirection * Delta, MoveDirection.Z)
 
@@ -1239,21 +1220,21 @@ runFunction(function()
         end
     })
 
-    FlyMode = Fly:CreateDropDown({
+    mode = fly:CreateDropDown({
         Name = "FlyMode",
         Function = function(v) end,
         List = {"CFrame", "Velocity"},
         Default = "Velocity"
     })
 
-    FlyKeyboardMode = Fly:CreateDropDown({
+    keyboardMode = fly:CreateDropDown({
         Name = "KeyboardMode",
         Function = function(v) end,
         List = {"LeftShift+Space", "Q+E", "LeftCtrl+Space"},
         Default = "LeftShift+Space"
     })
 
-    FlySpeed = Fly:CreateSlider({
+    speed = fly:CreateSlider({
         Name = "FlyWalkSpeed",
         Function = function(v) end,
         Min = 1,
@@ -1262,7 +1243,7 @@ runFunction(function()
         Round = 0
     })
 
-    FlyVerticalSpeed = Fly:CreateSlider({
+    verticalSpeed = fly:CreateSlider({
         Name = "FlyVerticalSpeed",
         Function = function(v) end,
         Min = 1,
@@ -1272,41 +1253,38 @@ runFunction(function()
     })
 end)
 
--- this rewrite
 runFunction(function()
-    local FastFallHeight = {Value = 5}
-    local FastFallTicks = {Value = 5}
-    local FastFallEnabled = false
-
-    FastFall = Tabs.Movement:CreateToggle({
+    local fastFall = {Enabled = false}
+    local height = {Value = 5}
+    local ticks = {Value = 5}
+    fastFall = Tabs.Movement:CreateToggle({
         Name = "FastFall",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                FastFallEnabled = true
                 spawn(function() 
                     repeat task.wait()
                         if isAlive() then
-                            local Params = RaycastParams.new()
-                            Params.FilterDescendantsInstances = {LocalPlayer.Character}
-                            Params.FilterType = Enum.RaycastFilterType.Blacklist
-                            local Raycast = workspace:Raycast(LocalPlayer.Character.HumanoidRootPart.Position, Vector3.new(0, -FastFallHeight.Value * 3, 0), Params)
-                            if Raycast and Raycast.Instance then 
-                                local Velocity = LocalPlayer.Character.HumanoidRootPart.Velocity
-                                if LocalPlayer.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall and Velocity.Y < 0 then 
-                                    LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(Velocity.X, -(FastFallTicks.Value * 30), Velocity.Z)
+                            local humanoid = getHumanoid(LocalPlayer)
+                            local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                            local params = RaycastParams.new()
+                            params.FilterDescendantsInstances = {LocalPlayer.Character}
+                            params.FilterType = Enum.RaycastFilterType.Blacklist
+                            local raycast = workspace:Raycast(humanoidRootPart.Position, Vector3.new(0, -height.Value * 3, 0), params)
+                            if raycast and raycast.Instance then 
+                                local velocity = humanoidRootPart.Velocity
+                                if humanoid:GetState() == Enum.HumanoidStateType.Freefall and velocity.Y < 0 then 
+                                    humanoidRootPart.Velocity = Vector3.new(velocity.X, -(ticks.Value * 30), velocity.Z)
                                 end
                             end
                         end
-                    until not FastFallEnabled
+                    until not fastFall.Enabled
                 end)
-            else
-                FastFallEnabled = false
             end
         end
     })
     
-    FastFallHeight = FastFall:CreateSlider({
+    height = fastFall:CreateSlider({
         Name = "FallHeight",
         Function = function(v) end,
         Min = 1,
@@ -1315,7 +1293,7 @@ runFunction(function()
         Round = 1
     })
 
-    FastFallTicks = FastFall:CreateSlider({
+    ticks = fastFall:CreateSlider({
         Name = "Ticks",
         Function = function(v) end,
         Min = 1,
@@ -1326,30 +1304,31 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local ForwardVectorValue = {Value = 5}
-    local Teleporting = false
-    ForwardTP = Tabs.Movement:CreateToggle({
+    local forwardTP = {Enabled = false}
+    local studs = {Value = 5}
+    local teleporting = false
+    forwardTP = Tabs.Movement:CreateToggle({
         Name = "ForwardTP",
         Keybind = nil,
         Callback = function(callback)
-            if callback and not Teleporting then
-                Teleporting = true
+            if callback and not teleporting then
+                teleporting = true
                 if isAlive() then
-                    local Humanoid = LocalPlayer.Character.Humanoid
-                    local HumanoidRootPart = LocalPlayer.Character.HumanoidRootPart
-                    local LookVector = HumanoidRootPart.CFrame.LookVector
-                    if Humanoid.MoveDirection.Magnitude > 0 or Humanoid:GetState() == Enum.HumanoidStateType.Running then
-                        local ForwardVector = LookVector * ForwardVectorValue.Value
-                        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + ForwardVector
+                    local humanoid = getHumanoid(LocalPlayer)
+                    local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                    local look = humanoidRootPart.CFrame.LookVector
+                    if humanoid.MoveDirection.Magnitude > 0 or Humanoid:GetState() == Enum.HumanoidStateType.Running then
+                        local forward = look * studs.Value
+                        humanoidRootPart.CFrame = humanoidRootPart.CFrame + forward
                     end
                 end
-                Teleporting = false
-                ForwardTP:Toggle(false, false)
+                teleporting = false
+                forwardTP:Toggle(true, false)
             end
         end
     })
     
-    ForwardVectorValue = ForwardTP:CreateSlider({
+    studs = forwardTP:CreateSlider({
         Name = "Studs",
         Function = function(v) end,
         Min = 1,
@@ -1436,58 +1415,46 @@ end)
 ]]
 
 runFunction(function()
-    local HighJumpMode = {Value = "Velocity"}
-    local HighJumpJumps = {Value = 5}
-    local JumpMode = {Value = "Toggle"}
-    local HighJumpHeight = {Value = 20}
-    local HighJumpForce = {Value = 25}
+    local highJump = {Enabled = false}
+    local jumpMode = {Value = "Velocity"}
+    local jumps = {Value = 5}
+    local mode = {Value = "Toggle"}
+    local height = {Value = 20}
+    local force = {Value = 25}
     local connection
 
-    HighJump = Tabs.Movement:CreateToggle({
+    local function jump()
+        local humanoid = getHumanoid(LocalPlayer)
+        local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+        if mode.Value == "Jump" then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            task.wait()
+            spawn(function()
+                for i = 1, jumps.Value do
+                    wait()
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        elseif mode.Value == "Velocity" then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            humanoidRootPart.Velocity = humanoidRootPart.Velocity + Vector3.new(0, height.Value, 0)
+        elseif mode.Value == "TP" then
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, height.Value, 0)
+        end
+    end
+
+    highJump = Tabs.Movement:CreateToggle({
         Name = "HighJump",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                local Character = LocalPlayer.Character
-                local Humanoid = Character.Humanoid
-                local HumanoidRootPart = Character.HumanoidRootPart
-
-                if JumpMode.Value == "Toggle" then
-                    if HighJumpMode.Value == "Jump" then
-                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        task.wait()
-                        spawn(function()
-                            for i = 1, HighJumpJumps.Value do
-                                wait()
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                            end
-                        end)
-                    elseif HighJumpMode.Value == "Velocity" then
-                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        HumanoidRootPart.Velocity = HumanoidRootPart.Velocity + Vector3.new(0, HighJumpHeight.Value, 0)
-                    elseif HighJumpMode.Value == "TP" then
-                        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value, 0)
-                    end
-                    HighJump:Toggle(false, false) 
-                elseif JumpMode.Value == "Normal" then
+                if mode.Value == "Toggle" then
+                    jump()
+                    highJump:Toggle(true) 
+                elseif mode.Value == "Normal" then
                     RunLoops:BindToRenderStep("HighJump", function()
                         connection = table.insert(connections, UserInputService.JumpRequest:Connect(function()
-                            if HighJumpMode.Value == "Jump" then
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                task.wait()
-                                workspace.Gravity = 5
-                                spawn(function()
-                                    for i = 1, HighJumpJumps.Value do
-                                        wait()
-                                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                    end
-                                end)
-                            elseif HighJumpMode.Value == "Velocity" then
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                HumanoidRootPart.Velocity = HumanoidRootPart.Velocity + Vector3.new(0, HighJumpHeight.Value, 0)
-                            elseif HighJumpMode.Value == "TP" then
-                                HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(0, HighJumpHeight.Value, 0)
-                            end
+                            jump()
                         end))
                     end)
                 end
@@ -1499,28 +1466,28 @@ runFunction(function()
         end
     })
 
-    HighJumpMode = HighJump:CreateDropDown({
+    mode = highJump:CreateDropDown({
         Name = "JumpMode",
         Function = function(v) 
             if v == "Velocity" or v == "TP" then
-                if HighJumpForce.MainObject then
-                    HighJumpForce.MainObject.Visible = false
+                if force.MainObject then
+                    force.MainObject.Visible = false
                 end
-                if HighJumpHeight.MainObject then
-                    HighJumpHeight.MainObject.Visible = true
+                if height.MainObject then
+                    height.MainObject.Visible = true
                 end
-                if HighJumpJumps.MainObject then
-                    HighJumpJumps.MainObject.Visible = false
+                if jumps.MainObject then
+                    jumps.MainObject.Visible = false
                 end
             elseif v == "Jump" then
-                if HighJumpHeight.MainObject then
-                    HighJumpHeight.MainObject.Visible = false
+                if height.MainObject then
+                    height.MainObject.Visible = false
                 end
-                if HighJumpForce.MainObject then
-                    HighJumpForce.MainObject.Visible = true
+                if force.MainObject then
+                    force.MainObject.Visible = true
                 end
-                if HighJumpJumps.MainObject then
-                    HighJumpJumps.MainObject.Visible = true
+                if jumps.MainObject then
+                    jumps.MainObject.Visible = true
                 end
             end
         end,
@@ -1528,14 +1495,14 @@ runFunction(function()
         Default = "Velocity"
     })
 
-    JumpMode = HighJump:CreateDropDown({
+    mode = highJump:CreateDropDown({
         Name = "Mode",
         Callback = function(v) end,
         List = {"Toggle", "Normal"},
         Default = "Toggle"
     })
 
-    HighJumpJumps = HighJump:CreateSlider({
+    jumps = highJump:CreateSlider({
         Name = "Jumps",
         Function = function() end,
         Min = 0,
@@ -1544,7 +1511,7 @@ runFunction(function()
         Round = 0
     })
 
-    HighJumpHeight = HighJump:CreateSlider({
+    height = highJump:CreateSlider({
         Name = "Height",
         Function = function() end,
         Min = 0,
@@ -1553,7 +1520,7 @@ runFunction(function()
         Round = 0
     })
 
-    HighJumpForce = HighJump:CreateSlider({
+    force = highJump:CreateSlider({
         Name = "Force",
         Function = function() end,
         Min = 0,
@@ -1564,47 +1531,41 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local LongJumpMode = {Value = "Velocity"}
-    local LongJumpPower = {Value = 2}
-
-    LongJump = Tabs.Movement:CreateToggle({
+    local longJump = {Enabled = false}
+    local mode = {Value = "Velocity"}
+    local power = {Value = 2}
+    longJump = Tabs.Movement:CreateToggle({
         Name = "LongJump",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                local Character = LocalPlayer.Character
-                local Humanoid = Character.Humanoid
-                local HumanoidRootPart = Character.HumanoidRootPart
-                local OldVelocity = HumanoidRootPart.Velocity
-                if LongJumpMode.Value == "CFrame" then
-                    Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -0.2, -2.1)
-                    Humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-                    wait(0.1)
-                    HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, -0.5, -2.1)
-                    Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                    wait(0.1)
-                    HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0.2, 0)
-                    Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                elseif LongJumpMode.Value == "Velocity" then
-                    local NewVelocity = OldVelocity * LongJumpPower.Value -- (OldVelocity * LongJumpPower.Value) / 2.5
-                    Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    HumanoidRootPart.Velocity = Vector3.new(NewVelocity.X, OldVelocity.Y, NewVelocity.X)
+                local humanoid = getHumanoid(LocalPlayer)
+                local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                local oldCFrame = humanoidRootPart.CFrame
+                local OldVelocity = humanoidRootPart.Velocity
+                if mode.Value == "CFrame" then
+                    local newCFrame = oldCFrame * CFrame.new(power.Value, 0, power.Value)
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    humanoidRootPart.CFrame = CFrame.new(newCFrame.X, oldCFrame.Y, newCFrame.Z)
+                elseif mode.Value == "Velocity" then
+                    local NewVelocity = OldVelocity * power.Value -- (OldVelocity * LongJumpPower.Value) / 2.5
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    humanoidRootPart.Velocity = Vector3.new(NewVelocity.X, OldVelocity.Y, NewVelocity.X)
                 end
-                LongJump:Toggle(false)
+                longJump:Toggle(true)
             end
         end
     })
 
-    LongJumpMode = LongJump:CreateDropDown({
+    mode = longJump:CreateDropDown({
         Name = "Mode",
         Function = function(v) end,
         List = {"CFrame", "Velocity"},
         Default = "Velocity"
     })
 
-    LongJumpPower = LongJump:CreateSlider({
-        Name = "Height",
+    power = longJump:CreateSlider({
+        Name = "Studs",
         Function = function() end,
         Min = 1,
         Max = 10,
@@ -1614,27 +1575,28 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local Parts = {}
-    Phase = Tabs.Movement:CreateToggle({
+    local phase = {Enabled = false}
+    local parts = {}
+    phase = Tabs.Movement:CreateToggle({
         Name = "Phase",
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
                 if isAlive() then
                     RunLoops:BindToStepped("Phase", function()
-                        for i, v in pairs(LocalPlayer.Character:GetChildren()) do 
+                        for i, v in pairs(getCharacter(LocalPlayer):GetChildren()) do 
                             if v:IsA("BasePart") and v.CanCollide then 
-                                Parts[v] = v
+                                parts[v] = v
                                 v.CanCollide = false
                             end
                         end
                     end)
                 end
             else
-                for i, v in next, Parts do
+                for i, v in next, parts do
                     v.CanCollide = true
                 end
-                Parts = {}
+                parts = {}
                 RunLoops:UnbindFromStepped("Phase")
             end
         end
@@ -1642,57 +1604,55 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local SpeedMode = {Value = "Normal"}
-    local AutoJumpMode = {Value = "Normal"}
-    local SpeedValue = {Value = 16}
-    local AutoJumpPower = {Value = 25}
-    local JumpPowerValue = {Value = 50}
-    local AutoJump = {Value = false}
-    local NoAnimation = {Value = false}
-    local SpeedEnabled = false
-    Speed = Tabs.Movement:CreateToggle({
+    local speed = {Enabled = false}
+    local mode = {Value = "Normal"}
+    local speedVal = {Value = 16}
+    local autoJump = {Value = false}
+    local jumpMode = {Value = "Normal"}
+    local autoJumpPower = {Value = 25}
+    local jumpPower = {Value = 50}
+    local noAnim = {Value = false}
+    speed = Tabs.Movement:CreateToggle({
         Name = "Speed",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                SpeedEnabled = callback
                 RunLoops:BindToHeartbeat("Speed", function(Delta)
                     if isAlive() then
-                        local Character = LocalPlayer.Character
-                        local Humanoid = Character.Humanoid
-                        local HumanoidRootPart = Character.HumanoidRootPart
+                        local Humanoid = getHumanoid(LocalPlayer)
+                        local HumanoidRootPart = getHumanoidRootPart(LocalPlayer)
                         local MoveDirection = Humanoid.MoveDirection
                         local VelocityX = HumanoidRootPart.Velocity.X
                         local VelocityZ = HumanoidRootPart.Velocity.Z
 
-                        if JumpPowerValue.Value > Humanoid.JumpPower then
-                            Humanoid.JumpPower = JumpPowerValue.Value
+                        if jumpPower.Value > Humanoid.JumpPower then
+                            Humanoid.JumpPower = jumpPower.Value
                             Humanoid.UseJumpPower = true
                         end
 
-                        if SpeedMode.Value == "Velocity" then
-                            local Velocity = Humanoid.MoveDirection * (SpeedValue.Value * 5) * Delta
+                        if mode.Value == "Velocity" then
+                            local Velocity = Humanoid.MoveDirection * (speedVal.Value * 5) * Delta
                             local NewVelocity = Vector3.new(Velocity.X / 10, 0, Velocity.Z / 10)
                             Character:TranslateBy(NewVelocity)
-                        elseif SpeedMode.Value == "CFrame" then
-                            local Factor = SpeedValue.Value - Humanoid.WalkSpeed
+                        elseif mode.Value == "CFrame" then
+                            local Factor = speedVal.Value - Humanoid.WalkSpeed
                             local MoveDirection = (MoveDirection * Factor) * Delta
                             local NewCFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, 0, MoveDirection.Z)
 
                             HumanoidRootPart.CFrame = NewCFrame
-                        elseif SpeedMode.Value == "Normal" then
-                            Humanoid.WalkSpeed = SpeedValue.Value
+                        elseif mode.Value == "Normal" then
+                            Humanoid.WalkSpeed = speedVal.Value
                         end
 
-                        if AutoJump.Value and (Humanoid.FloorMaterial ~= Enum.Material.Air) and Humanoid.MoveDirection ~= Vector3.zero then
-                            if AutoJumpMode == "Normal" then
+                        if autoJump.Value and (Humanoid.FloorMaterial ~= Enum.Material.Air) and Humanoid.MoveDirection ~= Vector3.zero then
+                            if jumpMode == "Normal" then
                                 Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             else
-                                HumanoidRootPart.Velocity = Vector3.new(HumanoidRootPart.Velocity.X, AutoJumpPower.Value, HumanoidRootPart.Velocity.Z)
+                                HumanoidRootPart.Velocity = Vector3.new(HumanoidRootPart.Velocity.X, autoJumpPower.Value, HumanoidRootPart.Velocity.Z)
                             end
                         end
 
-                        if NoAnimation.Value then
+                        if noAnim.Value then
                             Character.Animate.Disabled = true
                         end
 
@@ -1703,42 +1663,39 @@ runFunction(function()
                     RunLoops:UnbindFromHeartbeat("Speed")
                 end
 
-                Character.Humanoid.WalkSpeed = PlayerWalkSpeed
-                Character.Humanoid.JumpPower = PlayerJumpPower
-                Character.Animate.Disabled = true
+                getHumanoid(LocalPlayer).WalkSpeed = PlayerWalkSpeed
+                getHumanoid(LocalPlayer).JumpPower = PlayerJumpPower
+                getCharacter(LocalPlayer).Animate.Disabled = true
             end
         end
     })
 
-    SpeedMode = Speed:CreateDropDown({
+    mode = speed:CreateDropDown({
         Name = "Mode",
-        Function = function(v) end,
+        Function = function(v) 
+            speed:ReToggle(true)
+        end,
         List = {"CFrame", "Normal", "Velocity"},
         Default = "Normal"
     })
 
-    AutoJumpMode = Speed:CreateDropDown({
+    jumpMode = speed:CreateDropDown({
         Name = "AutoJumpMode",
         Function = function(v) 
-            if v == "Velocity" then
-                if AutoJumpPower.MainObject then
-                    AutoJumpPower.MainObject.Visible = true
-                end
-            elseif v == "Normal" then
-                if AutoJumpPower.MainObject then
-                    AutoJumpPower.MainObject.Visible = false
-                end
+            if autoJumpPower.MainObject then
+                autoJumpPower.MainObject.Visible = v == "Velocity"
             end
+            speed:ReToggle(true)
         end,
         List = {"Normal", "Velocity"},
         Default = "Normal"
     })
 
-    SpeedValue = Speed:CreateSlider({
+    speedVal = speed:CreateSlider({
         Name = "Speed",
         Function = function(v) 
-            if SpeedEnabled and SpeedMode.Value == "Normal" then
-                LocalPlayer.Character.Humanoid.WalkSpeed = v
+            if speed.Enabled and mode.Value == "Normal" then
+                getHumanoid(LocalPlayer).WalkSpeed = v
             end
         end,
         Min = 0,
@@ -1747,7 +1704,7 @@ runFunction(function()
         Round = 0
     })
 
-    AutoJumpPower = Speed:CreateSlider({
+    autoJumpPower = speed:CreateSlider({
         Name = "AutoJumpPower",
         Function = function(v) end,
         Min = 0,
@@ -1756,11 +1713,11 @@ runFunction(function()
         Round = 0
     })
 
-    JumpPowerValue = Speed:CreateSlider({
+    jumpPower = speed:CreateSlider({
         Name = "JumpPower",
         Function = function(v) 
-            if SpeedEnabled then
-                LocalPlayer.Character.Humanoid.JumpPower = v
+            if speed.Enabled then
+                getHumanoid(getCharacter(LocalPlayer)).JumpPower = v
             end
         end,
         Min = 0,
@@ -1769,109 +1726,125 @@ runFunction(function()
         Round = 0
     })
 
-    AutoJump = Speed:CreateToggle({
+    autoJump = speed:CreateToggle({
         Name = "AutoJump",
         Default = false,
         Function = function(v)
-            if AutoJumpMode.MainObject then AutoJumpMode.MainObject.Visible = v end
+            if jumpMode.MainObject then jumpMode.MainObject.Visible = v end
         end
     })
 
-    NoAnimation = Speed:CreateToggle({
+    noAnim = speed:CreateToggle({
         Name = "NoAnimation",
         Default = false,
         Function = function(v)
-            if SpeedEnabled then
-                Character.Animate.Disabled = v
+            if speed.Enabled then
+                getCharacter(LocalPlayer).Animate.Disabled = v
             end
         end
     })
 end)
 
---[[broken
 runFunction(function()
-    local SpinBotSpeed = {Value = 0}
-    local SpinBotX = {Value = false}
-    local SpinBotY = {Value = false}
-    local SpinBotZ = {Value = false}
-    local VelocityX
-    local VelocityY
-    local VelocityZ
-    SpinBot = Tabs.Movement:CreateToggle({
+    local spinBot = {Enabled = false}
+    local mode = {Value = "Velocity"}
+    local spinBotSpeed = {Value = 20}
+    local spinBotX = {Value = false}
+    local spinBotY = {Value = false}
+    local spinBotZ = {Value = false}
+    local velocityX
+    local velocityY
+    local velocityZ
+    local angularX
+    local angularY
+    local angularZ
+    local angularVelocity = Instance.new("AngularVelocity")
+    spinBot = Tabs.Movement:CreateToggle({
         Name = "SpinBot",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("SpinBot", function()
                     if isAlive() then
-                        local Character = LocalPlayer.Character
-                        local HumanoidRootPart = Character.HumanoidRootPart
-                        local OldVelocity = HumanoidRootPart.RotVelocity
+                        local humanoid = getHumanoid(LocalPlayer)
+                        local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                        local OldVelocity = humanoidRootPart.AssemblyAngularVelocity
+                        velocityX = (spinBotX.Value and spinBotSpeed.Value) or OldVelocity.X
+                        velocityY = (spinBotY.Value and spinBotSpeed.Value) or OldVelocity.Y
+                        velocityZ = (spinBotZ.Value and spinBotSpeed.Value) or OldVelocity.Z
+                        angularX = (spinBotX.Value and math.huge) or 0
+                        angularY = (spinBotY.Value and math.huge) or 0
+                        angularZ = (spinBotZ.Value and math.huge) or 0
 
-                        if SpinBotX.Value then
-                            VelocityX = SpinBotSpeed.Value
-                        else
-                            VelocityX = OldVelocity.X
+                        humanoid.AutoRotate = false
+                        if mode.Value == "RotVelocity" then
+                            humanoidRootPart.RotVelocity = Vector3.new(velocityX, velocityY, velocityZ)
+                        --[[
+                        elseif mode.Value == "AngularVelocity" then
+                            angularVelocity.Parent = humanoidRootPart
+                            angularVelocity.MaxTorque = Vector3.new(angularX, angularY, angularZ)
+                            angularVelocity.AngularVelocity = Vector3.new(velocityX, velocityY, velocityZ)
+                        ]]
+                        elseif mode.Value == "AssemblyAngularVelocity" then
+                            humanoidRootPart.AssemblyAngularVelocity = Vector3.new(velocityX, velocityY, velocityZ)
                         end
-                        if SpinBotY.Value then
-                            VelocityY = SpinBotSpeed.Value
-                        else
-                            VelocityY = OldVelocity.Y
-                        end
-                        if SpinBotZ.Value then
-                            VelocityZ = SpinBotSpeed.Value
-                        else
-                            VelocityZ = OldVelocity.Z
-                        end
-
-                        HumanoidRootPart.RotVelocity = Vector3.new(VelocityX, VelocityY, VelocityZ)
                     end
                 end)
             else
+                getHumanoid(LocalPlayer).AutoRotate = true
                 RunLoops:UnbindFromHeartbeat("SpinBot")
             end
         end
     })
 
-    SpinBotSpeed = SpinBot:CreateSlider({
+    mode = spinBot:CreateDropDown({
+        Name = "Mode",
+        Function = function(v) end,
+        List = {"RotVelocity", "AssemblyAngularVelocity"}, --"AngularVelocity",
+        Default = "AssemblyAngularVelocity"
+    })
+
+    spinBotSpeed = spinBot:CreateSlider({
         Name = "SpinSpeed",
-        Function = function() end,
+        Function = function(v) end,
         Min = 1,
         Max = 100,
         Default = 20,
         Round = 0
     })
 
-    SpinBotX = SpinBot:CreateToggle({
+    spinBotX = spinBot:CreateToggle({
         Name = "Spin X",
         Default = false,
         Function = function(v) end
     })
 
-    SpinBotY = SpinBot:CreateToggle({
+    spinBotY = spinBot:CreateToggle({
         Name = "Spin Y",
         Default = false,
         Function = function(v) end
     })
 
-    SpinBotZ = SpinBot:CreateToggle({
+    spinBotZ = spinBot:CreateToggle({
         Name = "Spin Z",
         Default = false,
         Function = function(v) end
     })
 end)
-]]
+
 
 -- Render tab
-
 runFunction(function()
-    local BreadcrumbsLifeTime = {Value = 20}
-    local BreadcrumbsTransparency = {Value = 0}
-    local BreadcrumbsThick = {Value = 7}
-    local BreadcrumbsTrail
-	local BreadcrumbsAttachment
-	local BreadcrumbsAttachment2
-    Breadcrumbs = Tabs.Render:CreateToggle({
+    local breadcrumbs = {Enabled = false}
+    local breadcrumbsStartColor = {Value = Color3.fromRGB(255, 255, 255)}
+    local breadcrumbsEndColor = {Value = Color3.fromRGB(255, 255, 255)}
+    local breadcrumbsLifeTime = {Value = 20}
+    local breadcrumbsTransparency = {Value = 0}
+    local breadcrumbsThick = {Value = 7}
+    local breadcrumbsTrail
+	local breadcrumbsAttachment
+	local breadcrumbsAttachment2
+    breadcrumbs = Tabs.Render:CreateToggle({
         Name = "Breadcrumbs",
         Keybind = nil,
         Callback = function(callback)
@@ -1879,53 +1852,73 @@ runFunction(function()
                 task.spawn(function()
 					repeat
 						if isAlive() then
-                            local Character = LocalPlayer.Character
-                            local HumanoidRootPart = Character.HumanoidRootPart
-                            if not BreadcrumbsTrail then
-                                BreadcrumbsAttachment = Instance.new("Attachment")
-                                BreadcrumbsAttachment.Position = Vector3.new(0, 0.07 - 2.7, 0)
-                                BreadcrumbsAttachment2 = Instance.new("Attachment")
-                                BreadcrumbsAttachment2.Position = Vector3.new(0, -0.07 - 2.7, 0)
-                                BreadcrumbsTrail = Instance.new("Trail")
-                                BreadcrumbsTrail.Attachment0 = BreadcrumbsAttachment
-                                BreadcrumbsTrail.Attachment1 = BreadcrumbsAttachment2
-                                BreadcrumbsTrail.FaceCamera = true
-                                BreadcrumbsTrail.Lifetime = BreadcrumbsLifeTime.Value / 10
-                                BreadcrumbsTrail.Enabled = true
+                            local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                            if not breadcrumbsTrail then
+                                breadcrumbsAttachment = Instance.new("Attachment")
+                                breadcrumbsAttachment.Position = Vector3.new(0, 0.07 - 2.7, 0)
+                                breadcrumbsAttachment2 = Instance.new("Attachment")
+                                breadcrumbsAttachment2.Position = Vector3.new(0, -0.07 - 2.7, 0)
+                                breadcrumbsTrail = Instance.new("Trail")
+                                breadcrumbsTrail.Attachment0 = breadcrumbsAttachment
+                                breadcrumbsTrail.Attachment1 = breadcrumbsAttachment2
+                                breadcrumbsTrail.Color = ColorSequence.new(breadcrumbsStartColor.Value, breadcrumbsEndColor.Value)
+                                breadcrumbsTrail.FaceCamera = true
+                                breadcrumbsTrail.Lifetime = breadcrumbsLifeTime.Value / 10
+                                breadcrumbsTrail.Enabled = true
                             else
                                 local Succes = pcall(function()
-                                    BreadcrumbsAttachment.Parent = HumanoidRootPart
-                                    BreadcrumbsAttachment2.Parent = HumanoidRootPart
-                                    BreadcrumbsTrail.Parent = Camera
+                                    breadcrumbsAttachment.Parent = humanoidRootPart
+                                    breadcrumbsAttachment2.Parent = humanoidRootPart
+                                    breadcrumbsTrail.Parent = Camera
                                 end)
                                 if not Succes then
-                                    if BreadcrumbsTrail then BreadcrumbsTrail:Destroy() BreadcrumbsTrail = nil end
-                                    if BreadcrumbsAttachment then BreadcrumbsAttachment:Destroy() BreadcrumbsAttachment = nil end
-                                    if BreadcrumbsAttachment2 then BreadcrumbsAttachment2:Destroy() BreadcrumbsAttachment2 = nil end
+                                    if breadcrumbsTrail then breadcrumbsTrail:Destroy() breadcrumbsTrail = nil end
+                                    if breadcrumbsAttachment then breadcrumbsAttachment:Destroy() breadcrumbsAttachment = nil end
+                                    if breadcrumbsAttachment2 then breadcrumbsAttachment2:Destroy() breadcrumbsAttachment2 = nil end
                                 end
                             end
 						end
 						task.wait(0.3)
-					until not Breadcrumbs.Enabled
+					until not breadcrumbs.Enabled
 				end)
             else
-                if BreadcrumbsTrail then
-                    BreadcrumbsTrail:Destroy()
-                    BreadcrumbsTrail = nil
+                if breadcrumbsTrail then
+                    breadcrumbsTrail:Destroy()
+                    breadcrumbsTrail = nil
                 end
-				if BreadcrumbsAttachment then
-                    BreadcrumbsAttachment:Destroy()
-                    BreadcrumbsAttachment = nil
+				if breadcrumbsAttachment then
+                    breadcrumbsAttachment:Destroy()
+                    breadcrumbsAttachment = nil
                 end
-				if BreadcrumbsAttachment2 then
-                    BreadcrumbsAttachment2:Destroy()
-                    BreadcrumbsAttachment2 = nil
+				if breadcrumbsAttachment2 then
+                    breadcrumbsAttachment2:Destroy()
+                    breadcrumbsAttachment2 = nil
                 end
             end
         end
     })
 
-    BreadcrumbsLifeTime = Breadcrumbs:CreateSlider({
+    breadcrumbsStartColor = breadcrumbs:CreateColorSlider({
+        Name = "Start color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v) 
+            if breadcrumbsTrail then
+                breadcrumbsTrail.Color = ColorSequence.new(v, breadcrumbsEndColor.Value)
+            end
+        end
+    })
+
+    breadcrumbsEndColor = breadcrumbs:CreateColorSlider({
+        Name = "End color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v) 
+            if breadcrumbsTrail then
+                breadcrumbsTrail.Color = ColorSequence.new(breadcrumbsStartColor.Value, v)
+            end
+        end
+    })
+
+    breadcrumbsLifeTime = breadcrumbs:CreateSlider({
         Name = "LifeTime",
         Function = function(v) end,
         Min = 1,
@@ -1934,7 +1927,7 @@ runFunction(function()
         Round = 0
     })
 
-    BreadcrumbsTransparency = Breadcrumbs:CreateSlider({
+    breadcrumbsTransparency = breadcrumbs:CreateSlider({
         Name = "Transparency",
         Function = function(v) end,
         Min = 0,
@@ -1943,7 +1936,7 @@ runFunction(function()
         Round = 1
     })
 
-    BreadcrumbsThick = Breadcrumbs:CreateSlider({
+    breadcrumbsThick = breadcrumbs:CreateSlider({
         Name = "Thick",
         Function = function(v) end,
         Min = 1,
@@ -1954,7 +1947,8 @@ runFunction(function()
 end)
 
 runFunction(function()
-    CameraFix = Tabs.Render:CreateToggle({
+    local camFix = {Enabled = false}
+    camFix = Tabs.Render:CreateToggle({
         Name = "CameraFix",
         Keybind = nil,
         Callback = function(callback) 
@@ -1970,26 +1964,29 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local ChamsMode = {Value = "SelectionBox"}
-    local ChamsAdorneePart = {Value = "HumanoidRootPart"}
-    local ChamsSelectionBoxLineThickness = {Value = 0}
-    local ChamsSelectionBoxSurfaceTransparency = {Value = 0}
-    local ChamsBoxHandleAdornmentSizeX = {Value = 1}
-    local ChamsBoxHandleAdornmentSizeY = {Value = 1}
-    local ChamsBoxHandleAdornmentSizeZ = {Value = 1}
-    local ChamsBoxHandleAdornmentAlwaysOnTop = {Value = true}
-    local ChamsHighlightOutline = {Value = true}
-    local ChamsHighlightOutlineTransparency = {Value = 0}
-    local ChamsHighlightFill = {Value = false}
-    local ChamsHighlightFillTransparency = {Value = 0}
-    local ChamsTransparency = {Value = 0.6}
-    local ChamsTeamColor = {Value = false}
-    local ChamsTeammates = {Value = false}
-    local PlayerAddedConnection
+    local chams = {Enabled = false}
+    local mode = {Value = "SelectionBox"}
+    local fillMode = {Value = "Team"}
+    local adorneePart = {Value = "HumanoidRootPart"}
+    local color = {Value = Color3.fromRGB(255, 0, 0)}
+    local fillColor = {Value = Color3.fromRGB(255, 0, 0)}
+    local lineThickness = {Value = 0}
+    local surfaceTransparency = {Value = 0}
+    local alwaysOnTop = {Value = true}
+    local outline = {Value = true}
+    local outlineColor = {Value = Color3.fromRGB(255, 0, 0)}
+    local outlineTransparency = {Value = 0}
+    local fill = {Value = false}
+    local fillTransparency = {Value = 0}
+    local transparency = {Value = 0.6}
+    local useTeamColor = {Value = false}
+    local teammates = {Value = false}
+    local connection
+    local connection2
 
-    local ChamsFolder = Instance.new("Folder")
-    ChamsFolder.Parent = workspace
-    ChamsFolder.Name = "ChamsFolder"
+    local chamsFolder = Instance.new("Folder")
+    chamsFolder.Parent = workspace
+    chamsFolder.Name = "chamsFolder"
 
     local ObjectsName = {
         "SelectionBoxObject",
@@ -2010,13 +2007,13 @@ runFunction(function()
     end
 
     local function UpdateChams(Player)
-        if isAlive(Player) then
-            local Character = Player.Character
-            if not Character then return end
-            local AdorneePart = ChamsAdorneePart.Value == "Full Character" and Character or Character:FindFirstChild(ChamsAdorneePart.Value)
-            local color = ChamsTeamColor.Value and Player.Team and Player.TeamColor or Color3.fromRGB(255, 0, 0)
+        if chams.Enabled and isAlive(Player) then
+            local Character = getCharacter(Player)
+            local AdorneePart = adorneePart.Value == "Full Character" and Character or Character:FindFirstChild(adorneePart.Value)
+            local teamColor = useTeamColor.Value and Player.Team and Player.TeamColor
+            local color = useTeamColor.Value and Player.Team and Player.TeamColor or color.Value
 
-            if ChamsMode.Value == "SelectionBox" then
+            if mode.Value == "SelectionBox" then
                 local BoxObject = Character:FindFirstChild("SelectionBoxObject")
                 if not BoxObject then
                     BoxObject = Instance.new("SelectionBox")
@@ -2024,11 +2021,11 @@ runFunction(function()
                     BoxObject.Parent = Character
                 end
                 BoxObject.Adornee = AdorneePart
-                BoxObject.LineThickness = ChamsSelectionBoxLineThickness.Value
+                BoxObject.LineThickness = lineThickness.Value
                 BoxObject.SurfaceColor3 = color
-                BoxObject.SurfaceTransparency = ChamsSelectionBoxSurfaceTransparency.Value
-                BoxObject.Transparency = ChamsTransparency.Value
-            elseif ChamsMode.Value == "BoxHandleAdornment" then
+                BoxObject.SurfaceTransparency = surfaceTransparency.Value
+                BoxObject.Transparency = transparency.Value
+            elseif mode.Value == "BoxHandleAdornment" then
                 local BoxObject = Character:FindFirstChild("BoxHandleAdornmentObject")
                 if not BoxObject then
                     BoxObject = Instance.new("BoxHandleAdornment")
@@ -2036,11 +2033,11 @@ runFunction(function()
                     BoxObject.Parent = Character
                 end
                 BoxObject.Adornee = AdorneePart
-                BoxObject.Size = Vector3.new(ChamsBoxHandleAdornmentSizeX.Value, ChamsBoxHandleAdornmentSizeY.Value, ChamsBoxHandleAdornmentSizeZ.Value)
-                BoxObject.AlwaysOnTop = ChamsBoxHandleAdornmentAlwaysOnTop.Value
+                BoxObject.Size = AdorneePart:GetExtentsSize()
+                BoxObject.AlwaysOnTop = alwaysOnTop.Value
                 BoxObject.Color3 = color
-                BoxObject.Transparency = ChamsTransparency.Value
-            elseif ChamsMode.Value == "Highlight" then
+                BoxObject.Transparency = transparency.Value
+            elseif mode.Value == "Highlight" then
                 local HighlightObject = Character:FindFirstChild("HighlightObject")
                 if not HighlightObject then
                     HighlightObject = Instance.new("Highlight")
@@ -2048,59 +2045,66 @@ runFunction(function()
                     HighlightObject.Parent = Character
                 end
                 HighlightObject.Adornee = AdorneePart
-                HighlightObject.FillColor = ChamsHighlightFill.Value and color or Color3.fromRGB(255, 255, 255)
-                HighlightObject.FillTransparency = ChamsHighlightFillTransparency.Value
+                HighlightObject.FillColor = color
+                HighlightObject.FillTransparency = (fill.Value and fillTransparency.Value) or 1
                 HighlightObject.OutlineColor = color
-                HighlightObject.OutlineTransparency = ChamsHighlightOutline.Value and ChamsHighlightOutlineTransparency.Value or 1
+                HighlightObject.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
             end
         end
     end
 
-    local Chams = Tabs.Render:CreateToggle({
+    local function updateAll()
+        for _, plr in next, Players:GetPlayers() do
+            UpdateChams(plr)
+        end
+    end
+
+    chams = Tabs.Render:CreateToggle({
         Name = "Chams",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                for _, Player in next, Players:GetPlayers() do
-                    UpdateChams(Player)
+                for _, plr in next, Players:GetPlayers() do
+                    UpdateChams(plr)
+                    connection = plr.CharacterAdded:Connect(function()
+                        UpdateChams(plr)
+                    end)
                 end
-
-                PlayerAddedConnection = Players.PlayerAdded:Connect(function(Player)
-                    UpdateChams(Player)
+                connection2 = Players.PlayerAdded:Connect(function(plr)
+                    UpdateChams(plr)
                 end)
             else
-                for _, Player in next, Players:GetPlayers() do
-                    RemoveChams(Player)
+                for _, plr in next, Players:GetPlayers() do
+                    RemoveChams(plr)
                 end
-                if PlayerAddedConnection then
-                    PlayerAddedConnection:Disconnect()
+                if connection then
+                    connection:Disconnect()
+                end
+                if connection2 then
+                    connection2:Disconnect()
                 end
             end
         end
     })
 
-    ChamsAdorneePart = Chams:CreateDropDown({
-        Name = "Attach Part",
-        List = {"Head", "HumanoidRootPart", "Full Character"},
-        Default = "Full Character",
-        Callback = function(v) end
-    })
-
-    ChamsMode = Chams:CreateDropDown({
+    mode = chams:CreateDropDown({
         Name = "Mode",
         List = {"SelectionBox", "BoxHandleAdornment", "Highlight"},
         Default = "SelectionBox",
         Callback = function(v)
             local modeVisibility = {
-                SelectionBox = {ChamsSelectionBoxLineThickness, ChamsSelectionBoxSurfaceTransparency},
-                BoxHandleAdornment = {ChamsBoxHandleAdornmentSizeX, ChamsBoxHandleAdornmentSizeY, ChamsBoxHandleAdornmentSizeZ},
-                Highlight = {ChamsHighlightOutline, ChamsHighlightFill}
+                SelectionBox = {lineThickness, surfaceTransparency, color, transparency},
+                BoxHandleAdornment = {color, transparency},
+                Highlight = {outline, outlineColor, outlineTransparency, fill, fillMode, fillColor, fillTransparency}
             }
     
             for _, group in pairs(modeVisibility) do
                 for _, item in ipairs(group) do
                     if item.MainObject then
                         item.MainObject.Visible = false
+                    end
+                    if item.Type == "OptionToggle" then
+                        item:ReToggle()
                     end
                 end
             end
@@ -2110,183 +2114,245 @@ runFunction(function()
                     item.MainObject.Visible = true
                 end
             end
+            if chams.Enabled then
+                chams:ReToggle(true)
+            end
         end
     })
 
-    ChamsSelectionBoxLineThickness = Chams:CreateSlider({
+    fillMode = chams:CreateDropDown({
+        Name = "Fill color mode",
+        List = {"Team", "Custom"},
+        Default = "Team",
+        Function = function(v) 
+            if color.MainObject then
+                color.MainObject.Visible = v == "Custom"
+            end
+            if teammates.MainObject then
+                teammates.MainObject.Visible = v == "Custom"
+            end
+        end
+    })
+
+    color = chams:CreateColorSlider({
+        Name = "Color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            updateAll()
+        end
+    })
+
+    adorneePart = chams:CreateDropDown({
+        Name = "Attach Part",
+        List = {"Head", "HumanoidRootPart", "Full Character"},
+        Default = "Full Character",
+        Function = function(v) 
+        end
+    })
+
+    lineThickness = chams:CreateSlider({
         Name = "Line Thickness",
-        Function = function(v) end,
+        Function = function(v) 
+            updateAll()
+        end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1
     })
 
-    ChamsSelectionBoxSurfaceTransparency = Chams:CreateSlider({
+    surfaceTransparency = chams:CreateSlider({
         Name = "Surface Transparency",
-        Function = function(v) end,
+        Function = function(v) 
+            updateAll()
+        end,
         Min = 0,
         Max = 10,
         Default = 1,
         Round = 1
     })
 
-    ChamsBoxHandleAdornmentSizeX = Chams:CreateSlider({
-        Name = "Box Size X",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    ChamsBoxHandleAdornmentSizeY = Chams:CreateSlider({
-        Name = "Box Size Y",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    ChamsBoxHandleAdornmentSizeZ = Chams:CreateSlider({
-        Name = "Box Size Z",
-        Function = function(v) end,
-        Min = 1,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    ChamsHighlightOutline = Chams:CreateToggle({
+    outline = chams:CreateToggle({
         Name = "Outline",
         Default = true,
         Function = function(v)
-            if ChamsHighlightOutlineTransparency.MainObject then
-                ChamsHighlightOutlineTransparency.MainObject.Visible = v
+            if outlineColor.MainObject then
+                outlineColor.MainObject.Visible = v
+            end
+            if outlineTransparency.MainObject then
+                outlineTransparency.MainObject.Visible = v
             end
         end
     })
+    outline.MainObject.Visible = false
 
-    ChamsHighlightOutlineTransparency = Chams:CreateSlider({
+    outlineColor = chams:CreateColorSlider({
+        Name = "Outline color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            updateAll()
+        end
+    })
+    outlineColor.MainObject.Visible = false
+
+    outlineTransparency = chams:CreateSlider({
         Name = "Outline Transparency",
-        Function = function(v) end,
+        Function = function(v) 
+            updateAll()
+        end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1
     })
+    outlineTransparency.MainObject.Visible = false
 
-    ChamsHighlightFill = Chams:CreateToggle({
+    fill = chams:CreateToggle({
         Name = "Fill",
         Default = true,
         Function = function(v)
-            if ChamsHighlightFillTransparency.MainObject then
-                ChamsHighlightFillTransparency.MainObject.Visible = v
+            if fillColor.MainObject then
+                fillColor.MainObject.Visible = v
+            end
+            if fillTransparency.MainObject then
+                fillTransparency.MainObject.Visible = v
             end
         end
     })
+    fill.MainObject.Visible = false
 
-    ChamsHighlightFillTransparency = Chams:CreateSlider({
+    fillColor = chams:CreateColorSlider({
+        Name = "Fill color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v) 
+            updateAll()
+        end
+    })
+    fillColor.MainObject.Visible = false
+
+    fillTransparency = chams:CreateSlider({
         Name = "Fill Transparency",
-        Function = function(v) end,
+        Function = function(v) 
+            updateAll()
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    fillTransparency.MainObject.Visible = false
+
+    transparency = chams:CreateSlider({
+        Name = "Transparency",
+        Function = function(v) 
+            updateAll()
+        end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1
     })
 
-    ChamsTransparency = Chams:CreateSlider({
-        Name = "Chams Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    ChamsTeammates = Chams:CreateToggle({
+    teammates = chams:CreateToggle({
         Name = "Teammates",
         Default = false,
-        Function = function(v) end
+        Function = function(v) 
+            updateAll()
+        end
     })
 
-    ChamsTeamColor = Chams:CreateToggle({
+    useTeamColor = chams:CreateToggle({
         Name = "TeamColor",
         Default = false,
-        Function = function(v) end
+        Function = function(v) 
+            updateAll()
+        end
     })
 end)
 
 runFunction(function()
-    local ChinaHatTrail
-    local ChinaHatEnabled = false
-    ChinaHat = Tabs.Render:CreateToggle({
+    local chinaHat = {Enabled = false}
+    local color = {Value = Color3.fromRGB(255, 255, 255)}
+    local chinaHatTrail
+    chinaHat = Tabs.Render:CreateToggle({
         Name = "ChinaHat",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                RunLoops:BindToHeartbeat("ChinaHat", function()
+                RunLoops:BindToHeartbeat("chinaHat", function()
 					if isAlive() then
-						if ChinaHatTrail == nil or ChinaHatTrail.Parent == nil then
-							ChinaHatTrail = Instance.new("Part")
-							ChinaHatTrail.CFrame =  LocalPlayer.Character.Head.CFrame * CFrame.new(0, 1.1, 0)
-							ChinaHatTrail.Size = Vector3.new(3, 0.7, 3)
-							ChinaHatTrail.Name = "ChinaHat"
-							ChinaHatTrail.Material = Enum.Material.Neon
-							ChinaHatTrail.CanCollide = false
-							ChinaHatTrail.Transparency = 0.3
-							local ChinaHatMesh = Instance.new("SpecialMesh")
-							ChinaHatMesh.Parent = ChinaHatTrail
-							ChinaHatMesh.MeshType = "FileMesh"
-							ChinaHatMesh.MeshId = "http://www.roblox.com/asset/?id=1778999"
-							ChinaHatMesh.Scale = Vector3.new(3, 0.6, 3)
-							ChinaHatTrail.Parent = workspace.Camera
+                        local head = getHead(LocalPlayer)
+						if chinaHatTrail == nil or chinaHatTrail.Parent == nil then
+							chinaHatTrail = Instance.new("Part")
+							chinaHatTrail.CFrame =  head.CFrame * CFrame.new(0, 1.1, 0)
+							chinaHatTrail.Size = Vector3.new(3, 0.7, 3)
+							chinaHatTrail.Name = "ChinaHat"
+							chinaHatTrail.Material = Enum.Material.Neon
+							chinaHatTrail.CanCollide = false
+							chinaHatTrail.Transparency = 0.3
+                            chinaHatTrail.Color = color.Value
+							local chinaHatMesh = Instance.new("SpecialMesh")
+							chinaHatMesh.Parent = chinaHatTrail
+							chinaHatMesh.MeshType = "FileMesh"
+							chinaHatMesh.MeshId = "http://www.roblox.com/asset/?id=1778999"
+							chinaHatMesh.Scale = Vector3.new(3, 0.6, 3)
+							chinaHatTrail.Parent = workspace.Camera
 						end
-						ChinaHatTrail.CFrame = LocalPlayer.Character.Head.CFrame * CFrame.new(0, 1.1, 0)
-						ChinaHatTrail.Velocity = Vector3.zero
-						ChinaHatTrail.LocalTransparencyModifier = ((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.6 and 1 or 0)
+						chinaHatTrail.CFrame = head.CFrame * CFrame.new(0, 1.1, 0)
+						chinaHatTrail.Velocity = Vector3.zero
+						chinaHatTrail.LocalTransparencyModifier = ((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.6 and 1 or 0)
 					else
-						if ChinaHatTrail then
-							ChinaHatTrail:Destroy()
-							ChinaHatTrail = nil
+						if chinaHatTrail then
+							chinaHatTrail:Destroy()
+							chinaHatTrail = nil
 						end
 					end
 				end)
             else
-                RunLoops:UnbindFromHeartbeat("ChinaHat")
-				if ChinaHatTrail then
-					ChinaHatTrail:Destroy()
-					ChinaHatTrail = nil
+                RunLoops:UnbindFromHeartbeat("chinaHat")
+				if chinaHatTrail then
+					chinaHatTrail:Destroy()
+					chinaHatTrail = nil
 				end
+            end
+        end
+    })
+
+    color = chinaHat:CreateColorSlider({
+        Name = "Color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            if chinaHatTrail then
+                chinaHatTrail.Color = v
             end
         end
     })
 end)
 
-if GuiLibrary.Device ~= "Mobile" then
-    runFunction(function()
-        local CrossHairId = {Value = ""}
-        CustomCrossHair = Tabs.Render:CreateToggle({
-            Name = "CustomCrossHair",
-            Keybind = nil,
-            Callback = function(callback)
-                if callback then
-                    Mouse.Icon = "rbxassetid://" .. CrossHairId.Value
-                else
-                    Mouse.Icon = ""
-                end
-            end
-        })
 
-        CrossHairId = CustomCrossHair:CreateTextBox({
-            Name = "CrossHairID",
-            PlaceholderText = "Cross Hair ID",
-            DefaultValue = "",
-            Function = function(v) end,
-        })
-    end)
-end
+runFunction(function()
+    local crossHair = {Enabled = false}
+    local id = {Value = ""}
+    crossHair = Tabs.Render:CreateToggle({
+        Name = "CustomCrossHair",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                Mouse.Icon = "rbxassetid://" .. id.Value
+            else
+                Mouse.Icon = ""
+            end
+        end
+    })
+
+    id = crossHair:CreateTextBox({
+        Name = "CrossHairID",
+        PlaceholderText = "Asset ID",
+        DefaultValue = "",
+        Function = function(v) end,
+    })
+end)
+
 
 --[[
 runFunction(function()
@@ -2431,24 +2497,23 @@ end)
 ]]
 
 runFunction(function()
-    local NewFov = {Value = 80}
-    FovChanger = Tabs.Render:CreateToggle({
+    local fovChanger = {Enabled = false}
+    local fov = {Value = 80}
+    fovChanger = Tabs.Render:CreateToggle({
         Name = "FovChanger",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                Camera.FieldOfView = NewFov.Value
+                Camera.FieldOfView = fov.Value
             else
                 Camera.FieldOfView = OldFov
             end
         end
     })
     
-    NewFov = FovChanger:CreateSlider({
-        Name = "Field Of View",
-        Function = function(v)
-            Camera.FieldOfView = v
-        end,
+    fov = fovChanger:CreateSlider({
+        Name = "FOV",
+        Function = function(v) end,
         Min = 1,
         Max = 150,
         Default = 80,
@@ -2457,46 +2522,48 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local LightingParameters = {}
-	local LightingChanged = false
+    local fullbright = {Enabled = false}
+    local params = {}
+	local changed = false
     local connection
-    Fullbright = Tabs.Render:CreateToggle({
+    fullbright = Tabs.Render:CreateToggle({
         Name = "Fullbright",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                LightingParameters.Brightness = Lighting.Brightness
-                LightingParameters.ClockTime = Lighting.ClockTime
-                LightingParameters.FogEnd = Lighting.FogEnd
-                LightingParameters.GlobalShadows = Lighting.GlobalShadows
-                LightingParameters.OutdoorAmbient = Lighting.OutdoorAmbient
-                LightingChanged = true
+                params.Brightness = Lighting.Brightness
+                params.ClockTime = Lighting.ClockTime
+                params.FogEnd = Lighting.FogEnd
+                params.GlobalShadows = Lighting.GlobalShadows
+                params.OutdoorAmbient = Lighting.OutdoorAmbient
+                changed = true
                 Lighting.Brightness = 2
                 Lighting.ClockTime = 14
                 Lighting.FogEnd = 100000
                 Lighting.GlobalShadows = false
                 Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-                LightingChanged = false
+                changed = false
                 connection = table.insert(connections, Lighting.Changed:Connect(function()
-                    if not LightingChanged and callback then
-                        LightingParameters.Brightness = Lighting.Brightness
-                        LightingParameters.ClockTime = Lighting.ClockTime
-                        LightingParameters.FogEnd = Lighting.FogEnd
-                        LightingParameters.GlobalShadows = Lighting.GlobalShadows
-                        LightingParameters.OutdoorAmbient = Lighting.OutdoorAmbient
-                        LightingChanged = true
+                    if not changed and callback then
+                        params.Brightness = Lighting.Brightness
+                        params.ClockTime = Lighting.ClockTime
+                        params.FogEnd = Lighting.FogEnd
+                        params.GlobalShadows = Lighting.GlobalShadows
+                        params.OutdoorAmbient = Lighting.OutdoorAmbient
+                        changed = true
                         Lighting.Brightness = 2
                         Lighting.ClockTime = 14
                         Lighting.FogEnd = 100000
                         Lighting.GlobalShadows = false
                         Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
-                        LightingChanged = false
+                        changed = false
                     end
                 end))
             else
-                connection:Disconnect()
-                connection:disconnect()
-                for Name, Value in pairs(LightingParameters) do
+                if connection then
+                    connection:Disconnect()
+                end
+                for Name, Value in pairs(params) do
                     Lighting[Name] = Value
                 end
             end
@@ -2504,81 +2571,27 @@ runFunction(function()
     })  
 end)
 
--- I SWEAR TO FUCKING GOD IF THIS SHIT DOESN'T WORK IMA HONESTLY FUCK LUA
+-- Made by Wowzers
 runFunction(function()
-    local NameTags = {Enabled = false}
-    local NameTagsMode = {Value = "Username"}
-    local NameTagsHP = {Value = false}
-    local NameTagsDistance = {Value = false}
-    local NameTagsMaxDistance = {Value = 1000}
-    
-    -- Connection THE FUCKING STORAGE for the SHITTY cleanup
+    local nameTags = {Enabled = false}
+    local mode = {Value = "Username"}
+    local color = {Value = Color3.fromRGB(255, 255, 255)}
+    local teamColor = {Value = false}
+    local showHP = {Value = false}
+    local showDistance = {Value = false}
+    local maxDistance = {Value = 1000}
+    local billboardGuis = {}
     local connections = {}
+    local nameTagsFolder = Instance.new("Folder")
+    nameTagsFolder.Name = "NameTagsFolder"
+    nameTagsFolder.Parent = CoreGui or workspace
     
-    -- Create folder and parent it properly
-    local espfolder = Instance.new("Folder")
-    espfolder.Name = "ESPFolder"
-    
-    -- Use a safe parent
-    if game:GetService("CoreGui") then
-        espfolder.Parent = game:GetService("CoreGui")
-    else
-        espfolder.Parent = workspace
-    end
-    
-    -- Clean up any existing ESP folder to prevent the stupid duplicates
-    for _, existing in pairs(game:GetService("CoreGui"):GetChildren()) do
-        if existing.Name == "ESPFolder" and existing ~= espfolder then
+    for _, existing in pairs(CoreGui:GetChildren()) do
+        if existing.Name == "NameTagsFolder" and existing ~= nameTagsFolder then
             existing:Destroy()
         end
     end
     
-    -- Convert health to the appropriate color
-    local function ConvertHealthToColor(Health, MaxHealth)
-        if type(Health) ~= "number" or type(MaxHealth) ~= "number" or MaxHealth <= 0 or Health <= 0 then
-            return Color3.fromRGB(255, 0, 0)
-        end
-        
-        local Percent = math.clamp((Health / MaxHealth) * 100, 0, 100)
-        
-        if Percent >= 70 then
-            return Color3.fromRGB(96, 253, 48) 
-        elseif Percent >= 45 then
-            return Color3.fromRGB(255, 196, 0) 
-        else
-            return Color3.fromRGB(255, 71, 71) 
-        end
-    end
-    
-    local billboardGuis = {}
-    
-    -- Function to check if a player is alive
-    local aliveCache = {}
-    local lastAliveCheck = {}
-    local function isAlive(player)
-        if not player then player = game:GetService("Players").LocalPlayer end
-        
-        -- Use cached result if checked recently
-        local now = tick()
-        if lastAliveCheck[player.Name] and now - lastAliveCheck[player.Name] < 0.2 then
-            return aliveCache[player.Name]
-        end
-        
-        -- Perform the actual fucking check
-        local character = player.Character
-        local isAlive = character and 
-                       character:FindFirstChild("Humanoid") and 
-                       character:FindFirstChild("HumanoidRootPart") and 
-                       character.Humanoid.Health > 0
-        
-        -- Cache the result
-        aliveCache[player.Name] = isAlive
-        lastAliveCheck[player.Name] = now
-        
-        return isAlive
-    end
-    
-    -- Clean up existing nametag for a player(s)
     local function CleanupPlayerNameTag(plr)
         local playerName = typeof(plr) == "string" and plr or plr.Name
         
@@ -2604,7 +2617,7 @@ runFunction(function()
     }
     
     local function CreateNameTag(plr)
-        if not plr or not plr.Character or not plr.Character:FindFirstChild("Head") then
+        if not isAlive(plr, true) then
             return nil
         end
         
@@ -2613,14 +2626,13 @@ runFunction(function()
         local billboardGui = Instance.new("BillboardGui")
         local textLabel = Instance.new("TextLabel")
         
-        -- Configure billboardGui
         billboardGui.Name = "NameTag_" .. plr.Name
         billboardGui.Adornee = plr.Character.Head
         billboardGui.AlwaysOnTop = true
         billboardGui.Size = UDim2.new(0, 200, 0, 50)
         billboardGui.StudsOffset = Vector3.new(0, 1.2, 0)
-        billboardGui.MaxDistance = NameTagsMaxDistance.Value
-        billboardGui.Parent = espfolder
+        billboardGui.MaxDistance = maxDistance.Value
+        billboardGui.Parent = nameTagsFolder
         
         for prop, value in pairs(textLabelProps) do
             textLabel[prop] = value
@@ -2632,60 +2644,58 @@ runFunction(function()
     end
     
     local function UpdateNameTag(plr)
+        if not isAlive(plr) then return end
+        
         local billboardGui = billboardGuis[plr.Name]
         if not billboardGui or not billboardGui.Parent then return end
-        
-        local LocalPlayer = game:GetService("Players").LocalPlayer
-        local character = plr.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        
-        if not humanoid or not rootPart then return end
+
+        local character = getCharacter(plr)
+        local humanoid = getHumanoid(plr)
+        local rootPart = getHumanoidRootPart(plr)
         
         local textLabel = billboardGui:FindFirstChild("NameTagText")
         if not textLabel then return end
         
-        local nameText = NameTagsMode.Value == "Username" and plr.Name or plr.DisplayName
-        local parts = {nameText}
+        local nameText = mode.Value == "Username" and plr.Name or plr.DisplayName
+        local parts = {}
+
+        table.insert(parts, string.format("<font color=\"rgb(%d, %d, %d)\">%d</font>", 
+            color,
+            color,
+            color,
+            nameText
+        ))
         
-        if NameTagsHP.Value then
+        if showHP.Value then
             local health = math.floor(humanoid.Health)
             local maxHealth = math.floor(humanoid.MaxHealth)
             local healthColor = ConvertHealthToColor(health, maxHealth)
+            local color = teamColor and plr.Team and plr.TeamColor or color.Value
             
             table.insert(parts, string.format(" <font color=\"rgb(%d,%d,%d)\">%d HP</font>", 
                 math.floor(healthColor.R * 255), 
                 math.floor(healthColor.G * 255), 
                 math.floor(healthColor.B * 255), 
-                health))
+            health))
         end
         
-        -- Add distance information if it's enabled
-        if NameTagsDistance.Value and isAlive(LocalPlayer) then
+        if showDistance.Value and isAlive(LocalPlayer) then
             local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
             table.insert(parts, string.format(" [%dm]", distance))
         end
         
-        -- Set the final text
         textLabel.Text = table.concat(parts)
         
-        -- Only adjust text size if needed
-        if NameTagsDistance.Value and isAlive(LocalPlayer) then
+        if showDistance.Value and isAlive(LocalPlayer) then
             local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
-            local scaleFactor = math.clamp(1 - (distance / NameTagsMaxDistance.Value) * 0.5, 0.5, 1)
+            local scaleFactor = math.clamp(1 - (distance / maxDistance.Value) * 0.5, 0.5, 1)
             if math.abs(textLabel.TextSize - (16 * scaleFactor)) > 0.5 then
                 textLabel.TextSize = 16 * scaleFactor
             end
         end
     end
     
-    -- Update all nametags with current settings
     local function UpdateAllNameTags()
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        
         for _, plr in pairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer and isAlive(plr) then
                 if billboardGuis[plr.Name] and billboardGuis[plr.Name].Parent then
@@ -2697,7 +2707,6 @@ runFunction(function()
         end
     end
     
-    -- Clean up all the shown nametags
     local function CleanupAllNameTags()
         for name, gui in pairs(billboardGuis) do
             if gui and gui.Parent then
@@ -2705,13 +2714,8 @@ runFunction(function()
             end
             billboardGuis[name] = nil
         end
-        
-        -- Clear caches
-        aliveCache = {}
-        lastAliveCheck = {}
     end
     
-    -- Disconnect all event connections
     local function DisconnectAll()
         for _, connection in pairs(connections) do
             if typeof(connection) == "RBXScriptConnection" and connection.Connected then
@@ -2721,36 +2725,24 @@ runFunction(function()
         connections = {}
     end
 
-    NameTags = Tabs.Render:CreateToggle({
+    nameTags = Tabs.Render:CreateToggle({
         Name = "NameTags",
         Keybind = nil,
         Callback = function(callback)
-            NameTags.Enabled = callback
-            
-            -- Always clean up previous state
             RunLoops:UnbindFromRenderStep("NameTags")
             DisconnectAll()
-            
             if callback then
-                -- Clean up any existing tags first
                 CleanupAllNameTags()
-                
-                -- Add player removing event
-                local playerRemovingConn = game:GetService("Players").PlayerRemoving:Connect(function(plr)
-                    if NameTags.Enabled then
+                local playerRemovingConn = Players.PlayerRemoving:Connect(function(plr)
+                    if nameTags.Enabled then
                         CleanupPlayerNameTag(plr)
                     end
                 end)
                 table.insert(connections, playerRemovingConn)
-                
-                -- Create the render step to update nametags
                 local lastFullUpdate = 0
                 RunLoops:BindToRenderStep("NameTags", function()
                     local now = tick()
-                    local Players = game:GetService("Players")
                     local LocalPlayer = Players.LocalPlayer
-                    
-                    -- Only do a full update every 0.5 seconds
                     if now - lastFullUpdate > 0.5 then
                         lastFullUpdate = now                      
                         for _, plr in pairs(Players:GetPlayers()) do
@@ -2763,8 +2755,6 @@ runFunction(function()
                             end
                         end
                     end
-                    
-                    -- Update only visible nametags every frame for smooth distance/health updates
                     for name, gui in pairs(billboardGuis) do
                         local plr = Players:FindFirstChild(name)
                         if plr and gui.Parent and isAlive(plr) then
@@ -2773,102 +2763,275 @@ runFunction(function()
                     end
                 end)
             else
-                -- Clean up when disabled
                 CleanupAllNameTags()
             end
         end
     })
 
-    NameTagsMode = NameTags:CreateDropDown({
+    mode = nameTags:CreateDropDown({
         Name = "Name Mode",
         List = {"Username", "DisplayName"},
         Default = "Username",
-        Function = function(val)
-            NameTagsMode.Value = val
-            if NameTags.Enabled then
+        Function = function(v)
+            if nameTags.Enabled then
                 UpdateAllNameTags()
             end
         end
     })
 
-    NameTagsHP = NameTags:CreateToggle({
+    color = nameTags:CreateColorSlider({
+        Name = "Name Color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            if nameTags.Enabled then
+                UpdateAllNameTags()
+            end
+        end
+    })
+
+    teamColor = nameTags:CreateToggle({
+        Name = "Team Color",
+        Default = false,
+        Function = function(v)
+            if nameTags.Enabled then
+                UpdateAllNameTags()
+            end
+        end
+    })
+
+    showHP = nameTags:CreateToggle({
         Name = "Health",
         Default = false,
-        Function = function(val)
-            NameTagsHP.Value = val
-            if NameTags.Enabled then
+        Function = function(v)
+            if nameTags.Enabled then
                 UpdateAllNameTags()
             end
         end
     })
 
-    NameTagsDistance = NameTags:CreateToggle({
+    showDistance = nameTags:CreateToggle({
         Name = "Distance",
         Default = false,
-        Function = function(val)
-            NameTagsDistance.Value = val
-            if NameTags.Enabled then
+        Function = function(v)
+            if nameTags.Enabled then
                 UpdateAllNameTags()
             end
         end
     })
     
-    NameTagsMaxDistance = NameTags:CreateSlider({
+    maxDistance = nameTags:CreateSlider({
         Name = "Max Distance",
         Min = 100,
         Max = 10000,
         Default = 1000,
         Round = 0,
-        Function = function(val)
-            NameTagsMaxDistance.Value = val
-            if NameTags.Enabled then
+        Function = function(v)
+            if nameTags.Enabled then
                 UpdateAllNameTags()
             end
         end
     })
-    
-    -- Clean up on script end
-    game:GetService("Players").LocalPlayer.OnTeleport:Connect(function()
-        if NameTags.Enabled then
-            RunLoops:UnbindFromRenderStep("NameTags")
-            DisconnectAll()
-            CleanupAllNameTags()
-        end
-    end)
 end)
 
 runFunction(function()
-    local RainbowSkinEnabled = false
-    RainbowSkin = Tabs.Render:CreateToggle({
+    local rainbowSkin = {Enabled = false}
+    local mode = {Value = "Random"}
+    local color = {Value = Color3.fromRGB(255, 255, 255)}
+    local delay = {Value = 0.1}
+    rainbowSkin = Tabs.Render:CreateToggle({
         Name = "RainbowSkin",
         Keybind = nil,
         Callback = function(callback)
-            if callback then
-                while RainbowSkinEnabled and task.wait(0.1) do
-                    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-                    for _,part in pairs(Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.Color = Color3.new(math.random(), math.random(), math.random())
-                        end
+            repeat
+                for _, part in pairs(getCharacter(LocalPlayer):GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        local color = mode.Value == "Random" and Color3.new(math.random(), math.random(), math.random()) or color.Value
+                        part.Color = color
                     end
                 end
-            else
-                RainbowSkinEnabled = false
+                wait(delay.Value)
+            until not callback
+        end
+    })
+
+    mode = rainbowSkin:CreateDropDown({
+        Name = "Mode",
+        List = {"Random", "Custom"},
+        Default = "Random",
+        Function = function(v)
+            if delay.MainObject then
+                delay.MainObject.Visible = v == "Random"
             end
         end
     })
+
+    color = rainbowSkin:CreateColorSlider({
+        Name = "Color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v) end
+    })
+
+    delay = rainbowSkin:CreateSlider({
+        Name = "Delay",
+        Function = function(v) end,
+        Min = 0.1,
+        Max = 5,
+        Default = 0.1,
+        Round = 1
+    })
 end)
 
+--[[not in this update
 runFunction(function()
-    ViewClip = Tabs.Render:CreateToggle({
+    local spawnEsp = {Enabled = false}
+    local outline = {Value = true}
+    local outlineColor = {Value = Color3.fromRGB(255, 0, 0)}
+    local outlineTransparency = {Value = 0}
+    local fill = {Value = false}
+    local fillColor = {Value = Color3.fromRGB(255, 0, 0)}
+    local fillTransparency = {Value = 0}
+    local objects = {}
+    local connection
+    spawnEsp = Tabs.Render:CreateToggle({
+        Name = "SpawnESP",
+        Keybind = nil,
+        Callback = function(callback)
+            if callback then
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    --print("scanning object: " .. obj.Name)
+                    if obj:IsA("SpawnLocation") then
+                        print("adding")
+                        local spawnESP = Instance.new("Highlight")
+                        spawnESP.Name = "SpawnESP"
+                        spawnESP.Parent = obj
+                        spawnESP.Adornee = obj
+                        spawnESP.FillColor = fillColor.Value
+                        spawnESP.FillTransparency = (outline.Value and fillTransparency.Value) or 1
+                        spawnESP.OutlineColor = outlineColor.Value
+                        spawnESP.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
+                        spawnESP.DepthMode = "AlwaysOnTop"
+                        table.insert(objects, spawnESP)
+                        print("added")
+                    end
+                end
+                connection = workspace.ChildAdded:Connect(function(child)
+                    if child:IsA("SpawnLocation") then
+                        local spawnESP = Instance.new("Highlight")
+                        spawnESP.Name = "SpawnESP"
+                        spawnESP.Parent = child
+                        spawnESP.Adornee = child
+                        spawnESP.FillColor = fillColor.Value
+                        spawnESP.FillTransparency = (outline.Value and fillTransparency.Value) or 1
+                        spawnESP.OutlineColor = outlineColor.Value
+                        spawnESP.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
+                        spawnESP.DepthMode = "AlwaysOnTop"
+                        table.insert(objects, spawnESP)
+                    end
+                end)
+            else
+                for _, obj in pairs(objects) do
+                    if obj and obj.Parent then
+                        obj:Destroy()
+                    end
+                end
+                table.clear(objects)
+            end
+        end
+    })
+
+    outline = spawnEsp:CreateToggle({
+        Name = "Outline",
+        Default = true,
+        Function = function(v)
+            if outlineColor.MainObject then
+                outlineColor.MainObject.Visible = v
+            end
+            if outlineTransparency.MainObject then
+                outlineTransparency.MainObject.Visible = v
+            end
+        end
+    })
+    
+    outlineColor = spawnEsp:CreateColorSlider({
+        Name = "Outline color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.OutlineColor = v
+                end
+            end
+        end
+    })
+    outlineColor.MainObject.Visible = false
+
+    outlineTransparency = spawnEsp:CreateSlider({
+        Name = "Outline Transparency",
+        Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.OutlineTransparency = v
+                end
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    outlineTransparency.MainObject.Visible = false
+
+    fill = spawnEsp:CreateToggle({
+        Name = "Fill",
+        Default = false,
+        Function = function(v)
+            if fillColor.MainObject then
+                fillColor.MainObject.Visible = v
+            end
+            if fillTransparency.MainObject then
+                fillTransparency.MainObject.Visible = v
+            end
+        end
+    })
+
+    fillColor = spawnEsp:CreateColorSlider({
+        Name = "Fill color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.FillColor = v
+                end
+            end
+        end
+    })
+    fillColor.MainObject.Visible = false
+
+    fillTransparency = spawnEsp:CreateSlider({
+        Name = "Fill Transparency",
+        Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.FillTransparency = v
+                end
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    fillTransparency.MainObject.Visible = false
+end)
+]]
+
+runFunction(function()
+    local viewClip = {Enabled = false}
+    viewClip = Tabs.Render:CreateToggle({
         Name = "ViewClip",
         Keybind = nil,
         Callback = function(callback) 
-            if callback then
-                LocalPlayer.DevCameraOcclusionMode = "Invisicam"
-            else
-                LocalPlayer.DevCameraOcclusionMode = "Zoom"
-            end
+            LocalPlayer.DevCameraOcclusionMode = callback and "Invisicam" or "Zoom"
         end
     })
 end)
@@ -3350,7 +3513,8 @@ end)
 
 -- Utility tab
 runFunction(function()
-    AntiAFK = Tabs.Utility:CreateToggle({
+    local antiAFK = {Enabled = false}
+    antiAFK = Tabs.Utility:CreateToggle({
         Name = "AntiAFK",
         Keybind = nil,
         Callback = function(callback) 
@@ -3361,7 +3525,7 @@ runFunction(function()
                     end
                 else
                     GuiLibrary:CreateNotification("AntiAFK", "Missing getconnections function.", 10, false, "error")
-                    AntiAFK:Toggle(true)
+                    antiAFK:Toggle(true)
                 end
             else
                 for i,v in next, getconnections(LocalPlayer.Idled) do
@@ -3373,23 +3537,24 @@ runFunction(function()
 end)
 
 runFunction(function()
-    AntiFling = Tabs.Utility:CreateToggle({
+    local antiFling = {Enabled = false}
+    antiFling = Tabs.Utility:CreateToggle({
         Name = "AntiFling",
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
                 RunLoops:BindToHeartbeat("AntiFling", function(Delta)
-                    for _, Part in next, LocalPlayer.Character:GetChildren() do
-                        if Part:IsA("BasePart") and Part.Name == not "HumanoidRootPart" then
-                            Part.CanCollide = false
+                    for _, part in next, getCharacter(LocalPlayer):GetChildren() do
+                        if part:IsA("BasePart") and part.Name == not "HumanoidRootPart" then
+                            part.CanCollide = false
                         end
                     end
                 end)
             else
                 RunLoops:UnbindFromHeartbeat("AntiFling")
-                for _, Part in next, LocalPlayer.Character:GetChildren() do
-                    if Part:IsA("BasePart") and Part.Name == not "HumanoidRootPart" then
-                        Part.CanCollide = true
+                for _, part in next, getCharacter(LocalPlayer):GetChildren() do
+                    if part:IsA("BasePart") and part.Name == not "HumanoidRootPart" then
+                        part.CanCollide = true
                     end
                 end
             end
@@ -3515,9 +3680,10 @@ end)
 ]]
 
 runFunction(function()
-	local First = false
+    local antiKick = {Enabled = false}
+	local first = false
     local OldNameCall
-    AntiKick = Tabs.Utility:CreateToggle({
+    antiKick = Tabs.Utility:CreateToggle({
         Name = "AntiKick",
         Keybind = nil,
         Callback = function(callback) 
@@ -3533,12 +3699,12 @@ runFunction(function()
         
                         return OldNameCall(Self, ...)
                     end)
-                    if not First then
-                        First = true
+                    if not first then
+                        first = true
                     end
                 else
                     GuiLibrary:CreateNotification("AntiKick", "Missing hookmetamethod function.", 10, false)
-                    AntiKick:Toggle(true)
+                    antiKick:Toggle(true)
                     return
                 end
             end
@@ -3615,32 +3781,35 @@ end)
 ]]
 
 runFunction(function()
-    local AutoRejoinDelay = {Value = 5}
-    local AutoRejoinSameServer = {Value = false}
-    AutoRejoin = Tabs.Utility:CreateToggle({
+    local autoRejoin = {Enabled = false}
+    local delay = {Value = 5}
+    local sameServer = {Value = false}
+    autoRejoin = Tabs.Utility:CreateToggle({
         Name = "AutoRejoin",
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
-                repeat wait(AutoRejoinDelay.Value) until AutoRejoin.Enabled == false or #CoreGui.RobloxPromptGui.promptOverlay:GetChildren() ~= 0
-                if AutoRejoin.Enabled and not AutoRejoinSameServer then 
+                repeat wait(delay.Value) until autoRejoin.Enabled == false or #CoreGui.RobloxPromptGui.promptOverlay:GetChildren() ~= 0
+                if autoRejoin.Enabled and sameServer then 
                     if #Players:GetPlayers() <= 1 then
                         LocalPlayer:Kick("\nRejoining...")
                         task.wait()
                         TeleportService:Teleport(PlaceId, LocalPlayer)
+                    else
+                        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
                     end
                 else
                     if #Players:GetPlayers() <= 1 then
                         LocalPlayer:Kick("\nRejoining...")
                         task.wait()
-                        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
+                        TeleportService:Teleport(PlaceId, LocalPlayer)
                     end
                 end
             end
         end
     })
 
-    AutoRejoinDelay = AutoRejoin:CreateSlider({
+    delay = autoRejoin:CreateSlider({
         Name = "Delay",
         Function = function(v) end,
         Min = 0,
@@ -3649,7 +3818,7 @@ runFunction(function()
         Round = 0
     })
 
-    AutoRejoinSameServer = AutoRejoin:CreateToggle({
+    sameServer = autoRejoin:CreateToggle({
         Name = "SameServer",
         Default = true,
         Function = function() end
@@ -3657,7 +3826,8 @@ runFunction(function()
 end)
 
 runFunction(function()
-    CameraUnlock = Tabs.Utility:CreateToggle({
+    local cameraUnlock = {Enabled = false}
+    cameraUnlock = Tabs.Utility:CreateToggle({
         Name = "CameraUnlock",
         Keybind = nil,
         Callback = function(callback) 
@@ -3713,12 +3883,18 @@ runFunction(function()
                     until not chatSpammer.Enabled
                 end
                 if hideFloodMessage.Value then
-                    connection = CoreGui.ExperienceChat:FindFirstChild("RCTScrollContentView").ChildAdded:Connect(function(msg)
-                        if msg.ContentText == "You must wait before sending another message." then
-                            msg.Visible = false
-                            print("detected flood message")
+                    local ExperienceChat = CoreGui:FindFirstChild("ExperienceChat")
+                    if ExperienceChat then
+                        local RCTScrollContentView = ExperienceChat:FindFirstChild("RCTScrollContentView")
+                        if RCTScrollContentView then
+                            connection = RCTScrollContentView.ChildAdded:Connect(function(msg)
+                                if msg.ContentText == "You must wait before sending another message." then
+                                    msg.Visible = false
+                                    print("detected flood message")
+                                end
+                            end)
                         end
-                    end)
+                    end
                 end
             else
                 if connection then
@@ -3760,16 +3936,17 @@ end)
 
 if Animate and CheckForAllAnimateParams(Animate) == true then
     runFunction(function()
-        local IdleAnimation1 = {Value = ""}
-        local IdleAnimation2 = {Value = ""}
-        local WalkAnimation = {Value = ""}
-        local RunAnimation = {Value = ""}
-        local JumpAnimation = {Value = ""}
-        local FallAnimation = {Value = ""}
-        local ClimbAnimation = {Value = ""}
-        local SwimIdleAnimation = {Value = ""}
-        local SwimAnimation = {Value = ""}
-        local OldAnimations = {
+        local customAnimations = {Enabled = false}
+        local idleAnimation1 = {Value = ""}
+        local idleAnimation2 = {Value = ""}
+        local walkAnimation = {Value = ""}
+        local runAnimation = {Value = ""}
+        local jumpAnimation = {Value = ""}
+        local fallAnimation = {Value = ""}
+        local climbAnimation = {Value = ""}
+        local swimIdleAnimation = {Value = ""}
+        local swimAnimation = {Value = ""}
+        local oldAnimations = {
             IdleAnimation1 = Animate.idle.Animation1.AnimationId,
             IdleAnimation2 = Animate.idle.Animation2.AnimationId,
             WalkAnimation = Animate.walk.WalkAnim.AnimationId,
@@ -3780,91 +3957,91 @@ if Animate and CheckForAllAnimateParams(Animate) == true then
             SwimIdleAnimation = Animate.swimidle.SwimIdle.AnimationId,
             SwimAnimation = Animate.swim.Swim.AnimationId
         }
-        CustomAnimations = Tabs.Utility:CreateToggle({
+        customAnimations = Tabs.Utility:CreateToggle({
             Name = "CustomAnimations",
             Keybind = nil,
             Callback = function(callback) 
                 if callback then 
-                    Animate.idle.Animation1.AnimationId = tonumber(IdleAnimation1.Value) and "http://www.roblox.com/asset/?id=" .. IdleAnimation1.Value or IdleAnimation1.Value
-                    Animate.idle.Animation2.AnimationId = tonumber(IdleAnimation2.Value) and "http://www.roblox.com/asset/?id=" .. IdleAnimation2.Value or IdleAnimation2.Value
-                    Animate.walk.WalkAnim.AnimationId = tonumber(WalkAnimation.Value) and "http://www.roblox.com/asset/?id=" .. WalkAnimation.Value or WalkAnimation.Value
-                    Animate.run.RunAnim.AnimationId = tonumber(RunAnimation.Value) and "http://www.roblox.com/asset/?id=" .. RunAnimation.Value or RunAnimation.Value
-                    Animate.jump.JumpAnim.AnimationId = tonumber(JumpAnimation.Value) and "http://www.roblox.com/asset/?id=" .. JumpAnimation.Value or JumpAnimation.Value
-                    Animate.fall.FallAnim.AnimationId = tonumber(FallAnimation.Value) and "http://www.roblox.com/asset/?id=" .. FallAnimation.Value or FallAnimation.Value
-                    Animate.climb.ClimbAnim.AnimationId = tonumber(ClimbAnimation.Value) and "http://www.roblox.com/asset/?id=" .. ClimbAnimation.Value or ClimbAnimation.Value
-                    Animate.swimidle.SwimIdle.AnimationId = tonumber(SwimIdleAnimation.Value) and "http://www.roblox.com/asset/?id=" .. SwimIdleAnimation.Value or SwimIdleAnimation.Value
-                    Animate.swim.Swim.AnimationId = tonumber(SwimAnimation.Value) and "http://www.roblox.com/asset/?id=" .. SwimAnimation.Value or SwimAnimation.Value
+                    Animate.idle.Animation1.AnimationId = tonumber(idleAnimation1.Value) and "http://www.roblox.com/asset/?id=" .. idleAnimation1.Value or idleAnimation1.Value
+                    Animate.idle.Animation2.AnimationId = tonumber(idleAnimation2.Value) and "http://www.roblox.com/asset/?id=" .. idleAnimation2.Value or idleAnimation2.Value
+                    Animate.walk.WalkAnim.AnimationId = tonumber(walkAnimation.Value) and "http://www.roblox.com/asset/?id=" .. walkAnimation.Value or walkAnimation.Value
+                    Animate.run.RunAnim.AnimationId = tonumber(runAnimation.Value) and "http://www.roblox.com/asset/?id=" .. runAnimation.Value or runAnimation.Value
+                    Animate.jump.JumpAnim.AnimationId = tonumber(jumpAnimation.Value) and "http://www.roblox.com/asset/?id=" .. jumpAnimation.Value or jumpAnimation.Value
+                    Animate.fall.FallAnim.AnimationId = tonumber(fallAnimation.Value) and "http://www.roblox.com/asset/?id=" .. fallAnimation.Value or fallAnimation.Value
+                    Animate.climb.ClimbAnim.AnimationId = tonumber(climbAnimation.Value) and "http://www.roblox.com/asset/?id=" .. climbAnimation.Value or climbAnimation.Value
+                    Animate.swimidle.SwimIdle.AnimationId = tonumber(swimIdleAnimation.Value) and "http://www.roblox.com/asset/?id=" .. swimIdleAnimation.Value or swimIdleAnimation.Value
+                    Animate.swim.Swim.AnimationId = tonumber(swimAnimation.Value) and "http://www.roblox.com/asset/?id=" .. swimAnimation.Value or swimAnimation.Value
                 else
-                    Animate.idle.Animation1.AnimationId = OldAnimations.IdleAnimation1
-                    Animate.idle.Animation2.AnimationId = OldAnimations.IdleAnimation2
-                    Animate.walk.WalkAnim.AnimationId = OldAnimations.WalkAnimation
-                    Animate.run.RunAnim.AnimationId = OldAnimations.RunAnimation
-                    Animate.jump.JumpAnim.AnimationId = OldAnimations.JumpAnimation
-                    Animate.fall.FallAnim.AnimationId = OldAnimations.FallAnimation
-                    Animate.climb.ClimbAnim.AnimationId = OldAnimations.ClimbAnimation
-                    Animate.swimidle.SwimIdle.AnimationId = OldAnimations.SwimIdleAnimation
-                    Animate.swim.Swim.AnimationId = OldAnimations.SwimAnimation
+                    Animate.idle.Animation1.AnimationId = oldAnimations.IdleAnimation1
+                    Animate.idle.Animation2.AnimationId = oldAnimations.IdleAnimation2
+                    Animate.walk.WalkAnim.AnimationId = oldAnimations.WalkAnimation
+                    Animate.run.RunAnim.AnimationId = oldAnimations.RunAnimation
+                    Animate.jump.JumpAnim.AnimationId = oldAnimations.JumpAnimation
+                    Animate.fall.FallAnim.AnimationId = oldAnimations.FallAnimation
+                    Animate.climb.ClimbAnim.AnimationId = oldAnimations.ClimbAnimation
+                    Animate.swimidle.SwimIdle.AnimationId = oldAnimations.SwimIdleAnimation
+                    Animate.swim.Swim.AnimationId = oldAnimations.SwimAnimation
                 end
             end
         })
 
-        IdleAnimation1 = CustomAnimations:CreateTextBox({
+        idleAnimation1 = customAnimations:CreateTextBox({
             Name = "IdleAnimation1",
             PlaceholderText = "Idle Animation1 ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        IdleAnimation2 = CustomAnimations:CreateTextBox({
+        idleAnimation2 = customAnimations:CreateTextBox({
             Name = "IdleAnimation2",
             PlaceholderText = "Idle Animation1 ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        WalkAnimation = CustomAnimations:CreateTextBox({
+        walkAnimation = customAnimations:CreateTextBox({
             Name = "WalkAnimation",
             PlaceholderText = "Walk Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        RunAnimation = CustomAnimations:CreateTextBox({
+        runAnimation = customAnimations:CreateTextBox({
             Name = "RunAnimation",
             PlaceholderText = "Run Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        JumpAnimation = CustomAnimations:CreateTextBox({
+        jumpAnimation = customAnimations:CreateTextBox({
             Name = "JumpAnimation",
             PlaceholderText = "Jump Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        FallAnimation = CustomAnimations:CreateTextBox({
+        fallAnimation = customAnimations:CreateTextBox({
             Name = "FallAnimation",
             PlaceholderText = "Fall Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        ClimbAnimation = CustomAnimations:CreateTextBox({
-            Name = "Climb Animation",
+        climbAnimation = customAnimations:CreateTextBox({
+            Name = "ClimbAnimation",
             PlaceholderText = "Climb Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        SwimIdleAnimation = CustomAnimations:CreateTextBox({
+        swimIdleAnimation = customAnimations:CreateTextBox({
             Name = "SwimIdleAnimation",
             PlaceholderText = "Swim Idle Animation ID",
             DefaultValue = "",
             Function = function(v) end,
         })
 
-        SwimAnimation = CustomAnimations:CreateTextBox({
+        swimAnimation = customAnimations:CreateTextBox({
             Name = "SwimAnimation",
             PlaceholderText = "Swim Animation ID",
             DefaultValue = "",
@@ -3874,9 +4051,10 @@ if Animate and CheckForAllAnimateParams(Animate) == true then
 end
 
 runFunction(function()
+    local consoleCommands = {Enabled = false}
     local commandbar
     local connection
-    Tabs.Utility:CreateToggle({
+    consoleCommands = Tabs.Utility:CreateToggle({
         Name = "ConsoleCommands",
         Keybind = nil,
         Callback = function(callback)
@@ -3942,9 +4120,9 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local GodMode = {Enabled = false}
-    local Mode = {Value = "Heal"}
-    local HealthThreshold = {Value = 100}
+    local godMode = {Enabled = false}
+    local mode = {Value = "Heal"}
+    local healthThreshold = {Value = 100}
     local connection
     local notificationCooldown = 0
     local lastNotificationTime = 0
@@ -4010,7 +4188,7 @@ runFunction(function()
     local function applyHealMode(humanoid)
         if not connection then
             connection = humanoid.GetPropertyChangedSignal("Health"):Connect(function()
-                local targetHealth = HealthThreshold.Value
+                local targetHealth = healthThreshold.Value
                 
                 if humanoid.Health < targetHealth then
                     table.insert(damageHistory, {
@@ -4104,13 +4282,13 @@ runFunction(function()
         end
     end
     
-    GodMode = Tabs.Utility:CreateToggle({
+    godMode = Tabs.Utility:CreateToggle({
         Name = "GodMode",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("GodMode", function()
-                    if isAlive(LocalPlayer, false, true) then
+                    if isAlive(LocalPlayer, false) then
                         local Character = LocalPlayer.Character
                         local Humanoid = Character.Humanoid
                         local HumanoidRootPart = Character.HumanoidRootPart
@@ -4120,7 +4298,7 @@ runFunction(function()
                                 retryAttempts = retryAttempts + 1
                                 if retryAttempts >= maxRetryAttempts then
                                     showNotification("GodMode", "Failed to initialize after multiple attempts. Please try again.", 5)
-                                    GodMode:Toggle(false)
+                                    godMode:Toggle(false)
                                     return
                                 end
                                 showNotification("GodMode", "Initializing... Attempt " .. retryAttempts .. "/" .. maxRetryAttempts, 1)
@@ -4130,13 +4308,13 @@ runFunction(function()
                             showNotification("GodMode", "Successfully initialized!", 2)
                         end
                         
-                        if Mode.Value == "Heal" then
+                        if mode.Value == "Heal" then
                             applyHealMode(Humanoid)
-                        elseif Mode.Value == "HRP" then
+                        elseif mode.Value == "HRP" then
                             applyHRPMode(Character, HumanoidRootPart)
-                        elseif Mode.Value == "AntiKnockback" then
+                        elseif mode.Value == "AntiKnockback" then
                             applyAntiKnockbackMode(Character, Humanoid)
-                        elseif Mode.Value == "Invulnerability" then
+                        elseif mode.Value == "Invulnerability" then
                             applyInvulnerabilityMode(Character, Humanoid)
                         end
                     else
@@ -4148,7 +4326,7 @@ runFunction(function()
                             task.wait(retryDelay)
                         else
                             showNotification("GodMode", "Unable to find character after multiple attempts. Please try again.", 5)
-                            GodMode:SetState(false)
+                            godMode:SetState(false)
                         end
                     end
                 end)
@@ -4158,13 +4336,13 @@ runFunction(function()
                 cleanupConnections()
                 RunLoops:UnbindFromHeartbeat("GodMode")
                 
-                if isAlive(LocalPlayer, false, true) then
+                if isAlive(LocalPlayer, false) then
                     local Character = LocalPlayer.Character
                     local Humanoid = Character.Humanoid
                     
                     restoreOriginalValues(Humanoid)
                     
-                    if Mode.Value == "HRP" then
+                    if mode.Value == "HRP" then
                         local realHRP = Character:FindFirstChild("RealHRP")
                         local fakeHRP = Character:FindFirstChild("HumanoidRootPart")
                         
@@ -4182,12 +4360,12 @@ runFunction(function()
         end
     })
 
-    Mode = GodMode:CreateDropDown({
+    mode = godMode:CreateDropDown({
         Name = "Mode",
         List = {"Heal", "HRP", "AntiKnockback", "Invulnerability"},
         Default = "Heal",
         Function = function(v)
-            if GodMode.Enabled then
+            if godMode.Enabled then
                 isInitialized = false
                 cleanupConnections()
                 showNotification("GodMode", "Mode changed to " .. v .. ". Reinitializing...", 2)
@@ -4195,14 +4373,14 @@ runFunction(function()
         end
     })
     
-    HealthThreshold = GodMode:CreateSlider({
+    healthThreshold = godMode:CreateSlider({
         Name = "Health Threshold",
         Min = 1,
         Max = 200,
         Default = 100,
         Round = 0,
         Function = function(val) 
-            if Mode.Value == "Heal" and GodMode.Enabled and connection then
+            if mode.Value == "Heal" and godMode.Enabled and connection then
                 cleanupConnections()
                 
                 if isAlive(LocalPlayer, false, true) then
@@ -4215,40 +4393,38 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local ProximityPromptsHoldDuration = {Value = 0.1}
-    local FastProximityPromptsEnabled = false
-    local ChangedObjects = {}
-    FastProximityPrompts = Tabs.Utility:CreateToggle({
+    local fastProximityPrompts = {Enabled = false}
+    local duration = {Value = 0.1}
+    local objects = {}
+    fastProximityPrompts = Tabs.Utility:CreateToggle({
         Name = "FastProximityPrompts",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                FastProximityPromptsEnabled = true
                 for _, ProximityObject in pairs(workspace:GetDescendants()) do
                     if ProximityObject:IsA("ProximityPrompt") then
-                        ChangedObjects[ProximityObject] = ProximityObject.HoldDuration
-                        ProximityObject.HoldDuration = ProximityPromptsHoldDuration.Value
+                        objects[ProximityObject] = ProximityObject.HoldDuration
+                        ProximityObject.HoldDuration = duration.Value
                     end
                 end
             else
-                FastProximityPromptsEnabled = false
-                for ProximityObject, OriginalHoldDuration in pairs(ChangedObjects) do
+                for ProximityObject, OriginalHoldDuration in pairs(objects) do
                     if ProximityObject:IsA("ProximityPrompt") then
                         ProximityObject.HoldDuration = OriginalHoldDuration
                     end
                 end
-                table.clear(ChangedObjects)
+                table.clear(objects)
             end
         end
     })
 
-    ProximityPromptsHoldDuration = FastProximityPrompts:CreateSlider({
+    duration = fastProximityPrompts:CreateSlider({
         Name = "HoldDuration",
         Function = function(v)
-            if FastProximityPromptsEnabled then
+            if fastProximityPrompts.Enabled then
                 for _, Object in pairs(workspace:GetDescendants()) do
                     if Object:IsA("ProximityPrompt") then
-                        Object.HoldDuration = ProximityPromptsHoldDuration.Value
+                        Object.HoldDuration = duration.Value
                     end
                 end
             end
@@ -4261,7 +4437,8 @@ runFunction(function()
 end)
 
 runFunction(function()
-    FPSUnlocker = Tabs.Utility:CreateToggle({
+    local fpsUnlocker = {Enabled = false}
+    fpsUnlocker = Tabs.Utility:CreateToggle({
         Name = "FPSUnlocker",
         Keybind = nil,
         Callback = function(callback)
@@ -4270,7 +4447,7 @@ runFunction(function()
                     setfpscap(10000000)
                 else
                     GuiLibrary:CreateNotification("FPSUnlocker", "Missing setfpscap function.", 10, false, "error")
-                    FPSUnlocker:Toggle(true)
+                    fpsUnlocker:Toggle(true)
                     return
                 end
             end
@@ -4279,16 +4456,20 @@ runFunction(function()
 end)
 
 runFunction(function()
-    InfinityJump = Tabs.Utility:CreateToggle({
+    local infiniteJump = {Enabled = false}
+    local connection
+    infiniteJump = Tabs.Utility:CreateToggle({
         Name = "InfinityJump",
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
-                UserInputService.JumpRequest:Connect(function()
+                connection = UserInputService.JumpRequest:Connect(function()
                     if callback then
-                        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(3)
+                        getHumanoid(LocalPlayer):ChangeState(3)
                     end
                 end)
+            else
+                if connection then connection:Disconnect() end
             end
         end
     })
@@ -4315,12 +4496,27 @@ end)
 ]]
 
 runFunction(function()
-    ServerHop = Tabs.Utility:CreateToggle({
+    local rejoin = {Enabled = false}
+    rejoin = Tabs.Utility:CreateToggle({
+        Name = "Rejoin",
+        Keybind = nil,
+        Callback = function(callback) 
+            if callback then 
+                rejoin:Toggle(false, false)
+                TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
+            end
+        end
+    })
+end)
+
+runFunction(function()
+    local serverHop = {Enabled = false}
+    serverHop = Tabs.Utility:CreateToggle({
         Name = "ServerHop",
         Keybind = nil,
         Callback = function(callback) 
             if callback then 
-                ServerHop:Toggle(false, false)
+                serverHop:Toggle(false, false)
                 TeleportService:Teleport(PlaceId)
             end
         end
@@ -4329,15 +4525,12 @@ end)
 
 -- World tab
 runFunction(function()
-    local AntiVoid = {Enabled = false}
-    local Mode = {Value = "Jump"}
-    local Delay = {Value = 0.1}
-    local BounceForce = {Value = 150}
-    local TPtoSpawnLocation = {Value = false}
-    local positionsaveinterval = 0.5
+    local antiVoid = {Enabled = false}
+    local mode = {Value = "Jump"}
+    local delay = {Value = 0.1}
+    local bounceForce = {Value = 150}
+    local tpToSpawnLocation = {Value = false}
     local LastSafePosition = nil
-    local LastSaveTime = 0
-    local PositionSaveAccumulator = 0
     local IsBeingRescued = false
     local AntiVoidPlatform = nil
     local voidYpos = -200
@@ -4382,10 +4575,10 @@ runFunction(function()
         if RootPart.Position.Y <= voidYpos then
             IsBeingRescued = true
             
-            if Mode.Value == "Jump" and AntiVoidPlatform then
+            if mode.Value == "Jump" and AntiVoidPlatform then
                 AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos, RootPart.Position.Z)
                 
-                Humanoid.JumpPower = BounceForce.Value
+                Humanoid.JumpPower = bounceForce.Value
                 Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             else
                 if LastSafePosition then
@@ -4400,7 +4593,7 @@ runFunction(function()
                         end
                     end
                     
-                    if spawnLocation and TPtoSpawnLocation.Value then
+                    if spawnLocation and tpToSpawnLocation.Value then
                         RootPart.CFrame = spawnLocation.CFrame * CFrame.new(0, 5, 0)
                         Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
                     else
@@ -4410,20 +4603,20 @@ runFunction(function()
                 end
             end
             
-            task.delay(Delay.Value, function()
+            task.delay(delay.Value, function()
                 Humanoid.JumpPower = oldjumppower
                 IsBeingRescued = false
             end)
         end
     end
 
-    AntiVoid = Tabs.World:CreateToggle({
+    antiVoid = Tabs.World:CreateToggle({
         Name = "AntiVoid",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 RunLoops:BindToRenderStep("AntiVoid", function()
-                    if Mode.Value == "Jump" then
+                    if mode.Value == "Jump" then
                         if not AntiVoidPlatform then
                             AntiVoidPlatform = Instance.new("Part")
                             AntiVoidPlatform.Name = "AntiVoidPlatform"
@@ -4436,11 +4629,11 @@ runFunction(function()
 
                         connection = RunService.Stepped:Connect(function(deltaTime)
                             local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            if AntiVoid.Enabled then
+                            if antiVoid.Enabled then
                                 savePosition(deltaTime)
                                 RescueFromVoid()
                                 
-                                if Mode.Value == "Jump" and AntiVoidPlatform and RootPart and RootPart.Position.Y > (voidYpos + math.abs(voidYpos)) then
+                                if mode.Value == "Jump" and AntiVoidPlatform and RootPart and RootPart.Position.Y > (voidYpos + math.abs(voidYpos)) then
                                     AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos - 50, RootPart.Position.Z)
                                 end
                             end
@@ -4459,14 +4652,14 @@ runFunction(function()
         end
     })
 
-    Mode = AntiVoid:CreateDropDown({
+    mode = antiVoid:CreateDropDown({
         Name = "Mode",
         Function = function(v) end,
         List = {"Jump", "Teleport"},
         Default = "Jump"
     })
 
-    Delay = AntiVoid:CreateSlider({
+    delay = antiVoid:CreateSlider({
         Name = "PosCheckDelay",
         Function = function(v) end,
         Min = 0,
@@ -4475,7 +4668,7 @@ runFunction(function()
         Round = 1
     })
 
-    BounceForce = AntiVoid:CreateSlider({
+    bounceForce = antiVoid:CreateSlider({
         Name = "Bounce Force",
         Function = function(v) end,
         Min = 0,
@@ -4484,14 +4677,13 @@ runFunction(function()
         Round = 0
     })
 
-    TPtoSpawnLocation = AntiVoid:CreateToggle({
+    tpToSpawnLocation = antiVoid:CreateToggle({
         Name = "TP to Spawn Location",
         Default = false,
         Function = function(v) end
     })
 end)
 
---[[next week
 runFunction(function()
     local atmosphereModule = {Enabled = false}
     local color = {Value = Color3.fromRGB(255, 255, 255)}
@@ -4501,12 +4693,19 @@ runFunction(function()
     local haze = {Value = 0.5}
     local offset = {Value = 0.5}
     local atmosphere
+    local old = {}
 
     atmosphereModule = Tabs.World:CreateToggle({
         Name = "Atmopshere",
         Keybind = nil,
         Callback = function(callback)
             if callback then
+                for i, v in pairs(Lighting:GetChildren()) do
+                    if v:IsA("Atmosphere") then
+                        table.insert(old, v)
+                        v.Parent = game
+                    end
+                end
                 atmosphere = Instance.new("Atmosphere")
                 atmosphere.Color = color.Value
                 atmosphere.Decay = decay.Value
@@ -4515,10 +4714,35 @@ runFunction(function()
                 atmosphere.Haze = haze.Value
                 atmosphere.Offset = offset.Value
                 atmosphere.Parent = Lighting
+
+                Lighting.LightingChanged:Connect(function()
+                    if Lighting:FindFirstChild("Atmosphere") then
+                        local atmosphere = Lighting:FindFirstChild("Atmosphere")
+                        atmosphere.Color = color.Value
+                        atmosphere.Decay = decay.Value
+                        atmosphere.Density = density.Value
+                        atmosphere.Glare = glare.Value
+                        atmosphere.Haze = haze.Value
+                        atmosphere.Offset = offset.Value
+                    else
+                        atmosphere = Instance.new("Atmosphere")
+                        atmosphere.Color = color.Value
+                        atmosphere.Decay = decay.Value
+                        atmosphere.Density = density.Value
+                        atmosphere.Glare = glare.Value
+                        atmosphere.Haze = haze.Value
+                        atmosphere.Offset = offset.Value
+                        atmosphere.Parent = Lighting
+                    end
+                end)
             else
                 if atmosphere then
                     atmosphere:Destroy()
                 end
+                for i, v in pairs(old) do
+                    v.Parent = Lighting
+                end
+                table.clear(old)
             end
         end
     })
@@ -4595,29 +4819,27 @@ runFunction(function()
         Round = 3
     })
 end)
-]]
 
 runFunction(function()
-    local GravityValue = {Value = 18}
-    local GravityEnabled = false
-    Gravity = Tabs.World:CreateToggle({
+    local gravity = {Enabled = false}
+    local gravityValue = {Value = 18}
+    local gravityEnabled = false
+    gravity = Tabs.World:CreateToggle({
         Name = "Gravity",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                GravityEnabled = true
-                workspace.Gravity = GravityValue.Value
+                workspace.Gravity = gravityValue.Value
             else
-                GravityEnabled = false
                 workspace.Gravity = workspaceGravity
             end
         end
     })
     
-    GravityValue = Gravity:CreateSlider({
+    gravityValue = gravity:CreateSlider({
         Name = "Gravity",
         Function = function(v)
-            if GravityEnabled then
+            if gravity.Enabled then
                 workspace.Gravity = v
             end
         end,
@@ -4629,95 +4851,93 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local OldLighting = {
+    local customLighting = {Enabled = false}
+    local oldLighting = {
         ShadowSoftness = Lighting.ShadowSoftness,
         Brightness = Lighting.Brightness
     }
-    local ShadowSoftness = {Value = 1}
-    local Brightness = {Value = 1}
-    local SunRaysIntensity = {Value = 1}
-    local Spread = {Value = 1}
-    local BloomIntensity = {Value = 1}
-    local BloomSize = {Value = 1}
-    local BloomObject
-    local SunRaysObject
-    local OldLightingObjects
-    local CustomLightingEnabled = false
-    local LightingChangedConnection
-    CustomLighting = Tabs.World:CreateToggle({
+    local shadowSoftness = {Value = 1}
+    local brightness = {Value = 1}
+    local sunRaysIntensity = {Value = 1}
+    local spread = {Value = 1}
+    local bloomIntensity = {Value = 1}
+    local bloomSize = {Value = 1}
+    local bloomObject
+    local sunRaysObject
+    local oldLightingObjects = {}
+    local connection
+    customLighting = Tabs.World:CreateToggle({
         Name = "Lighting",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                CustomLightingEnabled = true
-                Lighting.ShadowSoftness = ShadowSoftness.Value
-                Lighting.Brightness = Brightness.Value
+                Lighting.ShadowSoftness = shadowSoftness.Value
+                Lighting.Brightness = brightness.Value
                 for i,v in pairs(Lighting:GetChildren()) do
 					if v:IsA("BloomEffect") or v:IsA("SunRaysEffect") then
-						table.insert(OldLightingObjects, v)
+						table.insert(oldLightingObjects, v)
 						v.Parent = game
 					end
 				end
-                BloomObject = Instance.new("BloomEffect")
-                BloomObject.Name = "BloomObject"
-                BloomObject.Parent = Lighting
-                BloomObject.Intensity = BloomIntensity.Value
-                BloomObject.Size = BloomSize.Value
+                bloomObject = Instance.new("BloomEffect")
+                bloomObject.Name = "BloomObject"
+                bloomObject.Parent = Lighting
+                bloomObject.Intensity = bloomIntensity.Value
+                bloomObject.Size = bloomSize.Value
+                
+                sunRaysObject = Instance.new("SunRaysEffect")
+                sunRaysObject.Name = "SunRaysObject"
+                sunRaysObject.Parent = Lighting
+                sunRaysObject.Intensity = sunRaysIntensity.Value
+                sunRaysObject.Spread = spread.Value
 
-                SunRaysObject = Instance.new("SunRaysEffect")
-                SunRaysObject.Name = "SunRaysObject"
-                SunRaysObject.Parent = Lighting
-                SunRaysObject.Intensity = SunRaysIntensity.Value
-                SunRaysObject.Spread = Spread.Value
-
-                LightingChangedConnection = Lighting.LightingChanged:Connect(function()
+                connection = Lighting.LightingChanged:Connect(function()
                     if Lighting:FindFirstChild("BloomObject") then
                         local BloomObject = Lighting:FindFirstChild("BloomObject")
                         BloomObject.Parent = Lighting
-                        BloomObject.Intensity = BloomIntensity.Value
-                        BloomObject.Size = BloomSize.Value
+                        BloomObject.Intensity = bloomIntensity.Value
+                        BloomObject.Size = bloomSize.Value
                     else
-                        BloomObject = Instance.new("BloomEffect")
-                        BloomObject.Name = "BloomObject"
-                        BloomObject.Parent = Lighting
-                        BloomObject.Intensity = BloomIntensity.Value
-                        BloomObject.Size = BloomSize.Value
+                        bloomObject = Instance.new("BloomEffect")
+                        bloomObject.Name = "BloomObject"
+                        bloomObject.Parent = Lighting
+                        bloomObject.Intensity = bloomIntensity.Value
+                        bloomObject.Size = bloomSize.Value
                     end
 
                     if Lighting:FindFirstChild("SunRaysObject") then
-                        local SunRaysObject = Lighting:FindFirstChild("SunRaysObject")
-                        SunRaysObject = Instance.new("SunRaysEffect")
-                        SunRaysObject.Name = "SunRaysObject"
-                        SunRaysObject.Parent = Lighting
-                        SunRaysObject.Intensity = SunRaysIntensity.Value
-                        SunRaysObject.Spread = Spread.Value
+                        local sunRaysObject = Lighting:FindFirstChild("SunRaysObject")
+                        sunRaysObject = Instance.new("SunRaysEffect")
+                        sunRaysObject.Name = "SunRaysObject"
+                        sunRaysObject.Parent = Lighting
+                        sunRaysObject.Intensity = sunRaysIntensity.Value
+                        sunRaysObject.Spread = spread.Value
                     else
-                        SunRaysObject = Instance.new("SunRaysEffect")
-                        SunRaysObject.Name = "SunRaysObject"
-                        SunRaysObject.Parent = Lighting
-                        SunRaysObject.Intensity = SunRaysIntensity.Value
-                        SunRaysObject.Spread = Spread.Value
+                        sunRaysObject = Instance.new("SunRaysEffect")
+                        sunRaysObject.Name = "SunRaysObject"
+                        sunRaysObject.Parent = Lighting
+                        sunRaysObject.Intensity = sunRaysIntensity.Value
+                        sunRaysObject.Spread = spread.Value
                     end
                 end)
             else
-                LightingChangedConnection:Disconnect()
-                CustomLightingEnabled = false
-                Lighting.ShadowSoftness = OldLighting.ShadowSoftness
-                Lighting.Brightness = OldLighting.Brightness
-                if BloomObject then BloomObject:Destroy() end
-                if SunRaysObject then SunRaysObject:Destroy() end
-				for i,v in pairs(OldLightingObjects) do
+                connection:Disconnect()
+                Lighting.ShadowSoftness = oldLighting.ShadowSoftness
+                Lighting.Brightness = oldLighting.Brightness
+                if bloomObject then bloomObject:Destroy() end
+                if sunRaysObject then sunRaysObject:Destroy() end
+				for i,v in pairs(oldLightingObjects) do
 					v.Parent = Lighting
 				end
-				table.clear(OldLightingObjects)
+				table.clear(oldLightingObjects)
             end
         end
     })
 
-    ShadowSoftness = CustomLighting:CreateSlider({
+    shadowSoftness = customLighting:CreateSlider({
         Name = "ShadowSoftness",
         Function = function(v) 
-            if CustomLightingEnabled then
+            if customLighting.Enabled then
                 Lighting.ShadowSoftness = v
             end
         end,
@@ -4727,10 +4947,10 @@ runFunction(function()
         Round = 1
     })
 
-    Brightness = CustomLighting:CreateSlider({
+    brightness = customLighting:CreateSlider({
         Name = "Brightness",
         Function = function(v) 
-            if CustomLightingEnabled then
+            if customLighting.Enabled then
                 Lighting.Brightness = v
             end
         end,
@@ -4740,11 +4960,11 @@ runFunction(function()
         Round = 1
     })
 
-    SunRaysIntensity = CustomLighting:CreateSlider({
+    sunRaysIntensity = customLighting:CreateSlider({
         Name = "SunRays Intensity",
         Function = function(v) 
-            if CustomLightingEnabled then
-                SunRaysObject.Intensity = v
+            if customLighting.Enabled then
+                sunRaysObject.Intensity = v
             end
         end,
         Min = 0,
@@ -4753,11 +4973,11 @@ runFunction(function()
         Round = 1
     })
 
-    Spread = CustomLighting:CreateSlider({
+    spread = customLighting:CreateSlider({
         Name = "SunRays Spread",
         Function = function(v) 
-            if CustomLightingEnabled then
-                SunRaysObject.Spread = v
+            if customLighting.Enabled then
+                sunRaysObject.Spread = v
             end
         end,
         Min = 0,
@@ -4766,11 +4986,11 @@ runFunction(function()
         Round = 1
     })
 
-    BloomIntensity = CustomLighting:CreateSlider({
+    bloomIntensity = customLighting:CreateSlider({
         Name = "Bloom Intensity",
         Function = function(v) 
-            if CustomLightingEnabled then
-                BloomObject.Intensity = v
+            if customLighting.Enabled then
+                bloomObject.Intensity = v
             end
         end,
         Min = 0,
@@ -4779,11 +4999,11 @@ runFunction(function()
         Round = 2
     })
 
-    BloomSize = CustomLighting:CreateSlider({
+    bloomSize = customLighting:CreateSlider({
         Name = "Bloom Intensity",
         Function = function(v) 
-            if CustomLightingEnabled then
-                BloomObject.Size = v
+            if customLighting.Enabled then
+                bloomObject.Size = v
             end
         end,
         Min = 0,
@@ -4794,133 +5014,133 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local SkyUp = {Value = ""}
-	local SkyDown = {Value = ""}
-	local SkyLeft = {Value = ""}
-	local SkyRight = {Value = ""}
-	local SkyFront = {Value = ""}
-	local SkyBack = {Value = ""}
-	local SkySun = {Value = ""}
-    local SunSize = {Value = 11}
-	local SkyMoon = {Value = ""}
-    local MoonSize = {Value = 11}
-    local OldSkyObjects = {}
-    local SkyEnabled = false
-    local SkyObject
-    local SkyChangedObject
-    CustomSky = Tabs.World:CreateToggle({
+    local customSky = {Enabled = false}
+    local skyUp = {Value = ""}
+	local skyDown = {Value = ""}
+	local skyLeft = {Value = ""}
+	local skyRight = {Value = ""}
+	local skyFront = {Value = ""}
+	local skyBack = {Value = ""}
+	local skySun = {Value = ""}
+    local sunSize = {Value = 11}
+	local skyMoon = {Value = ""}
+    local moonSize = {Value = 11}
+    local oldSkyObjects = {}
+    local skyObject
+    local connection
+    customSky = Tabs.World:CreateToggle({
         Name = "Sky",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                SkyEnabled = true
                 for i,v in pairs(Lighting:GetChildren()) do
 					if v:IsA("PostEffect") or (v:IsA("Sky") and v.Name == not "SkyObject") then
-						table.insert(OldSkyObjects, v)
+						table.insert(oldSkyObjects, v)
 						v.Parent = game
 					end
 				end
-				SkyObject = Instance.new("Sky")
-                SkyObject.Name = "SkyObject"
-                SkyObject.Parent = Lighting
-				SkyObject.SkyboxBk = "rbxassetid://" .. SkyBack.Value
-				SkyObject.SkyboxDn = "rbxassetid://" .. SkyDown.Value
-				SkyObject.SkyboxFt = "rbxassetid://" .. SkyFront.Value
-				SkyObject.SkyboxLf = "rbxassetid://" .. SkyLeft.Value
-				SkyObject.SkyboxRt = "rbxassetid://" .. SkyRight.Value
-				SkyObject.SkyboxUp = "rbxassetid://" .. SkyUp.Value
-				SkyObject.SunTextureId = "rbxassetid://" .. SkySun.Value
-				SkyObject.MoonTextureId = "rbxassetid://" .. SkyMoon.Value
-                SkyObject.SunAngularSize = SunSize.Value
-                SkyObject.MoonAngularSize = MoonSize.Value
+				skyObject = Instance.new("Sky")
+                skyObject.Name = "SkyObject"
+                skyObject.Parent = Lighting
+				skyObject.SkyboxBk = "rbxassetid://"..skyBack.Value
+                skyObject.SkyboxDn = "rbxassetid://"..skyDown.Value
+                skyObject.SkyboxFt = "rbxassetid://"..skyFront.Value
+                skyObject.SkyboxLf = "rbxassetid://"..skyLeft.Value
+                skyObject.SkyboxRt = "rbxassetid://"..skyRight.Value
+                skyObject.SkyboxUp = "rbxassetid://"..skyUp.Value
+                skyObject.SunTextureId = "rbxassetid://"..skySun.Value
+                skyObject.MoonTextureId = "rbxassetid://"..skyMoon.Value
+                skyObject.SunAngularSize = sunSize.Value
+                skyObject.MoonAngularSize = moonSize.Value
 
-                SkyChangedObject = SkyObject.Changed:Connect(function()
-                    SkyObject.SkyboxBk = "rbxassetid://" .. SkyBack.Value
-                    SkyObject.SkyboxDn = "rbxassetid://" .. SkyDown.Value
-                    SkyObject.SkyboxFt = "rbxassetid://" .. SkyFront.Value
-                    SkyObject.SkyboxLf = "rbxassetid://" .. SkyLeft.Value
-                    SkyObject.SkyboxRt = "rbxassetid://" .. SkyRight.Value
-                    SkyObject.SkyboxUp = "rbxassetid://" .. SkyUp.Value
-                    SkyObject.SunTextureId = "rbxassetid://" .. SkySun.Value
-                    SkyObject.MoonTextureId = "rbxassetid://" .. SkyMoon.Value
-                    SkyObject.SunAngularSize = SunSize.Value
-                    SkyObject.MoonAngularSize = MoonSize.Value
+                connection = skyObject.Changed:Connect(function()
+                    skyObject.Name = "SkyObject"
+                    skyObject.Parent = Lighting
+                    skyObject.SkyboxBk = "rbxassetid://"..skyBack.Value
+                    skyObject.SkyboxDn = "rbxassetid://"..skyDown.Value
+                    skyObject.SkyboxFt = "rbxassetid://"..skyFront.Value
+                    skyObject.SkyboxLf = "rbxassetid://"..skyLeft.Value
+                    skyObject.SkyboxRt = "rbxassetid://"..skyRight.Value
+                    skyObject.SkyboxUp = "rbxassetid://"..skyUp.Value
+                    skyObject.SunTextureId = "rbxassetid://"..skySun.Value
+                    skyObject.MoonTextureId = "rbxassetid://"..skyMoon.Value
+                    skyObject.SunAngularSize = sunSize.Value
+                    skyObject.MoonAngularSize = moonSize.Value
                 end)
 			else
-                SkyChangedObject:Disconnect()
-                SkyEnabled = false
-				if SkyObject then 
-                    SkyObject:Destroy() 
+                connection:Disconnect()
+				if skyObject then 
+                    skyObject:Destroy() 
                 end
-				for i,v in pairs(OldSkyObjects) do
+				for i,v in pairs(oldSkyObjects) do
 					v.Parent = Lighting
 				end
-				table.clear(OldSkyObjects)
+				table.clear(oldSkyObjects)
             end
         end
     })
 
-    SkyBack = CustomSky:CreateTextBox({
+    skyBack = customSky:CreateTextBox({
         Name = "SkyBack",
         PlaceholderText = "Sky Back ID",
         DefaultValue = "6444884337",
         Function = function(v) end,
     })
 
-    SkyDown = CustomSky:CreateTextBox({
+    skyDown = customSky:CreateTextBox({
         Name = "SkyDown",
         PlaceholderText = "Sky Down ID",
         DefaultValue = "6444884785",
         Function = function(v) end,
     })
 
-    SkyFront = CustomSky:CreateTextBox({
+    skyFront = customSky:CreateTextBox({
         Name = "SkyFront",
         PlaceholderText = "Sky Front ID",
         DefaultValue = "6444884337",
         Function = function(v) end,
     })
 
-    SkyLeft = CustomSky:CreateTextBox({
+    skyLeft = customSky:CreateTextBox({
         Name = "SkyLeft",
         PlaceholderText = "Sky Left ID",
         DefaultValue = "6444884337",
         Function = function(v) end,
     })
 
-    SkyRight = CustomSky:CreateTextBox({
+    skyRight = customSky:CreateTextBox({
         Name = "SkyRight",
         PlaceholderText = "Sky Right ID",
         DefaultValue = "6444884337",
         Function = function(v) end,
     })
 
-    SkyUp = CustomSky:CreateTextBox({
+    skyUp = customSky:CreateTextBox({
         Name = "SkyUp",
         PlaceholderText = "Sky Up ID",
         DefaultValue = "6412503613",
         Function = function(v) end,
     })
 
-    SkySun = CustomSky:CreateTextBox({
+    skySun = customSky:CreateTextBox({
         Name = "SkySun",
         PlaceholderText = "Sky Sun ID",
         DefaultValue = "6196665106",
         Function = function(v) end,
     })
 
-    SkyMoon = CustomSky:CreateTextBox({
+    skyMoon = customSky:CreateTextBox({
         Name = "SkyMoon",
         PlaceholderText = "Sky Moon ID",
         DefaultValue = "6444320592",
         Function = function(v) end,
     })
 
-    SunSize = CustomSky:CreateSlider({
+    sunSize = customSky:CreateSlider({
         Name = "SunSize",
         Function = function(v) 
-            if SkyEnabled then
-                SkyObject.SunAngularSize = v
+            if customSky.Enabled then
+                skyObject.SunAngularSize = v
             end
         end,
         Min = 0,
@@ -4929,11 +5149,11 @@ runFunction(function()
         Round = 0
     })
 
-    MoonSize = CustomSky:CreateSlider({
+    moonSize = customSky:CreateSlider({
         Name = "MoonSize",
         Function = function(v) 
-            if SkyEnabled then
-                SkyObject.MoonAngularSize = v
+            if customSky.Enabled then
+                skyObject.MoonAngularSize = v
             end
         end,
         Min = 0,
@@ -4944,38 +5164,36 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local TimeOfDay = {Enabled = false}
-    local Hours = {Value = 13}
-    local Minutes = {Value = 0}
-    local Seconds = {Value = 0}
-    local TimeOfDayEnabled = false
-    local Connection
-    TimeOfDay = Tabs.World:CreateToggle({
+    local timeOfDay = {Enabled = false}
+    local hours = {Value = 13}
+    local minutes = {Value = 0}
+    local seconds = {Value = 0}
+    local timeOfDayEnabled = false
+    local connection
+    timeOfDay = Tabs.World:CreateToggle({
         Name = "TimeOfDay",
         Keybind = nil,
         Callback = function(callback)
             if callback then
-                TimeOfDayEnabled = true
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
-                Connection = Lighting.Changed:Connect(function()
-                    Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+                Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..seconds.Value
+                connection = Lighting.Changed:Connect(function()
+                    Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..seconds.Value
                 end)
             else
-                TimeOfDayEnabled = false
                 Lighting.TimeOfDay = LightingTime
 
-                if Connection then
-                    Connection:Disconnect()
+                if connection then
+                    connection:Disconnect()
                 end
             end
         end
     })
         
-    Hours = TimeOfDay:CreateSlider({
+    hours = timeOfDay:CreateSlider({
         Name = "Hours",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+        Function = function(v)
+            if timeOfDay then 
+                Lighting.TimeOfDay = v..":"..minutes.Value..":"..seconds.Value
             end
         end,
         Min = 0,
@@ -4984,79 +5202,30 @@ runFunction(function()
         Round = 0
     })
     
-    Minutes = TimeOfDay:CreateSlider({
+    minutes = timeOfDay:CreateSlider({
         Name = "Minutes",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value.. ":" .. Seconds.Value
+        Function = function(v)
+            if timeOfDay.Enabled then 
+                Lighting.TimeOfDay = hours.Value..":"..v.. ":"..seconds.Value
             end
         end,
         Min = 0,
-        Max = 64,
+        Max = 60,
         Default = 0,
         Round = 0
     })
     
-    Seconds = TimeOfDay:CreateSlider({
+    seconds = timeOfDay:CreateSlider({
         Name = "Seconds",
-        Function = function()
-            if TimeOfDayEnabled then 
-                Lighting.TimeOfDay = Hours.Value .. ":" .. Minutes.Value .. ":" .. Seconds.Value
+        Function = function(v)
+            if timeOfDay.Enabled then 
+                Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..v
             end
         end,
         Min = 0,
-        Max = 64,
+        Max = 60,
         Default = 0,
         Round = 0
-    })
-end)
-
--- FE + Trolling tab
-runFunction(function()
-    local PlayerFollow = {Enabled = false}
-    local mode = {Value = "Closest"}
-    local player = {Value = ""}
-
-
-    PlayerFollow = Tabs.FE:CreateToggle({
-        Name = "PlayerFollow",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                RunLoops:BindToHeartbeat("PlayerFollow", function()
-                    if isAlive() then
-                        if mode.Value == "Closest" then
-                            local closestplr = getClosestPlayer(10000000, false)
-                            if closestplr and isAlive(closestplr) then
-                                local plrhumanoidRootPart = closestplr.Character.HumanoidRootPart
-                                local humanoidRootPart = LocalPlayer.Character.HumanoidRootPart
-                                local backVector = plrhumanoidRootPart.CFrame.LookVector / 2
-                                humanoidRootPart.CFrame = plrhumanoidRootPart - backVector
-                            else
-                                warn("no plr or not alive")
-                            end
-                        elseif mode.Value == "Custom" then
-
-                        end
-                    end
-                end)
-            else
-
-            end
-        end
-    })
-
-    mode = PlayerFollow:CreateDropDown({
-        Name = "Mode",
-        List = {"Closest", "Custom"},
-        Default = "Closest",
-        Function = function(v)
-            if v == "Custom" then
-                if player.MainObject then player.MainObject.Visible = true end
-            else
-                if player.MainObject then player.MainObject.Visible = false end
-            end
-        end
     })
 end)
 
@@ -5188,3 +5357,5 @@ if (Mana.Developer and Mana.Whitelisted) and Tabs.Private then
     print("[ManaV2ForRoblox/Universal.lua]: Loaded private version in " .. tostring(tick() - PrivateStartTick) .. ". \n Loaded with private features in " .. tostring(tick() - startTick) .. ".")
 end
 ]]
+
+--Mana.GuiLibrary:LoadConfig()
