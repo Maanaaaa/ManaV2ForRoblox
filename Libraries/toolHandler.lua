@@ -26,7 +26,7 @@ function handler:tryAgain()
     handler:start()
 end
 function handler:start()
-    local entityHandler = shared.Mana.EntityHandler
+    local entityHandler = shared.Mana.PlayersHandler
     if not isAlive() and getCharacter(lplr) == nil then 
         handler:tryAgain()
         return 
