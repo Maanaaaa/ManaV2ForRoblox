@@ -124,6 +124,26 @@ local spawn = function(func)
     return coroutine.wrap(func)()
 end
 
+if isfolder("Mana") == false then
+    makefolder("Mana")
+end
+
+if isfolder("Mana/Assets") == false then
+    makefolder("Mana/Assets")
+end
+
+if isfolder("Mana/Config") == false then
+    makefolder("Mana/Config")
+end
+
+if isfolder("Mana/Scripts") == false then
+    makefolder("Mana/Scripts")
+end
+
+if isfolder("Mana/Modules") == false then
+    makefolder("Mana/Modules")
+end
+
 local requestfunc = syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or request or function(tab)
     if tab.Method == "GET" then
         return {
@@ -163,7 +183,7 @@ local function GetCustomAsset(path)
             textlabel:Remove()
         end)
         local req = requestfunc({
-            Url = "https://raw.githubusercontent.com/Maan04ka/NewManaV2ForRoblox/main/" .. path:gsub("Mana/Assets", "Assets"),
+            Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. path:gsub("Mana/Assets", "Assets"),
             Method = "GET"
         })
         writefile(path, req.Body)
