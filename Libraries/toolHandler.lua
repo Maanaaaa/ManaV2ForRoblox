@@ -8,7 +8,7 @@ local handler = {
 }
 
 local function isAlive(Player, headCheck)
-    local Player = Player or LocalPlayer
+    local Player = Player or lplr
     if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and Player.Character:FindFirstChild("HumanoidRootPart") and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
         return true
     else
