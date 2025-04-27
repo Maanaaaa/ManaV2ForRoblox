@@ -7,6 +7,19 @@ local handler = {
     started = false
 }
 
+local function isAlive(Player, headCheck)
+    local Player = Player or LocalPlayer
+    if Player and Player.Character and ((Player.Character:FindFirstChildOfClass("Humanoid")) and Player.Character:FindFirstChild("HumanoidRootPart") and (headCheck and Player.Character:FindFirstChild("Head") or not headCheck)) then
+        return true
+    else
+        return false
+    end
+end
+
+local function getCharacter(plr)
+    return plr.Character or plr.CharacterAdded:Wait()
+end
+
 function handler:tryAgain()
     warn("[ManaV2ForRoblox/toolHandler.lua]: local player is not alive or realcharacter is missing, trying again in 5 seconds.")
     wait(5)
@@ -14,7 +27,7 @@ function handler:tryAgain()
 end
 function handler:start()
     local entityHandler = shared.Mana.EntityHandler
-    if entityHandler.isAlive == false or entityHandler.realcharacter == nil then 
+    if not isAlive() and getCharacter(lplr) == nil then 
         handler:tryAgain()
         return 
     end
