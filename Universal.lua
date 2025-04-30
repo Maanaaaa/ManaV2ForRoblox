@@ -832,7 +832,7 @@ runFunction(function()
         if circle.Value then
             if not circleObj then
                 circleObj = Drawing.new("Circle")
-                circleObj.Filled = circleFilled.Enabled
+                circleObj.Filled = circleFilled.Value
                 circleObj.Thickness = 3
                 circleObj.Radius = fov.Value
                 circleObj.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
