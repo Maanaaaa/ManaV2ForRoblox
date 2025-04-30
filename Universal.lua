@@ -2660,9 +2660,9 @@ runFunction(function()
         local parts = {}
 
         table.insert(parts, string.format("<font color=\"rgb(%d, %d, %d)\">%d</font>", 
-            color,
-            color,
-            color,
+            color.RawColorTable.R,
+            color.RawColorTable.G,
+            color.RawColorTable.B,
             nameText
         ))
         

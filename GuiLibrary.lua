@@ -1284,6 +1284,7 @@ function guilibrary:CreateWindow()
                 local colorsliderapi = {
                     Name = name,
                     Value = value,
+                    RawColorTable = {R = 255, G = 255, B = 255},
                     Rainbow = rainbow,
                     Callback = callback
                 }
@@ -1527,6 +1528,8 @@ function guilibrary:CreateWindow()
                     local color = HSVtoRGB(hue, sat, val)
                     rainbow = rainbow or false
                     value = color
+                    local newColorTable = {R = color.R, G = color.G, B = color.B}
+                    colorsliderapi.RawColorTable = newColorTable
 
                     saturationGradient.Color = ColorSequence.new({
                         ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
