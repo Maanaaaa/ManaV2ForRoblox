@@ -397,12 +397,11 @@ runFunction(function()
     local sorttabs = Tabs.Settings:CreateButton({
         Name = "Sort tabs",
         Callback = function()
-            local xoffset = 40 -- Horizontal spacing between tabs
-            local yoffset = 40 -- Vertical spacing from the top
-            local rowWidth = 7 -- Number of tabs per row before wrapping
-            local totalyoffset = 247 -- Horizontal distance between tabs
+            local xoffset = 40
+            local yoffset = 40
+            local rowWidth = 7
+            local totalyoffset = 247
     
-            -- Collect and sort tabs by their defined order
             local tabs = {}
             for _, v in pairs(GuiLibrary.ObjectsThatCanBeSaved) do
                 if v.Type == "Tab" then
@@ -411,13 +410,12 @@ runFunction(function()
             end
             table.sort(tabs, function(a, b) return a.Table.Order < b.Table.Order end)
     
-            -- Position tabs properly in a grid-like format
             for index, tabData in ipairs(tabs) do
                 local tab = tabData.Table.MainObject
-                local row = math.floor((index - 1) / rowWidth) -- Determines row
-                local col = (index - 1) % rowWidth -- Determines column
+                local row = math.floor((index - 1) / rowWidth)
+                local col = (index - 1) % rowWidth
     
-                tab.Position = UDim2.new(0, xoffset + (col * totalyoffset), 0, yoffset + (row * 50)) -- Adjust row height spacing
+                tab.Position = UDim2.new(0, xoffset + (col * totalyoffset), 0, yoffset + (row * 50))
             end
         end
     })
