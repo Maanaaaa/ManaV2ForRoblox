@@ -1,5 +1,5 @@
 # ManaV2ForRoblox
-Universal script for roblox with simple and probably quality features.
+Universal script for roblox with simple and mid quality features.
 
 ## Using ManaV2
 Simply copy this loadstring, paste in to your executor and execute:

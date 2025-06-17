@@ -489,6 +489,11 @@ end
     Add TurnInToBall
     Add J3rk0ff + all things that are connected with it
     Add SoundPlayer (Visual/Utility + in FE/Trolling way)
+    Add normal notifications with switching between normal and roblox's notifications
+    Add plugins/add-ons system
+    Add themes system
+    Make CustomAnimations dynamic, so it just wont add customization for missing animation
+    Add KillAura
 
 ]]
 
@@ -1606,7 +1611,7 @@ end)
 runFunction(function()
     local speed = {Enabled = false}
     local mode = {Value = "Normal"}
-    local speedVal = {Value = 16}
+    local value = {Value = 16}
     local autoJump = {Value = false}
     local jumpMode = {Value = "Normal"}
     local autoJumpPower = {Value = 25}
@@ -1631,17 +1636,14 @@ runFunction(function()
                         end
 
                         if mode.Value == "Velocity" then
-                            local Velocity = Humanoid.MoveDirection * (speedVal.Value * 5) * Delta
-                            local NewVelocity = Vector3.new(Velocity.X / 10, 0, Velocity.Z / 10)
-                            Character:TranslateBy(NewVelocity)
+                            local Velocity = Humanoid.MoveDirection * (value.Value * 5) * Delta
+                            Character:TranslateBy(Vector3.new(Velocity.X / 10, 0, Velocity.Z / 10))
                         elseif mode.Value == "CFrame" then
-                            local Factor = speedVal.Value - Humanoid.WalkSpeed
+                            local Factor = value.Value - Humanoid.WalkSpeed
                             local MoveDirection = (MoveDirection * Factor) * Delta
-                            local NewCFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, 0, MoveDirection.Z)
-
-                            HumanoidRootPart.CFrame = NewCFrame
+                            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, 0, MoveDirection.Z)
                         elseif mode.Value == "Normal" then
-                            Humanoid.WalkSpeed = speedVal.Value
+                            Humanoid.WalkSpeed = value.Value
                         end
 
                         if autoJump.Value and (Humanoid.FloorMaterial ~= Enum.Material.Air) and Humanoid.MoveDirection ~= Vector3.zero then
@@ -1665,7 +1667,7 @@ runFunction(function()
 
                 getHumanoid(LocalPlayer).WalkSpeed = PlayerWalkSpeed
                 getHumanoid(LocalPlayer).JumpPower = PlayerJumpPower
-                getCharacter(LocalPlayer).Animate.Disabled = true
+                getCharacter(LocalPlayer).Animate.Disabled = false
             end
         end
     })
@@ -1691,7 +1693,7 @@ runFunction(function()
         Default = "Normal"
     })
 
-    speedVal = speed:CreateSlider({
+    value = speed:CreateSlider({
         Name = "Speed",
         Function = function(v) 
             if speed.Enabled and mode.Value == "Normal" then
@@ -2571,6 +2573,104 @@ runFunction(function()
     })  
 end)
 
+runFunction(function()
+    local keyStrokes = {Enabled = false}
+    local mode = {Value = "Letters"}
+    local textSize = {Value = 15}
+    local spaceTextSize = {Value = 17}
+    local size = {Value = 1}
+    local transparency = {Value = 0.5}
+    local showMouseButtons = {Value = false}
+    local textXAllignment = {Value = "Left"}
+    local textYAllignment = {Value = "Top"}
+
+    keyStrokes = Tabs.Render:CreateToggle({
+        Name = "KeyStrokes",
+        Callback = function(callback)
+            Mana.KeyStrokes:toggle()
+        end
+    })
+
+    mode = keyStrokes:CreateDropDown({
+        Name = "Mode",
+        Function = function(v) 
+            Mana.KeyStrokes:changeSymbols(v)
+        end,
+        List = {"Letters", "Directions", "Directions2", "Arrows"},
+        Default = "Letters"
+    })
+
+    textSize = keyStrokes:CreateSlider({
+        Name = "Text Size",
+        Function = function(v) 
+            Mana.KeyStrokes:updateTextSize(v)
+        end,
+        Min = 10,
+        Max = 30,
+        Default = 15,
+        Round = 0
+    })
+
+    spaceTextSize = keyStrokes:CreateSlider({
+        Name = "Space Text Size",
+        Function = function(v) 
+            Mana.KeyStrokes:updateSpaceTextSize(v)
+        end,
+        Min = 10,
+        Max = 30,
+        Default = 17,
+        Round = 0
+    })
+
+    size = keyStrokes:CreateSlider({
+        Name = "Size",
+        Function = function(v) 
+            Mana.KeyStrokes:updateSize(v)
+        end,
+        Min = 0.1,
+        Max = 5,
+        Default = 1,
+        Round = 2
+    })
+
+    transparency = keyStrokes:CreateSlider({
+        Name = "Transparency",
+        Function = function(v) 
+            Mana.KeyStrokes:updateBackgroundTransparency(v)
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0.5,
+        Round = 1
+    })
+
+    showMouseButtons = keyStrokes:CreateToggle({
+        Name = "Mouse Buttons",
+        Default = false,
+        Function = function(v) 
+            Mana.KeyStrokes:toggleMouseButtons(v)
+        end
+    })
+
+    textXAllignment = keyStrokes:CreateDropDown({
+        Name = "Text X Pos",
+        Function = function(v) 
+            Mana.KeyStrokes:updateTextPosition(v, textYAllignment.Value)
+        end,
+        List = {"Left", "Center", "Right"},
+        Default = "Left"
+    })
+
+    textYAllignment = keyStrokes:CreateDropDown({
+        Name = "Text Y Pos",
+        Function = function(v) 
+            Mana.KeyStrokes:updateTextPosition(textXAllignment.Value, v)
+        end,
+        List = {"Top", "Center", "Bottom"},
+        Default = "Top"
+    })
+end)
+
 -- Made by Wowzers
 runFunction(function()
     local nameTags = {Enabled = false}
@@ -2881,7 +2981,85 @@ runFunction(function()
     })
 end)
 
---[[not in this update
+runFunction(function()
+    local soundPlayer = {Enabled = false}
+    local mode = {Value = "Random"}
+    local sounds = {List = {}}
+    local volume = {Value = 1}
+    local sound
+    local current, max = 1, 1
+
+    soundPlayer = Tabs.Render:CreateToggle({
+        Name = "SoundPlayer",
+        Keybind = nil,
+        Callback = function(callback)
+            coroutine.wrap(function()
+                while soundPlayer.Enabled do
+                    local currentID
+
+                    if mode.Value == "Random" then
+                        currentID = #sounds.List > 0 and sounds.List[math.random(1, #sounds.List)] or "142376088"
+                    elseif mode.Value == "Order" then
+                        max = #sounds.List
+                        currentID = sounds.List[current] or "142376088"
+                        current = current + 1
+                        if current > max then current = 1 end
+                    end
+                    if currentID and currentID ~= "" then
+                        if sound then
+                            sound:Stop()
+                            sound:Destroy()
+                        end
+
+                        sound = Instance.new("Sound")
+                        sound.SoundId = tonumber(currentID) and "rbxassetid://" .. currentID or currentID
+                        sound.Volume = volume.Value
+                        sound.Parent = workspace
+                        sound:Play()
+
+                        repeat wait() until sound.IsLoaded
+
+                        sound.Ended:Wait()
+                    end
+                end
+                if not soundPlayer.Enabled and sound then
+                    sound:Stop()
+                    sound:Destroy()
+                    sound = nil
+                end
+            end)()
+        end
+    })
+
+    mode = soundPlayer:CreateDropDown({
+        Name = "Mode",
+        List = {"Random", "Order"},
+        Default = "Random",
+        Function = function(v) end
+    })
+
+    sounds = soundPlayer:CreateTextList({
+        Name = "Sounds",
+        PlaceholderText = "sound id",
+        List = {},
+        Default = "",
+        Function = function(v) end
+    })
+
+    volume = soundPlayer:CreateSlider({
+        Name = "Volume",
+        Function = function(v)
+            if sound then
+                sound.Volume = v
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 1,
+        Round = 1
+    })
+end)
+
 runFunction(function()
     local spawnEsp = {Enabled = false}
     local outline = {Value = true}
@@ -2892,40 +3070,34 @@ runFunction(function()
     local fillTransparency = {Value = 0}
     local objects = {}
     local connection
+
+    local function addHighlight(obj)
+        if obj:FindFirstChild("SpawnESP") then return end
+        local spawnESP = Instance.new("Highlight")
+        spawnESP.Name = "SpawnESP"
+        spawnESP.Adornee = obj
+        spawnESP.Parent = obj
+        spawnESP.FillColor = fillColor.Value
+        spawnESP.FillTransparency = fill.Value and fillTransparency.Value or 1
+        spawnESP.OutlineColor = outlineColor.Value
+        spawnESP.OutlineTransparency = outline.Value and outlineTransparency.Value or 1
+        spawnESP.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        table.insert(objects, spawnESP)
+    end
+
     spawnEsp = Tabs.Render:CreateToggle({
         Name = "SpawnESP",
         Keybind = nil,
         Callback = function(callback)
             if callback then
                 for _, obj in pairs(workspace:GetDescendants()) do
-                    --print("scanning object: " .. obj.Name)
                     if obj:IsA("SpawnLocation") then
-                        print("adding")
-                        local spawnESP = Instance.new("Highlight")
-                        spawnESP.Name = "SpawnESP"
-                        spawnESP.Parent = obj
-                        spawnESP.Adornee = obj
-                        spawnESP.FillColor = fillColor.Value
-                        spawnESP.FillTransparency = (outline.Value and fillTransparency.Value) or 1
-                        spawnESP.OutlineColor = outlineColor.Value
-                        spawnESP.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
-                        spawnESP.DepthMode = "AlwaysOnTop"
-                        table.insert(objects, spawnESP)
-                        print("added")
+                        addHighlight(obj)
                     end
                 end
                 connection = workspace.ChildAdded:Connect(function(child)
                     if child:IsA("SpawnLocation") then
-                        local spawnESP = Instance.new("Highlight")
-                        spawnESP.Name = "SpawnESP"
-                        spawnESP.Parent = child
-                        spawnESP.Adornee = child
-                        spawnESP.FillColor = fillColor.Value
-                        spawnESP.FillTransparency = (outline.Value and fillTransparency.Value) or 1
-                        spawnESP.OutlineColor = outlineColor.Value
-                        spawnESP.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
-                        spawnESP.DepthMode = "AlwaysOnTop"
-                        table.insert(objects, spawnESP)
+                        addHighlight(child)
                     end
                 end)
             else
@@ -2935,6 +3107,10 @@ runFunction(function()
                     end
                 end
                 table.clear(objects)
+                if connection then
+                    connection:Disconnect()
+                    connection = nil
+                end
             end
         end
     })
@@ -2943,6 +3119,11 @@ runFunction(function()
         Name = "Outline",
         Default = true,
         Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.OutlineTransparency = v and outlineTransparency.Value or 1
+                end
+            end
             if outlineColor.MainObject then
                 outlineColor.MainObject.Visible = v
             end
@@ -2951,7 +3132,7 @@ runFunction(function()
             end
         end
     })
-    
+
     outlineColor = spawnEsp:CreateColorSlider({
         Name = "Outline color",
         Default = Color3.fromRGB(255, 0, 0),
@@ -2970,7 +3151,7 @@ runFunction(function()
         Function = function(v)
             for _, obj in pairs(objects) do
                 if obj and obj.Parent then
-                    obj.OutlineTransparency = v
+                    obj.OutlineTransparency = outline.Value and v or 1
                 end
             end
         end,
@@ -2985,6 +3166,11 @@ runFunction(function()
         Name = "Fill",
         Default = false,
         Function = function(v)
+            for _, obj in pairs(objects) do
+                if obj and obj.Parent then
+                    obj.FillTransparency = v and fillTransparency.Value or 1
+                end
+            end
             if fillColor.MainObject then
                 fillColor.MainObject.Visible = v
             end
@@ -3012,7 +3198,7 @@ runFunction(function()
         Function = function(v)
             for _, obj in pairs(objects) do
                 if obj and obj.Parent then
-                    obj.FillTransparency = v
+                    obj.FillTransparency = fill.Value and v or 1
                 end
             end
         end,
@@ -3023,7 +3209,7 @@ runFunction(function()
     })
     fillTransparency.MainObject.Visible = false
 end)
-]]
+
 
 runFunction(function()
     local viewClip = {Enabled = false}
@@ -3035,481 +3221,6 @@ runFunction(function()
         end
     })
 end)
-
---[[somewhen
-this was made by Wowzers
-runFunction(function()
-    local TracerStartPoint = {Value = "Mouse"}
-    local TracerThickness = {Value = 2}
-    local TracerTransparency = {Value = 0}
-    local TracerTeamCheck = {Value = true}
-    local Lines = {}
-    local PlayerRemovingConnection
-
-    local function UpdateTracers()
-        for _, Player in pairs(Players:GetPlayers()) do
-            if isAlive(Player) and Player ~= LocalPlayer and (not TracerTeamCheck.Value or Player.Team ~= LocalPlayer.Team) then
-                local Line = Drawing.new("Line")
-                Lines[Player.Name] = Line
-
-                local HumanoidRootPartPosition = character.HumanoidRootPart.Position
-                local HumanoidRootPartSize = character.HumanoidRootPart.Size
-                local Vector, OnScreen = Camera:WorldToViewportPoint(HumanoidRootPartPosition - Vector3.new(0, HumanoidRootPartSize.Y / 2, 0))
-                
-                Line.Thickness = TracerThickness.Value
-                Line.Transparency = TracerTransparency.Value
-
-                if TracerStartPoint.Value == "Mouse" then
-                    Line.From = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-                elseif TracerStartPoint.Value == "Center" then
-                    Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                elseif TracerStartPoint.Value == "Bottom" then
-                    Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                end
-
-                if OnScreen then
-                    Line.To = Vector2.new(Vector.X, Vector.Y)
-                    Line.Visible = true
-                else
-                    Line.Visible = false
-                end
-            end
-        end
-    end
-
-    Tracers = Tabs.Render:CreateToggle({
-        Name = "Tracers",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                ESPEnabled = callback
-                RunLoops:BindToRenderStep("Tracers", function()
-                    UpdateTracers()
-                end)
-
-                PlayerRemovingConnection = Players.PlayerRemoving:Connect(function(Player)
-                    if Lines[Player.Name] then
-                        Lines[Player.Name].Visible = false
-                    end
-                end)
-            else
-                RunLoops:UnbindFromRenderStep("Tracers")
-
-                if PlayerRemovingConnection then
-                    PlayerRemovingConnection:Disconnect()
-                end
-                
-                for _, Line in pairs(Lines) do
-                    Line.Visible = false
-                end
-            end
-        end
-    })  
-
-    TracerStartPoint = Tracers:CreateDropDown({
-        Name = "StartPoint",
-        Function = function(v)
-            TracerStartPoint.Value = v
-        end,
-        List = {"Center", "Mouse", "Bottom"},
-        Default = "Bottom"
-    })
-
-    TracerThickness = Tracers:CreateSlider({
-        Name = "Thickness",
-        Function = function(v)
-            TracerThickness.Value = v
-        end,
-        Min = 0.1,
-        Max = 4,
-        Default = 2,
-        Round = 1
-    })
-
-    TracerTransparency = Tracers:CreateSlider({
-        Name = "TracerTransparency",
-        Function = function(v)
-            TracerTransparency.Value = v
-        end,
-        Min = 0.1,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-end)
-]]
-
---[[
-runFunction(function()
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
-    local Camera = workspace.CurrentCamera
-    local LocalPlayer = Players.LocalPlayer
-    
-    local TracerStartPoint = {Value = "Bottom"}
-    local TracerThickness = {Value = 2}
-    local TracerTransparency = {Value = 0}
-    local TracerTeamCheck = {Value = true}
-    local TracerColor = {Value = Color3.fromRGB(255, 255, 255)}
-    local Lines = {}
-    local PlayerRemovingConnection
-    
-    -- Helper function to check if a player is alive
-    local function isAlive(player)
-        local character = player.Character
-        return character and 
-               character:FindFirstChild("Humanoid") and 
-               character:FindFirstChild("HumanoidRootPart") and 
-               character.Humanoid.Health > 0
-    end
-    
-    local function UpdateTracers()
-        -- Clear old lines first
-        for playerName, line in pairs(Lines) do
-            if not Players:FindFirstChild(playerName) then
-                line:Remove()
-                Lines[playerName] = nil
-            else
-                line.Visible = false -- Hide all lines, we'll show only valid ones
-            end
-        end
-        
-        -- Update or create new lines
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and isAlive(player) and 
-               (not TracerTeamCheck.Value or player.Team ~= LocalPlayer.Team) then
-                
-                local character = player.Character
-                if character then
-                    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                    if humanoidRootPart then
-                        -- Get the bottom position of the HumanoidRootPart
-                        local position = humanoidRootPart.Position - Vector3.new(0, humanoidRootPart.Size.Y/2, 0)
-                        local vector, onScreen = Camera:WorldToViewportPoint(position)
-                        
-                        if onScreen then
-                            -- Create or get existing line
-                            local line = Lines[player.Name]
-                            if not line then
-                                line = Drawing.new("Line")
-                                Lines[player.Name] = line
-                            end
-                            
-                            -- Set line properties
-                            line.Thickness = TracerThickness.Value
-                            line.Transparency = 1 - TracerTransparency.Value
-                            line.Color = TracerColor.Value
-                            
-                            -- Set start position based on user preference
-                            if TracerStartPoint.Value == "Mouse" then
-                                line.From = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-                            elseif TracerStartPoint.Value == "Center" then
-                                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                            elseif TracerStartPoint.Value == "Bottom" then
-                                line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                            end
-                            
-                            -- Set end position to player
-                            line.To = Vector2.new(vector.X, vector.Y)
-                            line.Visible = true
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Clean up all lines
-    local function CleanupLines()
-        for _, line in pairs(Lines) do
-            line:Remove()
-        end
-        Lines = {}
-    end
-    
-    -- HSV to RGB conversion function
-    local function HSVtoRGB(h, s, v)
-        local r, g, b
-        
-        local i = math.floor(h * 6)
-        local f = h * 6 - i
-        local p = v * (1 - s)
-        local q = v * (1 - f * s)
-        local t = v * (1 - (1 - f) * s)
-        
-        i = i % 6
-        
-        if i == 0 then r, g, b = v, t, p
-        elseif i == 1 then r, g, b = q, v, p
-        elseif i == 2 then r, g, b = p, v, t
-        elseif i == 3 then r, g, b = p, q, v
-        elseif i == 4 then r, g, b = t, p, v
-        elseif i == 5 then r, g, b = v, p, q
-        end
-        
-        return Color3.fromRGB(r * 255, g * 255, b * 255)
-    end
-    
-    -- Vape v4 style Color Picker implementation
-    local function CreateVapeColorPicker(parent, default, callback)
-        local colorPickerFrame = Instance.new("Frame")
-        colorPickerFrame.Name = "ColorPicker"
-        colorPickerFrame.Size = UDim2.new(1, 0, 0, 120)
-        colorPickerFrame.BackgroundTransparency = 1
-        colorPickerFrame.Parent = parent
-        
-        -- Create the hue slider (rainbow)
-        local hueSlider = Instance.new("Frame")
-        hueSlider.Name = "HueSlider"
-        hueSlider.Size = UDim2.new(1, -20, 0, 15)
-        hueSlider.Position = UDim2.new(0, 10, 0, 10)
-        hueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        hueSlider.BorderSizePixel = 0
-        hueSlider.Parent = colorPickerFrame
-        
-        -- Create rainbow gradient for hue slider
-        local hueGradient = Instance.new("UIGradient")
-        hueGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-            ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
-            ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-            ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
-            ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
-        })
-        hueGradient.Parent = hueSlider
-        
-        -- Hue slider knob
-        local hueKnob = Instance.new("Frame")
-        hueKnob.Name = "HueKnob"
-        hueKnob.Size = UDim2.new(0, 5, 1, 6)
-        hueKnob.Position = UDim2.new(0, 0, 0, -3)
-        hueKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        hueKnob.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        hueKnob.BorderSizePixel = 1
-        hueKnob.Parent = hueSlider
-        
-        -- Create saturation/value picker area
-        local svPicker = Instance.new("Frame")
-        svPicker.Name = "SVPicker"
-        svPicker.Size = UDim2.new(1, -20, 0, 80)
-        svPicker.Position = UDim2.new(0, 10, 0, 35)
-        svPicker.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Will be updated based on hue
-        svPicker.BorderSizePixel = 0
-        svPicker.Parent = colorPickerFrame
-        
-        -- Create white gradient (horizontal - saturation)
-        local saturationGradient = Instance.new("UIGradient")
-        saturationGradient.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(1, 1)
-        })
-        saturationGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
-        })
-        saturationGradient.Rotation = 90
-        saturationGradient.Parent = svPicker
-        
-        -- Create black gradient (vertical - value)
-        local valueFrame = Instance.new("Frame")
-        valueFrame.Name = "ValueFrame"
-        valueFrame.Size = UDim2.new(1, 0, 1, 0)
-        valueFrame.BackgroundTransparency = 1
-        valueFrame.BorderSizePixel = 0
-        valueFrame.Parent = svPicker
-        
-        local valueGradient = Instance.new("UIGradient")
-        valueGradient.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(1, 1)
-        })
-        valueGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-        })
-        valueGradient.Parent = valueFrame
-        
-        -- SV picker knob
-        local svKnob = Instance.new("Frame")
-        svKnob.Name = "SVKnob"
-        svKnob.Size = UDim2.new(0, 6, 0, 6)
-        svKnob.Position = UDim2.new(1, -3, 0, -3)
-        svKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        svKnob.BorderColor3 = Color3.fromRGB(0, 0, 0)
-        svKnob.BorderSizePixel = 1
-        svKnob.ZIndex = 2
-        svKnob.Parent = svPicker
-        
-        -- Current color display
-        local currentColor = Instance.new("Frame")
-        currentColor.Name = "CurrentColor"
-        currentColor.Size = UDim2.new(0, 30, 0, 15)
-        currentColor.Position = UDim2.new(1, -40, 0, 10)
-        currentColor.BackgroundColor3 = default
-        currentColor.BorderColor3 = Color3.fromRGB(30, 30, 30)
-        currentColor.BorderSizePixel = 1
-        currentColor.Parent = colorPickerFrame
-        
-        -- Variables to track color state
-        local hue, sat, val = 0, 1, 1
-        local dragging = nil
-        
-        -- Update functions
-        local function updateHue(hueValue)
-            hue = hueValue
-            svPicker.BackgroundColor3 = HSVtoRGB(hue, 1, 1)
-            local color = HSVtoRGB(hue, sat, val)
-            currentColor.BackgroundColor3 = color
-            TracerColor.Value = color
-            callback(color)
-        end
-        
-        local function updateSV(satValue, valValue)
-            sat = satValue
-            val = valValue
-            local color = HSVtoRGB(hue, sat, val)
-            currentColor.BackgroundColor3 = color
-            TracerColor.Value = color
-            callback(color)
-        end
-        
-        -- Input handlers
-        hueSlider.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = "hue"
-                local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -3)
-                updateHue(relativeX)
-            end
-        end)
-        
-        svPicker.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = "sv"
-                local relativeX = math.clamp((input.Position.X - svPicker.AbsolutePosition.X) / svPicker.AbsoluteSize.X, 0, 1)
-                local relativeY = math.clamp((input.Position.Y - svPicker.AbsolutePosition.Y) / svPicker.AbsoluteSize.Y, 0, 1)
-                svKnob.Position = UDim2.new(relativeX, -3, relativeY, -3)
-                updateSV(relativeX, 1 - relativeY)
-            end
-        end)
-        
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                if dragging == "hue" then
-                    local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                    hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -3)
-                    updateHue(relativeX)
-                elseif dragging == "sv" then
-                    local relativeX = math.clamp((input.Position.X - svPicker.AbsolutePosition.X) / svPicker.AbsoluteSize.X, 0, 1)
-                    local relativeY = math.clamp((input.Position.Y - svPicker.AbsolutePosition.Y) / svPicker.AbsoluteSize.Y, 0, 1)
-                    svKnob.Position = UDim2.new(relativeX, -3, relativeY, -3)
-                    updateSV(relativeX, 1 - relativeY)
-                end
-            end
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = nil
-            end
-        end)
-        
-        -- Initialize with default color
-        updateHue(0) -- Start with red
-        updateSV(1, 1) -- Full saturation and value
-        
-        return colorPickerFrame
-    end
-    
-    Tracers = Tabs.Render:CreateToggle({
-        Name = "Tracers",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                -- Create player removing connection
-                PlayerRemovingConnection = Players.PlayerRemoving:Connect(function(player)
-                    if Lines[player.Name] then
-                        Lines[player.Name]:Remove()
-                        Lines[player.Name] = nil
-                    end
-                end)
-                
-                -- Bind the update function to RenderStepped
-                RunLoops:BindToRenderStep("Tracers", UpdateTracers)
-            else
-                -- Unbind the update function
-                RunLoops:UnbindFromRenderStep("Tracers")
-                
-                -- Disconnect player removing connection
-                if PlayerRemovingConnection then
-                    PlayerRemovingConnection:Disconnect()
-                    PlayerRemovingConnection = nil
-                end
-                
-                -- Clean up lines
-                CleanupLines()
-            end
-        end
-    })
-    
-    TracerStartPoint = Tracers:CreateDropDown({
-        Name = "Start Point",
-        Function = function(v)
-            TracerStartPoint.Value = v
-        end,
-        List = {"Center", "Mouse", "Bottom"},
-        Default = "Bottom"
-    })
-    
-    TracerThickness = Tracers:CreateSlider({
-        Name = "Thickness",
-        Function = function(v)
-            TracerThickness.Value = v
-        end,
-        Min = 0.1,
-        Max = 4,
-        Default = 2,
-        Round = 1
-    })
-    
-    TracerTransparency = Tracers:CreateSlider({
-        Name = "Transparency",
-        Function = function(v)
-            TracerTransparency.Value = v
-        end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-    
-    TracerTeamCheck = Tracers:CreateToggle({
-        Name = "Team Check",
-        Default = true,
-        Callback = function(callback)
-            TracerTeamCheck.Value = callback
-        end
-    })
-    
-    -- Create a section for color picker
-    local ColorSection = Tracers:CreateDivider("Tracer Color")
-    
-    -- Create the color picker
-    local colorPickerContainer = Instance.new("Frame")
-    colorPickerContainer.Name = "ColorPickerContainer"
-    colorPickerContainer.Size = UDim2.new(1, 0, 0, 140)
-    colorPickerContainer.BackgroundTransparency = 1
-    colorPickerContainer.Parent = ColorSection -- Assuming Section returns the instance
-    
-    -- Create the color picker UI
-    CreateVapeColorPicker(colorPickerContainer, Color3.fromRGB(255, 255, 255), function(color)
-        TracerColor.Value = color
-    end)
-end)
-]]
 
 -- Utility tab
 runFunction(function()
@@ -3562,7 +3273,7 @@ runFunction(function()
     })
 end)
 
---[[patched :sob:
+--[[patched but i don't want to remove it
 runFunction(function()
     local AutoReportNotifications = {Value = true}
 
@@ -3840,7 +3551,7 @@ runFunction(function()
     })
 end)
 
--- not making support for old chat version bc boblox will remove it on 30 april
+-- roblox removed old chat, rip
 runFunction(function()
     local chatSpammer = {Enabled = false}
     local mode = {Value = "Random"}
@@ -4119,6 +3830,7 @@ runFunction(function()
     })
 end)
 
+--[[this doesn't work
 runFunction(function()
     local godMode = {Enabled = false}
     local mode = {Value = "Heal"}
@@ -4391,6 +4103,7 @@ runFunction(function()
         end
     })
 end)
+]]
 
 runFunction(function()
     local fastProximityPrompts = {Enabled = false}
@@ -5230,7 +4943,7 @@ runFunction(function()
 end)
 
 print("[ManaV2ForRoblox/Universal.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
-
+GuiLibrary:CreateNotification("Universal", "Loaded successfully! Press "..GuiLibrary.GuiKeybind.." to open GUI.", 5, true)
 -- Private part
 
 --[[

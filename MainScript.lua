@@ -198,6 +198,13 @@ local Tabs = {
         TabIcon = "MiscTabIcon.png",
         Callback = function() end
     }),
+    Profiles = GuiLibrary:CreateTab({
+        Name = "Profiles",
+        Color = Color3.fromRGB(255, 255, 255),
+        Visible = true,
+        TabIcon = "MiscTabIcon.png",
+        Callback = function() end
+    }),
     Friends = GuiLibrary:CreateTab({
         Name = "Friends",
         Color = Color3.fromRGB(240, 157, 62),
@@ -212,7 +219,14 @@ local Tabs = {
         Visible = true,
         TabIcon = "Utility.png",
         Callback = function() end
-    })
+    }),
+    Plugins = GuiLibrary:CreateTab({
+        Name = "Plugins",
+        Color = Color3.fromRGB(49, 204, 90),
+        Visible = true,
+        TabIcon = "MiscTabIcon.png",
+        Callback = function() end
+    }),
     ]]
     --[[
     SessionInfo = GuiLibrary:CreateCustomTab({
@@ -221,72 +235,24 @@ local Tabs = {
     })
     ]]
 }
-
 Mana.Tabs = Tabs
 
 if GuiLibrary.Device == "Mobile" then
     SliderScaleValue = 0.5
 end
 
--- Settings tab
-runFunction(function()
-    local onrejoin = {Value = true}
-    local asbase = {Value = false}
-    local autosaveonrejoin = {Value = false}
-    local delay = {Value = 15}
+-- // key strokes
+local keyStrokes = GuiLibrary:CreateKeyStrokes()
+Mana.KeyStrokes = keyStrokes
+keyStrokes:toggle()
 
-    local divider = Tabs.Settings:CreateSecondDivider("Config")
+--[[ // text list (soon)
+local textList = GuiLibrary:CreateTextList()
+Mana.TextList = textList
+Tabs.TextList = textList.tab
+]]
 
-    local autosave = Tabs.Settings:CreateSecondToggle({
-        Name = "AutoSave",
-        Callback = function(callback)
-            if callback then
-                while callback and wait(delay.Value) do
-                    if asbase.Value then
-                        GuiLibrary:SaveConfig(true)
-                    else
-                        GuiLibrary:SaveConfig()
-                    end
-                end
-            end
-        end
-    })
-
-    --[[
-    asbase = Tabs.Settings:CreateSecondToggle({
-        Name = "Save as universal config",
-        Callback = function(callback) 
-            saveasuniversal = callback
-        end
-    })
-    ]]
-
-    autosaveonrejoin = Tabs.Settings:CreateSecondToggle({
-        Name = "On rejoin",
-        Callback = function(v) end
-    })
-
-    delay = Tabs.Settings:CreateSlider({
-        Name = "Delay",
-        Function = function(v)
-        end,
-        Min = 1,
-        Max = 60,
-        Default = 15,
-        Round = 0
-    })
-
-    local resetconfig = Tabs.Settings:CreateButton({
-        Name = "ResetConfig",
-        Callback = function()
-        Mana = nil
-        GuiLibrary:Destruct()
-        if isfile("Mana/Config/" .. game.PlaceId .. ".json") then delfile("Mana/Config/" .. game.PlaceId .. ".json") end
-        Functions:RunFile("MainScript.lua")
-        end
-    })
-end)
-
+-- // Settings tab
 runFunction(function()
     local soundvolume = {Value = 1}
     local uiscale = {Value = 1}
@@ -333,20 +299,11 @@ runFunction(function()
         Round = 2
     })
 
-    local uicorners = Tabs.Settings:CreateSecondToggle({
-        Name = "UI corners",
-        Callback = function(callback)
-            GuiLibrary.UICorners = callback
-            if uicornersradius.MainObject then
-                uicornersradius.MainObject.Visible = callback
-            end
-        end
-    })
-
     uicornersradius = Tabs.Settings:CreateSlider({
-        Name = "Radius",
+        Name = "UI corners radius",
         Function = function(v)
-            GuiLibrary.UICornersRadius = v
+            GuiLibrary.uiCornersRadius = v
+            GuiLibrary:updateUICorners(v)
         end,
         Min = 0,
         Max = 10,
@@ -354,6 +311,19 @@ runFunction(function()
         Round = 0
     })
 end)
+
+--[[ soon
+runFunction(function()
+    local textListEnabled = {Value = false}
+    local divider = Tabs.Settings:CreateSecondDivider("Text List")
+    textListEnabled = Tabs.Settings:CreateSecondToggle({
+        Name = "Text List",
+        Callback = function(callback)
+            Tabs.TextList:Toggle(callback, callback)
+        end
+    })
+end)
+]]
 
 runFunction(function()
     local divider = Tabs.Settings:CreateSecondDivider("Slider")
@@ -369,24 +339,6 @@ runFunction(function()
         Name = "Value override",
         Callback = function(callback)
             GuiLibrary.SliderCanOverride = callback
-        end
-    })
-end)
-
-runFunction(function()
-    local divider = Tabs.Settings:CreateSecondDivider("TextList")
-
-    local textlistlmb = Tabs.Settings:CreateSecondToggle({
-        Name = "LMB to delete",
-        Callback = function(callback)
-            GuiLibrary.TextListLMB = callback
-        end
-    })
-
-    local textlistrmb = Tabs.Settings:CreateSecondToggle({
-        Name = "RMB to delete",
-        Callback = function(callback)
-            GuiLibrary.TextListRMB = callback
         end
     })
 end)
@@ -459,6 +411,66 @@ runFunction(function()
     })
 end)
 
+-- Profiles tab
+runFunction(function()
+    local onrejoin = {Value = true}
+    local autosaveonrejoin = {Value = false}
+    local delay = {Value = 15}
+    local profilesList = {}
+
+    local divider = Tabs.Profiles:CreateSecondDivider("Config")
+
+    local autosave = Tabs.Profiles:CreateSecondToggle({
+        Name = "AutoSave",
+        Callback = function(callback)
+            if callback then
+                while callback and wait(delay.Value) do
+                    GuiLibrary:SaveConfig()
+                end
+            end
+        end
+    })
+
+    autosaveonrejoin = Tabs.Profiles:CreateSecondToggle({
+        Name = "On rejoin",
+        Callback = function(v) end
+    })
+
+    delay = Tabs.Profiles:CreateSlider({
+        Name = "Delay",
+        Function = function(v)
+        end,
+        Min = 1,
+        Max = 60,
+        Default = 15,
+        Round = 0
+    })
+
+    local resetprofile = Tabs.Profiles:CreateButton({
+        Name = "Reset current profile",
+        Callback = function()
+        Mana = nil
+        GuiLibrary:Destruct()
+        if isfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") then delfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") end
+        Functions:RunFile("MainScript.lua")
+        end
+    })
+
+    local profilesList = Tabs.Profiles:CreateTextList({
+        Name = "Profiles",
+        List = {"Default"},
+        PlaceholderText = "Profile name",
+        Choose = true,
+        MultiChoose = false,
+        Default = "Default",
+        Callback = function(v, bool)
+            if bool then
+                GuiLibrary:switchProfile(v)
+            end
+        end
+    })
+end)
+
 -- Friends tab
 runFunction(function()
     local Friends = {List = {}}
@@ -480,32 +492,94 @@ runFunction(function()
     })
 end)
 
--- Session/GameInfo tab
---[[
+--[[ // TextList tab (soon)
 runFunction(function()
-    local function createlabel(text)
-        local label = Instance.new("TextLabel")
-        label.Parent = Tabs.SessionInfo:GetMainObject()
-        label.BackgroundTransparency = 1
-        label.Size = UDim2.new(0, 207, 0, 40)
-        label.Font = Enum.Font.Arial
-        label.Text = text
-        label.TextSize = 22
-        label.TextXAlignment = Enum.TextXAlignment.Left
+    local sorting = {Value = "Alphabetical"}
+    local backgroundTransparency = {Value = 0.7}
+    local texSize = {Value = 15}
+    local customTextEnabled = {Value = false}
+    local customText = {Value = ""}
+    local customTextSize = {Value = 18}
+    local autoXAllignment = {Value = true}
 
-        return label
-    end
+    sorting = Tabs.TextList:CreateDropDown({
+        Name = "Sorting",
+        List = {"Alphabetical", "Length"},
+        Default = "Alphabetical",
+        Callback = function(v)
+            textList:updateSortingMode(v)
+        end
+    })
 
-    local gamename = createlabel("Name: "..game.Name)
-    local gameid = createlabel("Game id: "..game.GameId)
-    local placeid = createlabel("Place id: "..game.PlaceId)
+    backgroundTransparency = Tabs.TextList:CreateSlider({
+        Name = "Transparency",
+        Function = function(v)
+            textList:updateBackgroundTransparency(v)
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0.7,
+        Round = 2
+    })
+
+    texSize = Tabs.TextList:CreateSlider({
+        Name = "Text size",
+        Function = function(v)
+            textList:updateTextSize(v)
+        end,
+        Min = 10,
+        Max = 30,
+        Default = 15,
+        Round = 0
+    })
+
+    customTextEnabled = Tabs.TextList:CreateSecondToggle({
+        Name = "Custom text",
+        Default = true,
+        Callback = function(callback)
+            if customText.MainObject then customText.MainObject.Visible = callback end
+            if customTextSize.MainObject then customTextSize.MainObject.Visible = callback end
+            textList:addCustomText()
+        end
+    })
+
+    customText = Tabs.TextList:CreateTextBox({
+        Name = "Custom text",
+        PlaceholderText = "Custom text text",
+        Default = "Hello world!",
+        Callback = function(v)
+            textList:updateCustomText(v)
+        end
+    })
+    customText.MainObject.Visible = false
+
+    customTextSize = Tabs.TextList:CreateSlider({
+        Name = "Custom text size",
+        Function = function(v)
+            textList:updateCustomTextSize(v)
+        end,
+        Min = 10,
+        Max = 30,
+        Default = 18,
+        Round = 0
+    })
+    customTextSize.MainObject.Visible = false
+
+    autoXAllignment = Tabs.TextList:CreateSecondToggle({
+        Name = "Auto text X align.",
+        Default = false,
+        Callback = function(callback)
+            textList:updateAutoTextXAlignment(callback)
+        end
+    })
 end)
 ]]
 
+-- // cool gui button
 local Button = Instance.new("TextButton")
 local Corner = Instance.new("UICorner")
 Button.Name = "GuiButton"
-Button.Position = UDim2.new(1, -200, 0, -32)
+Button.Position = UDim2.new(0.12, 0, 0, -41)
 Button.Text = "Mana"
 Button.BackgroundColor3 = Color3.fromRGB(26, 25, 26)
 Button.TextColor3 = Color3.new(1, 1, 1)
@@ -527,12 +601,13 @@ UserInputService.InputBegan:Connect(function(Input)
 end)
 
 print("[ManaV2ForRoblox/MainScript.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
---print("[ManaV2ForRoblox/MainScript.lua]: Loaded newest version.")
 
-UniversalScript = Functions:RunFile("Universal.lua")
+Functions:RunFile("Universal.lua")
+
 local suc, res = pcall(function()
     Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
 end)
+
 if not suc then warn("[ManaV2ForRoblox/MainScript.lua]: an error occured while attempting to load game script: " .. res) end
 
 LocalPlayer.OnTeleport:Connect(function(State)
@@ -548,127 +623,6 @@ LocalPlayer.OnTeleport:Connect(function(State)
     end
 end)
 
+GuiLibrary.Loaded = true
 GuiLibrary:LoadConfig()
-GuiLibrary:Toggle()
-
--- Chat commands
-
---[[
-runFunction(function()
-    local whilelist = HttpService:JSONDecode(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/Whitelist/refs/heads/main/Whitelist.json"))
-    local commands = {
-        reset = function()
-            LocalPlayer.Character.Humanoid.Health = 0
-        end,
-        leave = function(args)
-            args = args or "Forced to leave the server."
-            LocalPlayer:Kick(tostring(args))
-        end,
-        rejoin = function()
-            TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
-        end,
-        serverhop = function()
-            TeleportService:Teleport(PlaceId)
-        end,
-        toggle = function(args)
-            if not args then return end
-            local split = string.split(args, " ")
-            local togglename = split[1]
-            local boolText = split[2]
-            local bool = nil
-            
-            if boolText then
-                boolText = string.lower(boolText)
-                if boolText == "true" or boolText == "on" or boolText == "yes" then
-                    bool = true
-                elseif boolText == "false" or boolText == "off" or boolText == "no" then
-                    bool = false
-                end
-            end
-            
-            for i, v in next, GuiLibrary.ObjectsThatCanBeSaved do
-                if v.Type == "Toggle" and v.Table.Name:lower() == togglename:lower() then
-                    bool = bool ~= nil and bool or not v.Table.Enabled
-                    v.Table:Toggle(false, bool)
-                    break
-                end
-            end
-        end,
-        sit = function(plr)
-            local targetPlayer = plr and Players:FindFirstChild(plr) or LocalPlayer
-            if isAlive(targetPlayer) then
-                targetPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Seated)
-            end
-        end
-    }
-
-    local userIdToTag = {}
-    local userIdToDeveloper = {}
-    
-    -- Process whitelist once to create lookup tables :>
-    for player, tag in next, whilelist do
-        if tag.UserId then
-            userIdToTag[tag.UserId] = {
-                Color = tag.Color,
-                Chattag = tag.Chattag
-            }
-            
-            if tag.Developer or tag.Developer == "true" then
-                userIdToDeveloper[tag.UserId] = true
-            end
-        end
-    end
-    
-    -- Check if the local player is even whitelisted in the first place
-    if userIdToTag[LocalPlayer.UserId] then
-        Mana.Whitelisted = true
-        if userIdToDeveloper[LocalPlayer.UserId] then
-            Mana.Developer = true
-        end
-        
-        -- Setting up the message handler 
-        TextChatService.OnIncomingMessage = function(message)
-            local properties = Instance.new("TextChatMessageProperties")
-            
-            -- Process commands if the message is from the local player itself
-            if message.TextSource and message.TextSource.UserId == LocalPlayer.UserId then
-                local messageText = message.Text
-                local prefix = ";"
-                
-                if string.sub(messageText, 1, 1) == prefix then
-                    local fullCommand = string.sub(messageText, 2)
-                    local split = string.split(fullCommand, " ")
-                    local command = string.lower(split[1])
-                    local args = #split > 1 and table.concat(split, " ", 2) or nil
-                    
-                    if commands[command] then
-                        task.spawn(function()
-                            pcall(commands[command], args)
-                        end)
-                    end
-                end
-            end
-            
-            -- Apply da chat tags
-            if message.TextSource then
-                local speakerUserId = message.TextSource.UserId
-                local tagInfo = userIdToTag[speakerUserId]
-                
-                if tagInfo then
-                    local prefixText = message.PrefixText or ""
-                    properties.PrefixText = string.format('<font color="%s">%s</font> %s', 
-                        tagInfo.Color, 
-                        tagInfo.Chattag, 
-                        prefixText)
-                else
-                    properties.PrefixText = message.PrefixText
-                end
-            else
-                properties.PrefixText = message.PrefixText
-            end
-            
-            return properties
-        end
-    end
-end)
-]]
+--GuiLibrary:Toggle()
