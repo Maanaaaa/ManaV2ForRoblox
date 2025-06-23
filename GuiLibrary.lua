@@ -413,7 +413,6 @@ function guilibrary:switchProfile(profile)
         warn("[ManaV2ForRoblox/Guilibrary.lua]: Unable to load profile "..profile.." - not found, instead creating it.")
         guilibrary.CurrentProfile = profile
         writefile("Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json", "{}")
-        toclipboard("Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json")
     end
     if isfile("Mana/CurrentProfile.txt") then
         delfile("Mana/CurrentProfile.txt")
