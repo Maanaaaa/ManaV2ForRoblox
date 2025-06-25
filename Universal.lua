@@ -1037,13 +1037,13 @@ runFunction(function()
     local edited = {}
 
     local function updatePlayer(plr)
-        if not edited[plr] then edited[plr] = true end
+        if plr == LocalPlayer then return end
         if isAlive(plr, expandPart.Value == "Head") and isPlayerTargetable(plr, true) then
-            local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+            local humanoidRootPart = getHumanoidRootPart(plr)
             if expandPart.Value == "HumanoidRootPart" then
-                getHumanoidRootPart(LocalPlayer).Size = Vector3.new(2 * (expand.Value / 10), 2 * (expand.Value / 10), 1 * (expand.Value / 10))
+                getHumanoidRootPart(plr).Size = Vector3.new(2 * (expand.Value / 10), 2 * (expand.Value / 10), 1 * (expand.Value / 10))
             elseif expandPart.Value == "Head" then
-                getHead(LocalPlayer).Size = Vector3.new((expand.Value / 10), (expand.Value / 10), (expand.Value / 10))
+                getHead(plr).Size = Vector3.new((expand.Value / 10), (expand.Value / 10), (expand.Value / 10))
             end
         end
     end
