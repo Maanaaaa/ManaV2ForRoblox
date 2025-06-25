@@ -26,11 +26,11 @@ function handler:tryAgain()
     handler:start()
 end
 function handler:start()
-    local entityHandler = shared.Mana.PlayersHandler
-    if not isAlive() and getCharacter(lplr) == nil then 
+    if (not isAlive() and getCharacter(lplr) == nil) or not shared.Mana.PlayersHandler then 
         handler:tryAgain()
         return 
     end
+    local entityHandler = shared.Mana.PlayersHandler
     handler.started = true
     if connection then connection:Disconnect() end
     if connection2 then connection2:Disconnect() end
