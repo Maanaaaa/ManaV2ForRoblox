@@ -1957,9 +1957,9 @@ runFunction(function()
             spawn(function()
                 repeat
                     task.wait()
-                    if (not CameraFix.Enabled) then break end
+                    if (not camFix.Enabled) then break end
                     UserSettings():GetService("UserGameSettings").RotationType = ((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.5 and Enum.RotationType.CameraRelative or Enum.RotationType.MovementRelative)
-                until (not CameraFix.Enabled)
+                until (not camFix.Enabled)
             end)
         end
     })
