@@ -1978,7 +1978,7 @@ runFunction(function()
             local modeVisibility = {
                 --SelectionBox = {lineThickness, surfaceTransparency, color, transparency},
                 BoxHandleAdornment = {color, transparency},
-                Highlight = {outline, outlineColor, outlineTransparency, fill, fillColor, fillTransparency}
+                Highlight = {outline, fill}
             }
             for _, group in pairs(modeVisibility) do
                 for _, item in ipairs(group) do
@@ -2011,7 +2011,6 @@ runFunction(function()
             if outlineTransparency.Container then outlineTransparency.Container.Visible = v end
         end
     })
-    outline.Container.Visible = false
 
     outlineColor = esp:CreateColorSlider({
         Name = "Outline color",
@@ -2049,7 +2048,6 @@ runFunction(function()
             if fillTransparency.Container then fillTransparency.Container.Visible = v end
         end
     })
-    fill.Container.Visible = false
 
     fillColor = esp:CreateColorSlider({
         Name = "Fill color",
@@ -2088,6 +2086,7 @@ runFunction(function()
             end
         end
     })
+    color.Container.Visible = false
 
     transparency = esp:CreateSlider({
         Name = "Transparency",
@@ -2102,6 +2101,7 @@ runFunction(function()
         Default = 0,
         Round = 1
     })
+    transparency.Container.Visible = false
 
     --[[
     lineThickness = esp:CreateSlider({
