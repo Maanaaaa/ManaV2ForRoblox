@@ -385,7 +385,6 @@ function guilibrary:LoadConfig()
 
     for tabKey, tabData in next, config.Tabs do
         local tabTable = guilibrary.ObjectsToSave.Tabs[tabKey]
-        print(table.unpack(tabData.Position))
         tabTable.API.Container.Position = UDim2.new(unpack(tabData.Position))
         if tabTable.Type == "OptionTab" then
             for optionKey, optionData in next, config.Tabs[tabKey].Options do -- // had to do it this way since there are multiple options named the same
