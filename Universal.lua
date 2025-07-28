@@ -1928,11 +1928,9 @@ runFunction(function()
     local adorneePart = {Value = "HumanoidRootPart"}
     local mode = {Value = "SelectionBox"}
     local fill = {Value = false}
-    local fillMode = {Value = "Team"}
     local fillColor = {Value = Color3.fromRGB(255, 0, 0)}
     local fillTransparency = {Value = 0}
     local outline = {Value = true}
-    local outlineMode = {Value = "Custom"}
     local outlineColor = {Value = Color3.fromRGB(255, 0, 0)}
     local outlineTransparency = {Value = 0}
     local color = {Value = Color3.fromRGB(255, 0, 0)}
@@ -1974,18 +1972,18 @@ runFunction(function()
     mode = esp:CreateDropdown({
         Name = "Mode",
         List = {"BoxHandleAdornment", "Highlight"}, --"SelectionBox", "BoxHandleAdornment", "Highlight"
-        Default = "SelectionBox",
+        Default = "Highlight",
         Callback = function(v)
             espLibrary.mode = v
             local modeVisibility = {
                 --SelectionBox = {lineThickness, surfaceTransparency, color, transparency},
                 BoxHandleAdornment = {color, transparency},
-                Highlight = {outline, outlineColor, outlineTransparency, fill, fillMode, fillColor, fillTransparency}
+                Highlight = {outline, outlineColor, outlineTransparency, fill, fillColor, fillTransparency}
             }
             for _, group in pairs(modeVisibility) do
                 for _, item in ipairs(group) do
-                    if item.MainObject then
-                        item.MainObject.Visible = false
+                    if item.Container then
+                        item.Container.Visible = false
                     end
                     if item.Type == "OptionToggle" then
                         item:ReToggle()
@@ -1993,8 +1991,8 @@ runFunction(function()
                 end
             end
             for _, item in ipairs(modeVisibility[v]) do
-                if item.MainObject then
-                    item.MainObject.Visible = true
+                if item.Container then
+                    item.Container.Visible = true
                 end
             end
             if esp.Enabled then
@@ -2004,65 +2002,16 @@ runFunction(function()
         end
     })
 
-    fill = esp:CreateToggle({
-        Name = "Fill",
-        Default = true,
-        Function = function(v)
-            espLibrary.fill = v
-            if fillColor.MainObject then fillColor.MainObject.Visible = v end
-            if fillTransparency.MainObject then fillTransparency.MainObject.Visible = v end
-        end
-    })
-    fill.MainObject.Visible = false
-
-    fillMode = esp:CreateDropdown({
-        Name = "Fill color mode",
-        List = {"Team", "Custom"},
-        Default = "Team",
-        Function = function(v)
-            espLibrary.fillMode = v
-            if color.MainObject then color.MainObject.Visible = v == "Custom" end
-            if teammates.MainObject then teammates.MainObject.Visible = v == "Custom" end
-        end
-    })
-
-    fillColor = esp:CreateColorSlider({
-        Name = "Fill color",
-        Default = Color3.fromRGB(255, 0, 0),
-        Function = function(v)
-            espLibrary.fillColor = v
-            if esp.Enabled then
-                espLibrary:updateAll()
-            end
-        end
-    })
-    fillColor.MainObject.Visible = false
-
-    fillTransparency = esp:CreateSlider({
-        Name = "Fill Transparency",
-        Function = function(v)
-            espLibrary.fillTransparency = v
-            if esp.Enabled then
-                espLibrary:updateAll()
-            end
-        end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-    fillTransparency.MainObject.Visible = false
-
     outline = esp:CreateToggle({
         Name = "Outline",
-        Default = true,
+        Default = false,
         Function = function(v)
             espLibrary.outline = v
-            if outlineColor.MainObject then outlineColor.MainObject.Visible = v end
-            if outlineTransparency.MainObject then outlineTransparency.MainObject.Visible = v end
+            if outlineColor.Container then outlineColor.Container.Visible = v end
+            if outlineTransparency.Container then outlineTransparency.Container.Visible = v end
         end
     })
-    outline.MainObject.Visible = false
+    outline.Container.Visible = false
 
     outlineColor = esp:CreateColorSlider({
         Name = "Outline color",
@@ -2074,7 +2023,7 @@ runFunction(function()
             end
         end
     })
-    outlineColor.MainObject.Visible = false
+    outlineColor.Container.Visible = false
 
     outlineTransparency = esp:CreateSlider({
         Name = "Outline Transparency",
@@ -2089,7 +2038,45 @@ runFunction(function()
         Default = 0,
         Round = 1
     })
-    outlineTransparency.MainObject.Visible = false
+    outlineTransparency.Container.Visible = false
+
+    fill = esp:CreateToggle({
+        Name = "Fill",
+        Default = false,
+        Function = function(v)
+            espLibrary.fill = v
+            if fillColor.Container then fillColor.Container.Visible = v end
+            if fillTransparency.Container then fillTransparency.Container.Visible = v end
+        end
+    })
+    fill.Container.Visible = false
+
+    fillColor = esp:CreateColorSlider({
+        Name = "Fill color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            espLibrary.fillColor = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end
+    })
+    fillColor.Container.Visible = false
+
+    fillTransparency = esp:CreateSlider({
+        Name = "Fill Transparency",
+        Function = function(v)
+            espLibrary.fillTransparency = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    fillTransparency.Container.Visible = false
 
     color = esp:CreateColorSlider({
         Name = "Color",
