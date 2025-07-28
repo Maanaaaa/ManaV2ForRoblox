@@ -10,20 +10,22 @@ local startTick = tick()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-local TeleportService = game:GetService("TeleportService")
+local teleportService = game:GetService("TeleportService")
 local TextChatService = game:GetService("TextChatService")
 local NetworkClient = game:GetService("NetworkClient")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local TextService = game:GetService("TextService")
+local virtualUser = game:GetService("VirtualUser")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local Debris = game:GetService("Debris")
+local debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
+local localPlayer = Players.LocalPlayer
 local lplr = Players.LocalPlayer
 local Character = LocalPlayer.Character
 local HumanoidRootPart = Character.HumanoidRootPart
@@ -41,7 +43,6 @@ local PlayerWalkSpeed = Humanoid.WalkSpeed
 local PlayerJumpPower = Humanoid.JumpPower
 local PlayerHipHeight = Humanoid.HipHeight
 local OldCameraMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance
-local OldFov = Camera.FieldOfView
 local PlaceId = game.PlaceId
 local JobId = game.JobId
 local CurrentTool = nil
@@ -56,6 +57,7 @@ local connections = Mana.Connections
 local friends = Mana.Friends
 local playersHandler = Mana.PlayersHandler
 local toolHandler = Mana.ToolHandler
+local espLibrary = Mana.EspLibrary
 local guifont = GuiLibrary.Font
 Mana.StartTick = startTick
 
@@ -299,6 +301,7 @@ local function ConvertHealthToColor(Health, MaxHealth)
 end
 
 local function getCharacter(plr)
+    plr = plr or lplr
     return plr.Character or plr.CharacterAdded:Wait()
 end
 
@@ -311,18 +314,21 @@ local function getPlrByCharacter(character)
 end
 
 local function getHumanoid(plr)
+    plr = plr or lplr
     if isAlive(plr) then
         return getCharacter(plr):FindFirstChildOfClass("Humanoid")
     end
 end
 
 local function getHumanoidRootPart(plr)
+    plr = plr or lplr
     if isAlive(plr) then
         return getCharacter(plr):FindFirstChild("HumanoidRootPart")
     end
 end
 
 local function getHead(plr)
+    plr = plr or lplr
     if isAlive(plr) then
         return getCharacter(plr):FindFirstChild("Head")
     end
@@ -481,6 +487,12 @@ local function isFriend(name)
     return false
 end
 
+local function betterDisconnect(connection)
+    if typeof(connection) == "RBXScriptConnection" then
+        connection:Disconnect()
+    end
+end
+
 --[[
     ToDo list:
     Add normal ESP
@@ -497,299 +509,9 @@ end
 
 ]]
 
--- Combat tab
---[[
+-- // Combat tab
 runFunction(function()
-    local SilentAim = {Enabled = false}
-    local AimPart = {Value = "Head"}
-    local AimHeld = {Value = "RMB"}
-    local SilentAimSmoothness = {Value = 100}
-    local SilentAimCircle = {Value = false}
-    local CircleTransparency = {Value = 0}
-    local SilentAimCircleFilled = {Value = false}
-    local SilentAimFov = {Value = 70}
-    local SilentAimWallCheck = {Value = false}
-    local SilentAimTeamCheck = {Value = false}
-    local SilentAimAutoFire = {Value = false}
-    local SilentAimAutoFireToolCheck = {Value = false}
-    local SilentAimShowTarget = {Value = false}
-    local SilentAimShowTargetFill = {Value = false}
-    local SilentAimShowTargetFillColor = {Value = "255, 255, 255"}
-    local SilentAimShowTargetFillTrasnparency = {Value = 0}
-    local SilentAimShowTargetOutline = {Value = false}
-    local SilentAimShowTargetOutlineColor = {Value = "255, 255, 255"}
-    local SilentAimShowTargetOutlineTrasnparency = {Value = 0}
-    local SilentAimFriends = {Value = false}
-    local Circle
-    local CircleUpdateConnection
-    local MouseClicked
-    local InputConnection
-    local RightConnection
-    local LeftConnection
-    local OldTarget
-    local HighlightObject
-
-    --FireShoot is from vape
-
-    local function FireShoot(ToolCheck)
-        local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-
-        if ToolCheck then
-            if CurrentTool == nil then
-                return 
-            end
-        end
-        if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
-            if Player then
-                if CanClick() and GuiLibrary.Toggled == false and not UserInputService:GetFocusedTextBox() then
-                    if MouseClicked then mouse1release() else mouse1press() end
-                    MouseClicked = not MouseClicked
-                else
-                    if MouseClicked then mouse1release() end
-                    MouseClicked = false
-                end
-            else
-                if MouseClicked then mouse1release() end
-                MouseClicked = false
-            end
-        end
-    end
-
-    local function UpdateCircle()
-        if SilentAimCircle.Value then
-            if not Circle then
-                Circle = Drawing.new("Circle")
-                Circle.Filled = SilentAimCircleFilled.Enabled
-                Circle.Thickness = 3
-                Circle.Radius = SilentAimFov.Value
-                Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                Circle.Visible = true
-                Circle.Transparency = CircleTransparency.Value
-
-                CircleUpdateConnection = Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-                    Circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                end)
-            end
-        else
-            if Circle then
-                Circle:Destroy()
-                Circle = nil
-            end
-            if CircleUpdateConnection then
-                CircleUpdateConnection:Disconnect()
-            end
-        end
-    end
-
-    local SilentAim = Tabs.Combat:CreateToggle({
-        Name = "SilentAim",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                InputConnection = UserInputService.InputBegan:Connect(function(Input)
-                    if (AimHeld.Value == "RMB" and Input.UserInputType == Enum.UserInputType.MouseButton2) then
-                        RightConnection = true
-                        LeftConnection = false
-                    elseif (AimHeld.Value == "LMB" and Input.UserInputType == Enum.UserInputType.MouseButton1) then
-                        LeftConnection = true
-                        RightConnection = false
-                    end
-
-                    RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
-                        if (AimHeld.Value == "LMB" and LeftConnection) or (AimHeld.Value == "RMB" and RightConnection) then
-                            local Player = getClosestPlayerToMouse(SilentAimFov.Value, SilentAimTeamCheck.Value, AimPart.Value, SilentAimWallCheck.Value)
-                            if Player and isAlive(Player, AimPart.Value == "Head") then
-                                if SilentAimFriends.Value and isFriend(Player.Name) then 
-                                    print("FRIEND " .. Player.Name)
-                                    return
-                                else
-                                    if SilentAimShowTarget then
-                                        if Player == not OldTarget then
-                                            if HighlightObject then
-                                                HighlightObject:Destroy()
-                                            end
-                                            HighlightObject = Instance.new("Highlight")
-                                            HighlightObject.Parent = Player.Character
-                                            if SilentAimShowTargetFill.Value then
-                                                HighlightObject.FillColor = SilentAimShowTargetFillColor.Value:find("Color3") and SilentAimShowTargetFillColor or Color3.fromRGB(SilentAimShowTargetFillColor.Value)
-                                                HighlightObject.FillTransparency = SilentAimShowTargetFillTrasnparency.Value
-                                            end
-                                            if SilentAimShowTargetOutline.Value then
-                                                HighlightObject.OutlineColor = SilentAimShowTargetOutlineColor.Value:find("Color3") and SilentAimShowTargetOutlineColor or Color3.fromRGB(SilentAimShowTargetOutlineColor.Value)
-                                                HighlightObject.OutlineTransparency = SilentAimShowTargetOutlineTrasnparency.Value
-                                            end
-                                        end
-                                    end
-                                    if Player then
-                                        AimAt(Player, SilentAimSmoothness.Value, AimPart.Value)
-                                        if SilentAimAutoFire.Value then
-                                            FireShoot(SilentAimAutoFireToolCheck.Value)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end)
-            else
-                InputConnection:Disconnect()
-                RunService:UnbindFromRenderStep("SilentAim")
-            end
-        end
-    })
-
-    AimPart = SilentAim:CreateDropDown({
-        Name = "Aim Part",
-        Function = function(v) end,
-        List = {"Head", "HumanoidRootPart"},
-        Default = "Head",
-    })
-
-    AimHeld = SilentAim:CreateDropDown({
-        Name = "Mouse Held",
-        Function = function(v) end,
-        List = {"LMB", "RMB"},
-        Default = "RMB",
-    })
-
-    SilentAimSmoothness = SilentAim:CreateSlider({
-        Name = "Smoothness",
-        Function = function(v) end,
-        Min = 1,
-        Max = 100,
-        Default = 10,
-        Round = 0,
-    })
-
-    SilentAimFov = SilentAim:CreateSlider({
-        Name = "Fov",
-        Function = function(v) end,
-        Min = 1,
-        Max = 120,
-        Default = 70,
-        Round = 0,
-    })
-
-    SilentAimTeamCheck = SilentAim:CreateToggle({
-        Name = "Team Check",
-        Default = false,
-        Function = function(v) end
-    })
-
-    SilentAimWallCheck = SilentAim:CreateToggle({
-        Name = "Wall Check",
-        Default = false,
-        Function = function(v) end
-    })
-
-    SilentAimCircle = SilentAim:CreateToggle({
-        Name = "FOV Circle",
-        Default = false,
-        Function = function(v) 
-            if CircleTransparency.MainObject then CircleTransparency.MainObject.Visible = v end
-            if SilentAimCircleFilled.MainObject then SilentAimCircleFilled.MainObject.Visible = v end
-			if v then
-				UpdateCircle()
-			end
-        end
-    })
-    
-    CircleTransparency = SilentAim:CreateSlider({
-        Name = "Circle Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1,
-    })
-
-    SilentAimCircleFilled = SilentAim:CreateToggle({
-        Name = "Circle Filled",
-        Default = false,
-        Function = function(v) end
-    })
-
-    SilentAimAutoFire = SilentAim:CreateToggle({
-        Name = "Auto Fire",
-        Default = false,
-        Function = function(v) 
-            if SilentAimAutoFireToolCheck.MainObject then SilentAimAutoFireToolCheck.MainObject.Visible = v end
-        end
-    })
-
-    SilentAimAutoFireToolCheck = SilentAim:CreateToggle({
-        Name = "Tool Check",
-        Default = false,
-        Function = function(v) end
-    })
-
-    SilentAimShowTarget = SilentAim:CreateToggle({
-        Name = "Show Target",
-        Default = false,
-        Callback = function(v)
-            if SilentAimShowTargetFill.MainObject then SilentAimShowTargetFill.MainObject.Visible = v end
-            if SilentAimShowTargetFillColor.MainObject then SilentAimShowTargetFillColor.MainObject.Visible = v end
-        end
-    })
-
-    SilentAimShowTargetFill = SilentAim:CreateToggle({
-        Name = "FillTarget",
-        Default = false,
-        Function = function(v) 
-            if SilentAimShowTargetFillColor.MainObject then SilentAimShowTargetFillColor.MainObject.Visible = v end
-            if SilentAimShowTargetFillTrasnparency.MainObject then SilentAimShowTargetFillTrasnparency.MainObject.Visible = v end
-        end
-    })
-
-    SilentAimShowTargetFillColor = SilentAim:CreateTextBox({
-        Name = "Fill Color",
-        PlaceholderText = "Color (RGB)",
-        Function = function(v) end
-    })
-
-    SilentAimShowTargetFillTrasnparency = SilentAim:CreateSlider({
-        Name = "Fill Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1,
-    })
-
-    SilentAimShowTargetOutline = SilentAim:CreateToggle({
-        Name = "Outline Target",
-        Default = false,
-        Function = function(v) 
-            if SilentAimShowTargetOutlineColor.MainObject then SilentAimShowTargetOutlineColor.MainObject.Visible = v end
-            if SilentAimShowTargetOutlineTrasnparency.MainObject then SilentAimShowTargetOutlineTrasnparency.MainObject.Visible = v end
-        end
-    })
-
-    SilentAimShowTargetOutlineColor = SilentAim:CreateTextBox({
-        Name = "Outline Color",
-        PlaceholderText = "Color (RGB)",
-        Function = function(v) end
-    })
-
-    SilentAimShowTargetOutlineTrasnparency = SilentAim:CreateSlider({
-        Name = "Outline Transparency",
-        Function = function(v) end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1,
-    })
-
-    SilentAimFriends = SilentAim:CreateToggle({
-        Name = "WhitelistFriends",
-        Default = false,
-        Function = function(v) end
-    })
-end)
-]]
-
-runFunction(function()
-    local silentAim = {Enabled = false}
+    local aimAssist = {Enabled = false}
     local aimPart = {Value = "Head"}
     local held = {Value = "RMB"}
     local smoothness = {Value = 100}
@@ -797,6 +519,16 @@ runFunction(function()
     local circleTransparency = {Value = 0}
     local circleFilled = {Value = false}
     local fov = {Value = 70}
+    local highlightTarget = {Value = false}
+    local highlightMode = {Value = "AimPart"}
+    local highlightOutline = {Value = false}
+    local highlightOutlineColor = {Value = "255, 255, 255"}
+    local highlightOutlineTransparency = {Value = 0}
+    local highlightFill = {Value = false}
+    local highlightFillColor = {Value = "255, 255, 255"}
+    local highlightFillTransparency = {Value = 0}
+    local highlightTeamColor = {Value = false}
+    local firstCamCheck = {Value = false}
     local wallCheck = {Value = false}
     local teamCheck = {Value = false}
     local autoFire = {Value = false}
@@ -805,21 +537,19 @@ runFunction(function()
     local CircleUpdateConnection
     local MouseClicked
     local connection
-    local LeftConnection
-    local RightConnection
+    local leftConnection
+    local rightConnection
+    local highlight
+    local espLibrary = espLibrary:create("AimAssist")
+    espLibrary.Mode = "Highlight"
 
-    --FireShoot is from vape
     local function fireShoot(ToolCheck)
         local Player = getClosestPlayerToMouse(fov.Value, teamCheck.Value, aimPart.Value, wallCheck.Value)
+        if ToolCheck and toolHandler.currentTool == nil then return end
 
-        if ToolCheck then
-            if toolHandler.currentTool == nil then
-                return 
-            end
-        end
         if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
             if Player then
-                if CanClick() and GuiLibrary.ClickGui.Tabs == false and not UserInputService:GetFocusedTextBox() then
+                if CanClick() and GuiLibrary.Toggled == false and not UserInputService:GetFocusedTextBox() then
                     if MouseClicked then mouse1release() else mouse1press() end
                     MouseClicked = not MouseClicked
                 else
@@ -859,54 +589,58 @@ runFunction(function()
         end
     end
 
-    silentAim = Tabs.Combat:CreateToggle({
-        Name = "SilentAim",
-        Keybind = nil,
+    local function highlightAimTarget(plr, obj)
+        if highlightTarget.Value then
+            espLibrary:updateEspObject(plr, obj)
+        else
+            espLibrary:removeAllEspObjects()
+        end
+    end
+
+    aimAssist = Tabs.Combat:CreateToggle({
+        Name = "AimAssist",
+        HoverText = "Automatically aims at the closest player to your mouse.",
         Callback = function(callback)
             if callback then
-                connection = UserInputService.InputBegan:Connect(function(Input)
-                    if (held.Value == "RMB" and Input.UserInputType == Enum.UserInputType.MouseButton2) then
-                        RightConnection = true
-                        LeftConnection = false
-                    elseif (held.Value == "LMB" and Input.UserInputType == Enum.UserInputType.MouseButton1) then
-                        LeftConnection = true
-                        RightConnection = false
-                    end
+                RunService:BindToRenderStep("AimAssist", Enum.RenderPriority.Camera.Value + 1, function()
+                    local leftConnection = held.Value == "LMB" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+                    local rightConnection = held.Value == "RMB" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 
-                    RunService:BindToRenderStep("SilentAim", Enum.RenderPriority.Camera.Value + 1, function()
-                        if (held.Value == "LMB" and LeftConnection) or (held.Value == "RMB" and RightConnection) then
-                            local plr = getClosestPlayerToMouse(fov.Value, teamCheck.Value, aimPart.Value, wallCheck.Value)
-                            if plr and isAlive(plr, aimPart.Value == "Head") then
-                                AimAt(plr, smoothness.Value, aimPart.Value)
-                                if autoFire.Value then
-                                    fireShoot(toolCheck.Value)
-                                end
-                            end
+                    if rightConnection or leftConnection then
+                        if firstCamCheck.Value and getHead().LocalTransparencyModifier ~= 1 then return end
+                        local plr = getClosestPlayerToMouse(fov.Value, teamCheck.Value, aimPart.Value, wallCheck.Value)
+                        if plr and isAlive(plr, aimPart.Value == "Head") then
+                            AimAt(plr, smoothness.Value, aimPart.Value)
+                            if autoFire.Value then fireShoot(toolCheck.Value) end
+                            --[[if highlightTarget.Value then
+                                highlightAimTarget(plr, highlightMode.Value == "AimPart" and plr.Character:FindFirstChild(aimPart.Value) or plr.Character)
+                            end]]
                         end
-                    end)
+                    end
                 end)
             else
-                connection:Disconnect()
-                RunService:UnbindFromRenderStep("SilentAim")
+                betterDisconnect(connection)
+                espLibrary:removeAllEspObjects()
+                RunService:UnbindFromRenderStep("AimAssist")
             end
         end
     })
 
-    aimPart = silentAim:CreateDropDown({
+    aimPart = aimAssist:CreateDropdown({
         Name = "Aim Part",
         Function = function(v) end,
         List = {"Head", "HumanoidRootPart"},
         Default = "Head",
     })
 
-    held = silentAim:CreateDropDown({
+    held = aimAssist:CreateDropdown({
         Name = "Mouse Held",
         Function = function(v) end,
         List = {"LMB", "RMB"},
         Default = "RMB",
     })
 
-    smoothness = silentAim:CreateSlider({
+    smoothness = aimAssist:CreateSlider({
         Name = "Smoothness",
         Function = function(v) end,
         Min = 1,
@@ -915,7 +649,7 @@ runFunction(function()
         Round = 0,
     })
 
-    fov = silentAim:CreateSlider({
+    fov = aimAssist:CreateSlider({
         Name = "Fov",
         Function = function(v) end,
         Min = 1,
@@ -924,63 +658,159 @@ runFunction(function()
         Round = 0,
     })
 
-    teamCheck = silentAim:CreateToggle({
-        Name = "Team Check",
-        Default = false,
-        Function = function(v) end
-    })
-
-    wallCheck = silentAim:CreateToggle({
-        Name = "Wall Check",
-        Default = false,
-        Function = function(v) end
-    })
-
-    circle = silentAim:CreateToggle({
+    circle = aimAssist:CreateToggle({
         Name = "FOV Circle",
         Default = false,
-        Function = function(v) 
+        Function = function(v)
             if circleTransparency.MainObject then circleTransparency.MainObject.Visible = v end
             if circleFilled.MainObject then circleFilled.MainObject.Visible = v end
-			if v then
-				UpdateCircle()
-			end
+            if v then UpdateCircle() end
         end
     })
-    
-    circleTransparency = silentAim:CreateSlider({
+
+    circleTransparency = aimAssist:CreateSlider({
         Name = "Circle Transparency",
-        Function = function(v) 
-            UpdateCircle()
-        end,
+        Function = function(v) UpdateCircle() end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1,
     })
 
-    circleFilled = silentAim:CreateToggle({
+    circleFilled = aimAssist:CreateToggle({
         Name = "Circle Filled",
         Default = false,
-        Function = function(v) 
-            UpdateCircle()
+        Function = function(v) UpdateCircle() end
+    })
+
+    --[[
+    highlightTarget = aimAssist:CreateToggle({
+        Name = "Highlight Target",
+        Default = false,
+        Callback = function(v)
+            if highlightMode.MainObject then highlightMode.MainObject.Visible = v end
+            if highlightOutline.MainObject then highlightOutline.MainObject.Visible = v end
+            if highlightFill.MainObject then highlightFill.MainObject.Visible = v end
+            if highlightTeamColor.MainObject then highlightTeamColor.MainObject.Visible = v end
         end
     })
 
-    autoFire = silentAim:CreateToggle({
+    highlightMode = aimAssist:CreateDropdown({
+        Name = "Highlight Mode",
+        Function = function(v)
+            if aimAssist.Enabled then aimAssist:ReToggle(true) end
+        end,
+        List = {"AimPart", "AimTarget"},
+        Default = "AimPart",
+    })
+    highlightMode.MainObject.Visible = false
+
+    highlightOutline = aimAssist:CreateToggle({
+        Name = "Outline",
+        Default = false,
+        Function = function(v)
+            if highlightOutlineColor.MainObject then highlightOutlineColor.MainObject.Visible = v end
+            if highlightOutlineTransparency.MainObject then highlightOutlineTransparency.MainObject.Visible = v end
+            espLibrary.outline = v
+        end
+    })
+    highlightOutline.MainObject.Visible = false
+
+    highlightOutlineColor = aimAssist:CreateColorSlider({
+        Name = "Outline Color",
+        Value = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            espLibrary.outlineColor = v
+        end
+    })
+    highlightOutlineColor.MainObject.Visible = false
+
+    highlightOutlineTransparency = aimAssist:CreateSlider({
+        Name = "Outline Transparency",
+        Function = function(v)
+            espLibrary.outlineTransparency = v
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1,
+    })
+    highlightOutlineTransparency.MainObject.Visible = false
+
+    highlightFill = aimAssist:CreateToggle({
+        Name = "Fill",
+        Default = false,
+        Function = function(v)
+            if highlightFillColor.MainObject then highlightFillColor.MainObject.Visible = v end
+            if highlightFillTransparency.MainObject then highlightFillTransparency.MainObject.Visible = v end
+            espLibrary.fill = v
+        end
+    })
+    highlightFill.MainObject.Visible = false
+
+    highlightFillColor = aimAssist:CreateColorSlider({
+        Name = "Fill Color",
+        Value = Color3.fromRGB(255, 255, 255),
+        Function = function(v)
+            espLibrary.fillColor = v
+        end
+    })
+    highlightFillColor.MainObject.Visible = false
+
+    highlightFillTransparency = aimAssist:CreateSlider({
+        Name = "Fill Transparency",
+        Function = function(v)
+            espLibrary.fillTransparency = v
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1,
+    })
+    highlightFillTransparency.MainObject.Visible = false
+
+    highlightTeamColor = aimAssist:CreateToggle({
+        Name = "Team Color",
+        Default = false,
+        Function = function(v) end
+    })
+    highlightTeamColor.MainObject.Visible = false
+    ]]
+
+    firstCamCheck = aimAssist:CreateToggle({
+        Name = "1st Person Check",
+        Default = false,
+        Function = function(v) end
+    })
+
+    teamCheck = aimAssist:CreateToggle({
+        Name = "Team Check",
+        Default = false,
+        Function = function(v) end
+    })
+
+    wallCheck = aimAssist:CreateToggle({
+        Name = "Wall Check",
+        Default = false,
+        Function = function(v) end
+    })
+
+    autoFire = aimAssist:CreateToggle({
         Name = "Auto Fire",
         Default = false,
-        Function = function(v) 
+        Function = function(v)
             if toolCheck.MainObject then toolCheck.MainObject.Visible = v end
         end
     })
 
-    toolCheck = silentAim:CreateToggle({
+    toolCheck = aimAssist:CreateToggle({
         Name = "Tool Check",
         Default = false,
         Function = function(v) end
     })
+    toolCheck.MainObject.Visible = false
 end)
+
 
 runFunction(function()
     local autoClicker = {Enabled = false}
@@ -989,14 +819,14 @@ runFunction(function()
 
     local autoClicker = Tabs.Combat:CreateToggle({
         Name = "AutoClicker",
-        Keybind = nil,
+        HoverText = "Automatically clicks for you.",
         Callback = function(callback)
             if callback then
                 spawn(function()
                     repeat
                         if mode.Value == "Click" or mode.Value == "RightClick" then
                             if mouse1click and (isrbxactive and isrbxactive() or iswindowactive and iswindowactive()) then
-                                if GuiLibrary.ClickGui.Tabs.Visible == false and not UserInputService:GetFocusedTextBox() then
+                                if GuiLibrary.Toggled == false and not UserInputService:GetFocusedTextBox() then
                                     local ClickFunction = (mode.Value == "Click" and mouse1click or mouse2click)
                                     ClickFunction()
                                 end
@@ -1006,13 +836,14 @@ runFunction(function()
                                 toolHandler.currentTool:Active()
                             end
                         end
+                        wait(1 / cps.Value)
                     until not autoClicker.Enabled
                 end)
             end
         end
     })
 
-    mode = autoClicker:CreateDropDown({
+    mode = autoClicker:CreateDropdown({
         Name = "Mode",
         Function = function(v) end,
         List = {"Click", "RightClick", "Tool"},
@@ -1034,7 +865,6 @@ runFunction(function()
     local expandPart = {Value = "Head"}
     local expand = {Value = 0}
     local connection
-    local edited = {}
 
     local function updatePlayer(plr)
         if plr == LocalPlayer then return end
@@ -1050,7 +880,7 @@ runFunction(function()
 
     reach = Tabs.Combat:CreateToggle({
         Name = "Reach",
-        Keybind = nil,
+        HoverText = "Expands hitboxes of other players.",
         Callback = function(callback)
             if callback then
                 for _, plr in next, Players:GetPlayers() do
@@ -1064,19 +894,15 @@ runFunction(function()
                     connection:Disconnect()
                 end
                 for _, plr in next, Players:GetPlayers() do
+                    if plr == LocalPlayer then return end
                     getHumanoidRootPart(plr).Size = Vector3.new(2, 2, 1)
                     getHead(plr).Size = Vector3.new(1, 1, 1)
-                end
-                for _, plr in next, playersHandler.players do
-                    if edited[plr] then
-                        edited[plr] = nil
-                    end
                 end
             end
         end
     })
 
-    expandPart = reach:CreateDropDown({
+    expandPart = reach:CreateDropdown({
         Name = "Expand Part",
         Function = function(v) end,
         List = {"HumanoidRootPart", "Head"},
@@ -1092,12 +918,12 @@ runFunction(function()
     })
 end)
 
--- Movement tab
+-- // Movement tab
 runFunction(function()
     local autoWalk = {Enabled = false}
     autoWalk = Tabs.Movement:CreateToggle({
         Name = "AutoWalk",
-        Keybind = nil,
+        HoverText = "Automatically walks forward for you.",
         Callback = function(callback)
             if callback then
                 RunLoops:BindToRenderStep("AutoWalk", function()
@@ -1118,9 +944,14 @@ runFunction(function()
     local tool
     local connection
     local connection2
+    local function tp()
+        if isAlive() then
+            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
+        end 
+    end
     clickTP = Tabs.Movement:CreateToggle({
         Name = "ClickTP",
-        Keybind = nil,
+        HoverText = "Teleports you to where you clicked.",
         Callback = function(callback) 
             if callback then
                 if mode.Value == "Tool" then
@@ -1128,23 +959,11 @@ runFunction(function()
                     tool.Name = "TPTool"
                     tool.Parent = Backpack
                     tool.RequiresHandle = false
-                    tool.Activated:Connect(function()
-                        if isAlive() and callback then
-                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
-                        end
-                    end)
+                    tool.Activated:Connect(tp)
                 elseif mode.Value == "Click" then
-                    connection = Mouse.Button1Down:Connect(function()
-                        if isAlive() and mode.Value == "Click" then 
-                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
-                        end
-                    end)
+                    connection = Mouse.Button1Down:Connect(tp)
                 elseif mode.Value == "RightClick" then
-                    connection2 = Mouse.Button2Down:Connect(function()
-                        if isAlive() and mode.Value == "RightClick" then 
-                            getHumanoidRootPart(LocalPlayer).CFrame = Mouse.Hit + Vector3.new(0, 3, 0)
-                        end
-                    end)
+                    connection2 = Mouse.Button2Down:Connect(tp)
                 end
             else
                 if connection then 
@@ -1162,99 +981,13 @@ runFunction(function()
         end
     })
 
-    mode = clickTP:CreateDropDown({
+    mode = clickTP:CreateDropdown({
         Name = "Mode",
-        Function = function(v) 
-            clickTP:ReToggle()
+        Function = function(v)
+            if clickTP.Enabled then clickTP:ReToggle() end
         end,
-        List = {"Click", "RightLick", "Tool"},
+        List = {"Click", "RightClick", "Tool"},
         Default = "Click"
-    })
-end)
-
-local FlyEnabled = false
-runFunction(function()
-    local mode = {Value = "Normal"}
-    local keyboardMode = {Value = "LeftShift+Space"}
-    local fly = {Enabled = false}
-    local speed = {Value = 23}
-    local verticalSpeed = {Value = 20}
-    fly = Tabs.Movement:CreateToggle({
-        Name = "Fly",
-        Keybind = nil,
-        Callback = function(callback)
-            if callback then
-                FlyEnabled = callback
-                RunLoops:BindToHeartbeat("Fly", function(Delta)
-                    local Humanoid = getHumanoid(LocalPlayer)
-                    local HumanoidRootPart = getHumanoidRootPart(LocalPlayer)
-                    local MoveDirection = Humanoid.MoveDirection
-                    local Velocity = HumanoidRootPart.Velocity
-                    local XDirection = MoveDirection.X * speed.Value
-                    local ZDirection = MoveDirection.Z * speed.Value
-                    local YDirection = 0
-
-                    if verticalSpeed.Value > 0 then
-                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) and (keyboardMode.Value == "LeftShift+Space" or keyboardMode.Value == "LeftCtrl+Space") then 
-                            YDirection = verticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.E) and keyboardMode.Value == "Q+E" then
-                            YDirection = verticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and keyboardMode.Value == "LeftShift+Space" then
-                            YDirection = -verticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and keyboardMode.Value == "LeftShift+Space" then
-                            YDirection = -verticalSpeed.Value
-                        elseif UserInputService:IsKeyDown(Enum.KeyCode.Q) and keyboardMode.Value == "Q+E" then
-                            YDirection = -verticalSpeed.Value
-                        end
-                    end
-
-                    if mode.Value == "Velocity" then
-                        HumanoidRootPart.Velocity = Vector3.new(XDirection, YDirection, ZDirection)
-                    elseif mode.Value == "CFrame" then
-                        local Factor = speed.Value - Humanoid.WalkSpeed
-                        local NewMoveDirection = (MoveDirection * Factor) * Delta
-                        local NewCFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, YDirection * Delta, MoveDirection.Z)
-
-                        HumanoidRootPart.Velocity = Vector3.new(Velocity.X, 0, Velocity.Y)
-                        HumanoidRootPart.CFrame = NewCFrame
-                    end
-                end)
-            else
-                RunLoops:UnbindFromHeartbeat("Fly")
-            end
-        end
-    })
-
-    mode = fly:CreateDropDown({
-        Name = "FlyMode",
-        Function = function(v) end,
-        List = {"CFrame", "Velocity"},
-        Default = "Velocity"
-    })
-
-    keyboardMode = fly:CreateDropDown({
-        Name = "KeyboardMode",
-        Function = function(v) end,
-        List = {"LeftShift+Space", "Q+E", "LeftCtrl+Space"},
-        Default = "LeftShift+Space"
-    })
-
-    speed = fly:CreateSlider({
-        Name = "FlyWalkSpeed",
-        Function = function(v) end,
-        Min = 1,
-        Max = 100,
-        Default = 23,
-        Round = 0
-    })
-
-    verticalSpeed = fly:CreateSlider({
-        Name = "FlyVerticalSpeed",
-        Function = function(v) end,
-        Min = 1,
-        Max = 100,
-        Default = 20,
-        Round = 0
     })
 end)
 
@@ -1264,7 +997,7 @@ runFunction(function()
     local ticks = {Value = 5}
     fastFall = Tabs.Movement:CreateToggle({
         Name = "FastFall",
-        Keybind = nil,
+        HoverText = "Makes you fall faster.",
         Callback = function(callback)
             if callback then
                 spawn(function() 
@@ -1308,13 +1041,120 @@ runFunction(function()
     })
 end)
 
+-- // fps based a little bit :sob:
+-- // 60 fps is the best to avoid going down
+runFunction(function()
+    local fly = {Enabled = false}
+    local mode = {Value = "Normal"}
+    local keyboardMode = {Value = "LeftShift+Space"}
+    local speed = {Value = 23}
+    local verticalSpeed = {Value = 20}
+    local useBodyPosition = {Value = false}
+    local linearVelocity
+    local bodyPosition
+    fly = Tabs.Movement:CreateToggle({
+        Name = "Fly",
+        HoverText = "Makes you fly.\nFPS based, recommended FPS is 60.",
+        Callback = function(callback)
+            if callback then
+                RunLoops:BindToHeartbeat("Fly", function(Delta)
+                    local humanoid = getHumanoid(LocalPlayer)
+                    local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                    local moveDirection = humanoid.MoveDirection
+                    local velocity = humanoidRootPart.Velocity
+                    local xDirection = moveDirection.X * speed.Value
+                    local zDirection = moveDirection.Z * speed.Value
+                    local yDirection = 0
+                    local yVelocity = (math.abs(yDirection) < 0.1 and (workspace.Gravity * Delta * 0.6325)) or yDirection
+
+                    if verticalSpeed.Value > 0 then
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) and (keyboardMode.Value == "LeftShift+Space" or keyboardMode.Value == "LeftCtrl+Space") then
+                            yDirection = verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.E) and keyboardMode.Value == "Q+E" then
+                            yDirection = verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and keyboardMode.Value == "LeftShift+Space" then
+                            yDirection = -verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and keyboardMode.Value == "LeftShift+Space" then
+                            yDirection = -verticalSpeed.Value
+                        elseif UserInputService:IsKeyDown(Enum.KeyCode.Q) and keyboardMode.Value == "Q+E" then
+                            yDirection = -verticalSpeed.Value
+                        end
+                    end
+
+                    if mode.Value == "AssemblyAngularVelocity" then
+                        humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(xDirection, yVelocity, zDirection)
+                    elseif mode.Value == "AssemblyLinearVelocity" then
+                        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(xDirection, yVelocity, zDirection)
+                    elseif mode.Value == "LinearVelocity" then
+                        linearVelocity = linearVelocity or Instance.new("LinearVelocity", humanoidRootPart)
+                        linearVelocity.Attachment0 = humanoidRootPart:FindFirstChildWhichIsA("Attachment")
+                        linearVelocity.MaxForce = math.huge
+                        linearVelocity.VectorVelocity = Vector3.new(xDirection, yDirection, zDirection)
+                    elseif mode.Value == "Velocity" then
+                        humanoidRootPart.Velocity = Vector3.new(xDirection, yVelocity, zDirection)
+                    elseif mode.Value == "CFrame" then
+                        local factor = speed.Value - humanoid.WalkSpeed
+                        local newMoveDirection = (moveDirection * factor) * Delta
+                        local newCFrame = humanoidRootPart.CFrame + Vector3.new(newMoveDirection.X, yDirection * Delta, newMoveDirection.Z)
+                        humanoidRootPart.CFrame = newCFrame
+                        humanoidRootPart.Velocity = Vector3.zero
+                    end
+
+                end)
+            else
+                if linearVelocity then
+                    linearVelocity:Destroy()
+                    linearVelocity = nil
+                end
+                RunLoops:UnbindFromHeartbeat("Fly")
+            end
+        end
+    })
+
+    mode = fly:CreateDropdown({
+        Name = "Mode",
+        Function = function(v) 
+            if speed.MainObject then speed.MainObject.Visible = v == "CFrame" end
+        end,
+        List = {"AssemblyAngularVelocity", "AssemblyLinearVelocity", "LinearVelocity", "Velocity", "CFrame"},
+        Default = "Velocity"
+    })
+
+    speed = fly:CreateSlider({
+        Name = "WalkSpeed",
+        Function = function(v) end,
+        Min = 1,
+        Max = 100,
+        Default = 23,
+        Round = 0
+    })
+    speed.MainObject.Visible = false
+
+    keyboardMode = fly:CreateDropdown({
+        Name = "KeyboardMode",
+        Function = function(v) end,
+        List = {"LeftShift+Space", "Q+E", "LeftCtrl+Space"},
+        Default = "LeftShift+Space"
+    })
+
+    verticalSpeed = fly:CreateSlider({
+        Name = "VerticalSpeed",
+        Function = function(v) end,
+        Min = 1,
+        Max = 100,
+        Default = 20,
+        Round = 0
+    })
+end)
+
 runFunction(function()
     local forwardTP = {Enabled = false}
     local studs = {Value = 5}
     local teleporting = false
     forwardTP = Tabs.Movement:CreateToggle({
         Name = "ForwardTP",
-        Keybind = nil,
+        HoverText = "Teleports you forward.",
         Callback = function(callback)
             if callback and not teleporting then
                 teleporting = true
@@ -1382,7 +1222,7 @@ runFunction(function()
         end
     })
 
-    ForwardTPMode = ForwardTP:CreateDropDown({
+    ForwardTPMode = ForwardTP:CreateDropdown({
         Name = "Mode",
         List = {"TP", "Tween"},
         Default = "TP",
@@ -1425,82 +1265,71 @@ runFunction(function()
     local jumps = {Value = 5}
     local mode = {Value = "Toggle"}
     local height = {Value = 20}
-    local force = {Value = 25}
     local connection
+    local linearVelocity
 
     local function jump()
         local humanoid = getHumanoid(LocalPlayer)
         local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
-        if mode.Value == "Jump" then
+        if jumpMode.Value == "AssemblyAngularVelocity" then
+            humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, height.Value, 0)
+        elseif jumpMode.Value == "AssemblyLinearVelocity" then
+            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, height.Value, 0)
+        elseif jumpMode.Value == "LinearVelocity" then
+            linearVelocity = Instance.new("LinearVelocity", humanoidRootPart)
+            linearVelocity.Attachment0 = humanoidRootPart:FindFirstChildWhichIsA("Attachment")
+            linearVelocity.MaxForce = math.huge
+            linearVelocity.VectorVelocity = Vector3.new(0, height.Value, 0)
+            task.wait(0.1)
+            linearVelocity:Destroy()
+        elseif jumpMode.Value == "Velocity" then
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            task.wait()
+            humanoidRootPart.Velocity = humanoidRootPart.Velocity + Vector3.new(0, height.Value, 0)
+        elseif jumpMode.Value == "TP" then
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, height.Value, 0)
+        elseif jumpMode.Value == "Jump" then
             spawn(function()
                 for i = 1, jumps.Value do
-                    wait()
+                    task.wait()
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
             end)
-        elseif mode.Value == "Velocity" then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            humanoidRootPart.Velocity = humanoidRootPart.Velocity + Vector3.new(0, height.Value, 0)
-        elseif mode.Value == "TP" then
-            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, height.Value, 0)
         end
     end
 
     highJump = Tabs.Movement:CreateToggle({
         Name = "HighJump",
-        Keybind = nil,
+        HoverText = "Makes you jump higher.",
         Callback = function(callback)
             if callback then
                 if mode.Value == "Toggle" then
                     jump()
-                    highJump:Toggle(true) 
+                    highJump:Toggle(true)
                 elseif mode.Value == "Normal" then
-                    RunLoops:BindToRenderStep("HighJump", function()
-                        connection = table.insert(connections, UserInputService.JumpRequest:Connect(function()
-                            jump()
-                        end))
-                    end)
+                    connection = table.insert(connections, UserInputService.JumpRequest:Connect(function()
+                        jump()
+                    end))
                 end
             else
-                if connection then connection:Disconnect(); connection:disconnect() end
-                RunLoops:UnbindFromRenderStep("HighJump")
-                workspace.Gravity = 196.19999694824
+                betterDisconnect(connection)
+                --workspace.Gravity = 196.19999694824
             end
         end
     })
 
-    mode = highJump:CreateDropDown({
+    jumpMode = highJump:CreateDropdown({
         Name = "JumpMode",
         Function = function(v) 
-            if v == "Velocity" or v == "TP" then
-                if force.MainObject then
-                    force.MainObject.Visible = false
-                end
-                if height.MainObject then
-                    height.MainObject.Visible = true
-                end
-                if jumps.MainObject then
-                    jumps.MainObject.Visible = false
-                end
-            elseif v == "Jump" then
-                if height.MainObject then
-                    height.MainObject.Visible = false
-                end
-                if force.MainObject then
-                    force.MainObject.Visible = true
-                end
-                if jumps.MainObject then
-                    jumps.MainObject.Visible = true
-                end
+            if mode.MainObject then
+                mode.MainObject.Visible = v == "Jump"
             end
         end,
-        List = {"Jump", "Velocity", "TP"},
+        List = {"AssemblyAngularVelocity", "AssemblyLinearVelocity", "LinearVelocity", "Velocity", "TP", "Jump"},
         Default = "Velocity"
     })
 
-    mode = highJump:CreateDropDown({
+    mode = highJump:CreateDropdown({
         Name = "Mode",
         Callback = function(v) end,
         List = {"Toggle", "Normal"},
@@ -1524,57 +1353,65 @@ runFunction(function()
         Default = 25,
         Round = 0
     })
-
-    force = highJump:CreateSlider({
-        Name = "Force",
-        Function = function() end,
-        Min = 0,
-        Max = 50,
-        Default = 25,
-        Round = 0
-    })
 end)
 
 runFunction(function()
     local longJump = {Enabled = false}
     local mode = {Value = "Velocity"}
-    local power = {Value = 2}
+    local power = {Value = 50}
+
     longJump = Tabs.Movement:CreateToggle({
         Name = "LongJump",
-        Keybind = nil,
+        HoverText = "Makes you jump forward.",
         Callback = function(callback)
             if callback then
                 local humanoid = getHumanoid(LocalPlayer)
                 local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
                 local oldCFrame = humanoidRootPart.CFrame
-                local OldVelocity = humanoidRootPart.Velocity
-                if mode.Value == "CFrame" then
-                    local newCFrame = oldCFrame * CFrame.new(power.Value, 0, power.Value)
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    humanoidRootPart.CFrame = CFrame.new(newCFrame.X, oldCFrame.Y, newCFrame.Z)
+                local oldVelocity = humanoidRootPart.Velocity
+                local direction = humanoidRootPart.CFrame.LookVector
+
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
+                if mode.Value == "AssemblyAngularVelocity" then
+                    humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    humanoidRootPart.AssemblyLinearVelocity = Vector3.new(direction.X * power.Value, oldVelocity.Y, direction.Z * power.Value)
+                elseif mode.Value == "AssemblyLinearVelocity" then
+                    humanoidRootPart.AssemblyLinearVelocity = Vector3.new(direction.X * power.Value, oldVelocity.Y, direction.Z * power.Value)
+                elseif mode.Value == "LinearVelocity" then
+                    local linearVelocity = Instance.new("LinearVelocity")
+                    linearVelocity.Attachment0 = humanoidRootPart:FindFirstChildWhichIsA("Attachment")
+                    linearVelocity.MaxForce = math.huge
+                    linearVelocity.VectorVelocity = Vector3.new(direction.X * power.Value, oldVelocity.Y, direction.Z * power.Value)
+                    linearVelocity.Parent = humanoidRootPart
+                    task.wait(0.1)
+                    linearVelocity:Destroy()
                 elseif mode.Value == "Velocity" then
-                    local NewVelocity = OldVelocity * power.Value -- (OldVelocity * LongJumpPower.Value) / 2.5
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    humanoidRootPart.Velocity = Vector3.new(NewVelocity.X, OldVelocity.Y, NewVelocity.X)
+                    local NewVelocity = oldVelocity * power.Value
+                    humanoidRootPart.Velocity = Vector3.new(NewVelocity.X, oldVelocity.Y, NewVelocity.X)
+                elseif mode.Value == "CFrame" then
+                    local newCFrame = oldCFrame * CFrame.new(direction.X * power.Value, 0, direction.Z * power.Value)
+                    humanoidRootPart.CFrame = CFrame.new(newCFrame.X, oldCFrame.Y, newCFrame.Z)
                 end
+
                 longJump:Toggle(true)
             end
         end
     })
 
-    mode = longJump:CreateDropDown({
+    mode = longJump:CreateDropdown({
         Name = "Mode",
         Function = function(v) end,
-        List = {"CFrame", "Velocity"},
+        List = {"AssemblyAngularVelocity", "AssemblyLinearVelocity", "LinearVelocity", "Velocity", "CFrame"},
         Default = "Velocity"
     })
 
     power = longJump:CreateSlider({
-        Name = "Studs",
-        Function = function() end,
+        Name = "Power",
+        Function = function(v) end,
         Min = 1,
-        Max = 10,
-        Default = 2,
+        Max = 1000,
+        Default = 100,
         Round = 0
     })
 end)
@@ -1584,7 +1421,7 @@ runFunction(function()
     local parts = {}
     phase = Tabs.Movement:CreateToggle({
         Name = "Phase",
-        Keybind = nil,
+        HoverText = "Makes you walk through walls.",
         Callback = function(callback) 
             if callback then 
                 if isAlive() then
@@ -1617,45 +1454,63 @@ runFunction(function()
     local autoJumpPower = {Value = 25}
     local jumpPower = {Value = 50}
     local noAnim = {Value = false}
+    local linearVelocity
     speed = Tabs.Movement:CreateToggle({
         Name = "Speed",
-        Keybind = nil,
+        HoverText = "Makes you walk faster.",
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("Speed", function(Delta)
                     if isAlive() then
-                        local Humanoid = getHumanoid(LocalPlayer)
-                        local HumanoidRootPart = getHumanoidRootPart(LocalPlayer)
-                        local MoveDirection = Humanoid.MoveDirection
-                        local VelocityX = HumanoidRootPart.Velocity.X
-                        local VelocityZ = HumanoidRootPart.Velocity.Z
+                        local humanoid = getHumanoid(LocalPlayer)
+                        local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
+                        local moveDirection = humanoid.MoveDirection
+                        local VelocityX = humanoidRootPart.Velocity.X
+                        local VelocityZ = humanoidRootPart.Velocity.Z
 
-                        if jumpPower.Value > Humanoid.JumpPower then
-                            Humanoid.JumpPower = jumpPower.Value
-                            Humanoid.UseJumpPower = true
+                        if jumpPower.Value > humanoid.JumpPower then
+                            humanoid.JumpPower = jumpPower.Value
+                            humanoid.UseJumpPower = true
                         end
 
+                        --[[cant make this to work normally + with auto jump
+                        if mode.Value == "AssemblyAngularVelocity" then
+                            humanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(moveDirection.X * value.Value, 0, moveDirection.Z * value.Value) --* Delta
+                        elseif mode.Value == "AssemblyLinearVelocity" then
+                            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(moveDirection.X * value.Value, 0, moveDirection.Z * value.Value) * Delta
+                        elseif mode.Value == "LinearVelocity" then
+                            linearVelocity = linearVelocity or Instance.new("LinearVelocity", humanoidRootPart)
+                            linearVelocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Line
+                            linearVelocity.Attachment0 = humanoidRootPart:FindFirstChildWhichIsA("Attachment")
+                            linearVelocity.MaxForce = math.huge
+                            linearVelocity.LineDirection = moveDirection
+                            linearVelocity.LineVelocity = (moveDirection.X ~= 0 and moveDirection.Z ~= 0) and speed.Value or 0
+                        else]]
                         if mode.Value == "Velocity" then
                             local Velocity = Humanoid.MoveDirection * (value.Value * 5) * Delta
                             Character:TranslateBy(Vector3.new(Velocity.X / 10, 0, Velocity.Z / 10))
                         elseif mode.Value == "CFrame" then
-                            local Factor = value.Value - Humanoid.WalkSpeed
-                            local MoveDirection = (MoveDirection * Factor) * Delta
-                            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + Vector3.new(MoveDirection.X, 0, MoveDirection.Z)
+                            local Factor = value.Value - humanoid.WalkSpeed
+                            local MoveDirection = (moveDirection * Factor) * Delta
+                            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(MoveDirection.X, 0, MoveDirection.Z)
                         elseif mode.Value == "Normal" then
-                            Humanoid.WalkSpeed = value.Value
+                            humanoid.WalkSpeed = value.Value
                         end
 
-                        if autoJump.Value and (Humanoid.FloorMaterial ~= Enum.Material.Air) and Humanoid.MoveDirection ~= Vector3.zero then
+                        if autoJump.Value and (humanoid.FloorMaterial ~= Enum.Material.Air) and humanoid.MoveDirection ~= Vector3.zero then
                             if jumpMode == "Normal" then
-                                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             else
-                                HumanoidRootPart.Velocity = Vector3.new(HumanoidRootPart.Velocity.X, autoJumpPower.Value, HumanoidRootPart.Velocity.Z)
+                                humanoidRootPart.Velocity = Vector3.new(humanoidRootPart.Velocity.X, autoJumpPower.Value, humanoidRootPart.Velocity.Z)
                             end
                         end
 
                         if noAnim.Value then
                             Character.Animate.Disabled = true
+                        end
+                        if linearVelocity then
+                            linearVelocity:Destroy()
                         end
 
                     end
@@ -1665,32 +1520,22 @@ runFunction(function()
                     RunLoops:UnbindFromHeartbeat("Speed")
                 end
 
-                getHumanoid(LocalPlayer).WalkSpeed = PlayerWalkSpeed
-                getHumanoid(LocalPlayer).JumpPower = PlayerJumpPower
-                getCharacter(LocalPlayer).Animate.Disabled = false
+                getHumanoid().WalkSpeed = PlayerWalkSpeed
+                getHumanoid().JumpPower = PlayerJumpPower
+                getCharacter().Animate.Disabled = false
             end
         end
     })
 
-    mode = speed:CreateDropDown({
+    mode = speed:CreateDropdown({
         Name = "Mode",
         Function = function(v) 
-            speed:ReToggle(true)
-        end,
-        List = {"CFrame", "Normal", "Velocity"},
-        Default = "Normal"
-    })
-
-    jumpMode = speed:CreateDropDown({
-        Name = "AutoJumpMode",
-        Function = function(v) 
-            if autoJumpPower.MainObject then
-                autoJumpPower.MainObject.Visible = v == "Velocity"
+            if speed.Enabled then 
+                speed:ReToggle(true)
             end
-            speed:ReToggle(true)
         end,
-        List = {"Normal", "Velocity"},
-        Default = "Normal"
+        List = {"Velocity", "CFrame", "Normal"}, -- "AssemblyAngularVelocity", "AssemblyLinearVelocity", "LinearVelocity", "Velocity", "CFrame", "Normal"}
+        Default = "Velocity"
     })
 
     value = speed:CreateSlider({
@@ -1719,7 +1564,7 @@ runFunction(function()
         Name = "JumpPower",
         Function = function(v) 
             if speed.Enabled then
-                getHumanoid(getCharacter(LocalPlayer)).JumpPower = v
+                getHumanoid(LocalPlayer).JumpPower = v
             end
         end,
         Min = 0,
@@ -1735,6 +1580,21 @@ runFunction(function()
             if jumpMode.MainObject then jumpMode.MainObject.Visible = v end
         end
     })
+
+    jumpMode = speed:CreateDropdown({
+        Name = "AutoJumpMode",
+        Function = function(v) 
+            if autoJumpPower.MainObject then
+                autoJumpPower.MainObject.Visible = v == "Velocity"
+            end
+            if speed.Enabled then
+                speed:ReToggle(true)
+            end
+        end,
+        List = {"Normal", "Velocity"},
+        Default = "Normal"
+    })
+    jumpMode.Container1.Visible = false
 
     noAnim = speed:CreateToggle({
         Name = "NoAnimation",
@@ -1763,17 +1623,17 @@ runFunction(function()
     local angularVelocity = Instance.new("AngularVelocity")
     spinBot = Tabs.Movement:CreateToggle({
         Name = "SpinBot",
-        Keybind = nil,
+        HoverText = "Makes your character spin.\nDoesn't work in first person.",
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("SpinBot", function()
                     if isAlive() then
                         local humanoid = getHumanoid(LocalPlayer)
                         local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
-                        local OldVelocity = humanoidRootPart.AssemblyAngularVelocity
-                        velocityX = (spinBotX.Value and spinBotSpeed.Value) or OldVelocity.X
-                        velocityY = (spinBotY.Value and spinBotSpeed.Value) or OldVelocity.Y
-                        velocityZ = (spinBotZ.Value and spinBotSpeed.Value) or OldVelocity.Z
+                        local oldVelocity = humanoidRootPart.AssemblyAngularVelocity
+                        velocityX = (spinBotX.Value and spinBotSpeed.Value) or oldVelocity.X
+                        velocityY = (spinBotY.Value and spinBotSpeed.Value) or oldVelocity.Y
+                        velocityZ = (spinBotZ.Value and spinBotSpeed.Value) or oldVelocity.Z
                         angularX = (spinBotX.Value and math.huge) or 0
                         angularY = (spinBotY.Value and math.huge) or 0
                         angularZ = (spinBotZ.Value and math.huge) or 0
@@ -1799,7 +1659,7 @@ runFunction(function()
         end
     })
 
-    mode = spinBot:CreateDropDown({
+    mode = spinBot:CreateDropdown({
         Name = "Mode",
         Function = function(v) end,
         List = {"RotVelocity", "AssemblyAngularVelocity"}, --"AngularVelocity",
@@ -1835,92 +1695,194 @@ runFunction(function()
 end)
 
 
--- Render tab
+-- // Render tab
 runFunction(function()
     local breadcrumbs = {Enabled = false}
-    local breadcrumbsStartColor = {Value = Color3.fromRGB(255, 255, 255)}
-    local breadcrumbsEndColor = {Value = Color3.fromRGB(255, 255, 255)}
-    local breadcrumbsLifeTime = {Value = 20}
-    local breadcrumbsTransparency = {Value = 0}
-    local breadcrumbsThick = {Value = 7}
-    local breadcrumbsTrail
-	local breadcrumbsAttachment
-	local breadcrumbsAttachment2
+    local mode = {Value = "Trail"}
+    local color = {Value = Color3.fromRGB(255, 255, 255)}
+    local startColor = {Value = Color3.fromRGB(255, 255, 255)}
+    local endColor = {Value = Color3.fromRGB(255, 255, 255)}
+    local size = {Value = 0.5}
+    local distance = {Value = 1}
+    local lifeTime = {Value = 20}
+    local transparency = {Value = 0}
+    local objects = Instance.new("Folder", workspace)
+    objects.Name = "breadcrumbsObjects"
+    local trail
+	local attachment
+	local attachment2
+    local lastPos
+    --local objects = {}
     breadcrumbs = Tabs.Render:CreateToggle({
         Name = "Breadcrumbs",
-        Keybind = nil,
+        HoverText = "Creates a trail behind you.",
         Callback = function(callback)
             if callback then
                 task.spawn(function()
 					repeat
 						if isAlive() then
-                            local humanoidRootPart = getHumanoidRootPart(LocalPlayer)
-                            if not breadcrumbsTrail then
-                                breadcrumbsAttachment = Instance.new("Attachment")
-                                breadcrumbsAttachment.Position = Vector3.new(0, 0.07 - 2.7, 0)
-                                breadcrumbsAttachment2 = Instance.new("Attachment")
-                                breadcrumbsAttachment2.Position = Vector3.new(0, -0.07 - 2.7, 0)
-                                breadcrumbsTrail = Instance.new("Trail")
-                                breadcrumbsTrail.Attachment0 = breadcrumbsAttachment
-                                breadcrumbsTrail.Attachment1 = breadcrumbsAttachment2
-                                breadcrumbsTrail.Color = ColorSequence.new(breadcrumbsStartColor.Value, breadcrumbsEndColor.Value)
-                                breadcrumbsTrail.FaceCamera = true
-                                breadcrumbsTrail.Lifetime = breadcrumbsLifeTime.Value / 10
-                                breadcrumbsTrail.Enabled = true
-                            else
-                                local Succes = pcall(function()
-                                    breadcrumbsAttachment.Parent = humanoidRootPart
-                                    breadcrumbsAttachment2.Parent = humanoidRootPart
-                                    breadcrumbsTrail.Parent = Camera
-                                end)
-                                if not Succes then
-                                    if breadcrumbsTrail then breadcrumbsTrail:Destroy() breadcrumbsTrail = nil end
-                                    if breadcrumbsAttachment then breadcrumbsAttachment:Destroy() breadcrumbsAttachment = nil end
-                                    if breadcrumbsAttachment2 then breadcrumbsAttachment2:Destroy() breadcrumbsAttachment2 = nil end
+                            local humanoidRootPart = getHumanoidRootPart()
+                            if mode.Value == "Trail" then
+                                if not trail then
+                                    attachment = Instance.new("Attachment")
+                                    attachment.Position = Vector3.new(0, 0.07 - 2.7, 0)
+                                    attachment2 = Instance.new("Attachment")
+                                    attachment2.Position = Vector3.new(0, -0.07 - 2.7, 0)
+                                    trail = Instance.new("Trail")
+                                    trail.Attachment0 = attachment
+                                    trail.Attachment1 = attachment2
+                                    trail.Color = ColorSequence.new(startColor.Value, endColor.Value)
+                                    trail.FaceCamera = true
+                                    trail.Lifetime = lifeTime.Value / 10
+                                    trail.Enabled = true
+                                else
+                                    local Succes = pcall(function()
+                                        attachment.Parent = humanoidRootPart
+                                        attachment2.Parent = humanoidRootPart
+                                        trail.Parent = Camera
+                                    end)
+                                    if not Succes then
+                                        if trail then trail:Destroy() trail = nil end
+                                        if attachment then attachment:Destroy() attachment = nil end
+                                        if attachment2 then attachment2:Destroy() attachment2 = nil end
+                                    end
+                                end
+                            elseif mode.Value == "Spheres" then
+                                if (lastPos and (humanoidRootPart.Position - lastPos).Magnitude > distance.Value) or not lastPos then
+                                    local sphere = Instance.new("Part", objects)
+                                    sphere.Shape = Enum.PartType.Ball
+                                    sphere.Size = Vector3.new(0.5, 0.5, 0.5)
+                                    sphere.Color = color.Value
+                                    sphere.Material = Enum.Material.Plastic
+                                    sphere.CanCollide = false
+                                    sphere.Anchored = true
+                                    sphere.CFrame = humanoidRootPart.CFrame * CFrame.new(0, -2, 0)
+                                    sphere.Transparency = transparency.Value
+                                    sphere.TopSurface = Enum.SurfaceType.Smooth
+                                    sphere.BottomSurface = Enum.SurfaceType.Smooth
+                                    sphere.FrontSurface = Enum.SurfaceType.Smooth
+                                    sphere.BackSurface = Enum.SurfaceType.Smooth
+                                    sphere.LeftSurface = Enum.SurfaceType.Smooth
+                                    sphere.RightSurface = Enum.SurfaceType.Smooth
+                                    debris:AddItem(sphere, lifeTime.Value)
+                                    lastPos = humanoidRootPart.Position
+                                end
+                            elseif mode.Value == "Cubes" then
+                                if (lastPos and (humanoidRootPart.Position - lastPos).Magnitude > distance.Value) or not lastPos then
+                                    local cube = Instance.new("Part", objects)
+                                    cube.Size = Vector3.new(0.5, 0.5, 0.5)
+                                    cube.Color = color.Value
+                                    cube.Material = Enum.Material.Plastic
+                                    cube.CanCollide = false
+                                    cube.Anchored = true
+                                    cube.CFrame = humanoidRootPart.CFrame * CFrame.new(0, -2, 0)
+                                    cube.Transparency = transparency.Value
+                                    cube.TopSurface = Enum.SurfaceType.Smooth
+                                    cube.BottomSurface = Enum.SurfaceType.Smooth
+                                    cube.FrontSurface = Enum.SurfaceType.Smooth
+                                    cube.BackSurface = Enum.SurfaceType.Smooth
+                                    cube.LeftSurface = Enum.SurfaceType.Smooth
+                                    cube.RightSurface = Enum.SurfaceType.Smooth
+                                    debris:AddItem(cube, lifeTime.Value)
+                                    lastPos = humanoidRootPart.Position
                                 end
                             end
 						end
-						task.wait(0.3)
+                        task.wait()
 					until not breadcrumbs.Enabled
 				end)
             else
-                if breadcrumbsTrail then
-                    breadcrumbsTrail:Destroy()
-                    breadcrumbsTrail = nil
+                if trail then
+                    trail:Destroy()
+                    trail = nil
                 end
-				if breadcrumbsAttachment then
-                    breadcrumbsAttachment:Destroy()
-                    breadcrumbsAttachment = nil
+				if attachment then
+                    attachment:Destroy()
+                    attachment = nil
                 end
-				if breadcrumbsAttachment2 then
-                    breadcrumbsAttachment2:Destroy()
-                    breadcrumbsAttachment2 = nil
+				if attachment2 then
+                    attachment2:Destroy()
+                    attachment2 = nil
+                end
+                for _, object in pairs(objects) do
+                    object:Destroy()
                 end
             end
         end
     })
 
-    breadcrumbsStartColor = breadcrumbs:CreateColorSlider({
+    mode = breadcrumbs:CreateDropdown({
+        Name = "Mode",
+        List = {"Trail", "Spheres", "Cubes"},
+        Default = "Trail",
+        Function = function(v) 
+            if startColor.MainObject then startColor.MainObject.Visible = v == "Trail" end
+            if endColor.MainObject then endColor.MainObject.Visible = v == "Trail" end
+            if color.MainObject then color.MainObject.Visible = v ~= "Trail" end
+            if size.MainObject then size.MainObject.Visible = v ~= "Trail" end
+            if distance.MainObject then distance.MainObject.Visible = v ~= "Trail" end
+        end
+    })
+
+    startColor = breadcrumbs:CreateColorSlider({
         Name = "Start color",
         Default = Color3.fromRGB(255, 255, 255),
         Function = function(v) 
-            if breadcrumbsTrail then
-                breadcrumbsTrail.Color = ColorSequence.new(v, breadcrumbsEndColor.Value)
+            if trail then
+                trail.Color = ColorSequence.new(v, endColor.Value)
             end
         end
     })
 
-    breadcrumbsEndColor = breadcrumbs:CreateColorSlider({
+    endColor = breadcrumbs:CreateColorSlider({
         Name = "End color",
         Default = Color3.fromRGB(255, 255, 255),
         Function = function(v) 
-            if breadcrumbsTrail then
-                breadcrumbsTrail.Color = ColorSequence.new(breadcrumbsStartColor.Value, v)
+            if trail then
+                trail.Color = ColorSequence.new(startColor.Value, v)
             end
         end
     })
 
-    breadcrumbsLifeTime = breadcrumbs:CreateSlider({
+    color = breadcrumbs:CreateColorSlider({
+        Name = "End color",
+        Default = Color3.fromRGB(255, 255, 255),
+        Function = function(v) 
+            if breadcrumbs.Enabled then
+                for _, obj in next, objects:GetChildren() do
+                    obj.Color = v
+                end
+            end
+        end
+    })
+    color.MainObject.Visible = false
+
+    size = breadcrumbs:CreateSlider({
+        Name = "Size",
+        Function = function(v) 
+            if breadcrumbs.Enabled then
+                for _, obj in next, objects:GetChildren() do
+                    obj.Size = Vector3.new(v, v, v)
+                end
+            end
+        end,
+        Min = 0.1,
+        Max = 5,
+        Default = 1,
+        Round = 1
+    })
+    size.MainObject.Visible = false
+
+    distance = breadcrumbs:CreateSlider({
+        Name = "Distance",
+        Function = function(v) end,
+        Min = 0.1,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+
+    lifeTime = breadcrumbs:CreateSlider({
         Name = "LifeTime",
         Function = function(v) end,
         Min = 1,
@@ -1929,22 +1891,19 @@ runFunction(function()
         Round = 0
     })
 
-    breadcrumbsTransparency = breadcrumbs:CreateSlider({
+    transparency = breadcrumbs:CreateSlider({
         Name = "Transparency",
-        Function = function(v) end,
+        Function = function(v)
+            if breadcrumbs.Enabled then
+                for _, obj in next, objects:GetChildren() do
+                    obj.Transparency = v
+                end
+            end
+        end,
         Min = 0,
         Max = 1,
         Default = 0,
         Round = 1
-    })
-
-    breadcrumbsThick = breadcrumbs:CreateSlider({
-        Name = "Thick",
-        Function = function(v) end,
-        Min = 1,
-        Max = 50,
-        Default = 7,
-        Round = 2
     })
 end)
 
@@ -1952,154 +1911,77 @@ runFunction(function()
     local camFix = {Enabled = false}
     camFix = Tabs.Render:CreateToggle({
         Name = "CameraFix",
-        Keybind = nil,
+        HoverText = "Changes camera zooming.",
         Callback = function(callback) 
             spawn(function()
                 repeat
-                    task.wait()
-                    if (not camFix.Enabled) then break end
                     UserSettings():GetService("UserGameSettings").RotationType = ((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.5 and Enum.RotationType.CameraRelative or Enum.RotationType.MovementRelative)
-                until (not camFix.Enabled)
+                    task.wait()
+                until not camFix.Enabled
             end)
         end
     })
 end)
 
 runFunction(function()
-    local chams = {Enabled = false}
-    local mode = {Value = "SelectionBox"}
-    local fillMode = {Value = "Team"}
+    local esp = {Enabled = false}
     local adorneePart = {Value = "HumanoidRootPart"}
-    local color = {Value = Color3.fromRGB(255, 0, 0)}
+    local mode = {Value = "SelectionBox"}
+    local fill = {Value = false}
+    local fillMode = {Value = "Team"}
     local fillColor = {Value = Color3.fromRGB(255, 0, 0)}
-    local lineThickness = {Value = 0}
-    local surfaceTransparency = {Value = 0}
-    local alwaysOnTop = {Value = true}
+    local fillTransparency = {Value = 0}
     local outline = {Value = true}
+    local outlineMode = {Value = "Custom"}
     local outlineColor = {Value = Color3.fromRGB(255, 0, 0)}
     local outlineTransparency = {Value = 0}
-    local fill = {Value = false}
-    local fillTransparency = {Value = 0}
-    local transparency = {Value = 0.6}
+    local color = {Value = Color3.fromRGB(255, 0, 0)}
+    local transparency = {Value = 0}
+    --local lineThickness = {Value = 0}
+    --local surfaceTransparency = {Value = 0}
     local useTeamColor = {Value = false}
     local teammates = {Value = false}
+    local alwaysOnTop = {Value = true}
     local connection
     local connection2
 
-    local chamsFolder = Instance.new("Folder")
-    chamsFolder.Parent = workspace
-    chamsFolder.Name = "chamsFolder"
+    local espLibrary = espLibrary:create("ESP")
 
-    local ObjectsName = {
-        "SelectionBoxObject",
-        "BoxHandleAdornmentObject",
-        "HighlightObject"
-    }
-
-    local function RemoveChams(Player)
-        local Character = Player.Character
-        if not Character then return end
-
-        for _, Object in ipairs(ObjectsName) do
-            local Object = Character:FindFirstChild(Object)
-            if Object then
-                Object:Destroy()
-            end
-        end
-    end
-
-    local function UpdateChams(Player)
-        if chams.Enabled and isAlive(Player) then
-            local Character = getCharacter(Player)
-            local AdorneePart = adorneePart.Value == "Full Character" and Character or Character:FindFirstChild(adorneePart.Value)
-            local teamColor = useTeamColor.Value and Player.Team and Player.TeamColor
-            local color = useTeamColor.Value and Player.Team and Player.TeamColor or color.Value
-
-            if mode.Value == "SelectionBox" then
-                local BoxObject = Character:FindFirstChild("SelectionBoxObject")
-                if not BoxObject then
-                    BoxObject = Instance.new("SelectionBox")
-                    BoxObject.Name = "SelectionBoxObject"
-                    BoxObject.Parent = Character
-                end
-                BoxObject.Adornee = AdorneePart
-                BoxObject.LineThickness = lineThickness.Value
-                BoxObject.SurfaceColor3 = color
-                BoxObject.SurfaceTransparency = surfaceTransparency.Value
-                BoxObject.Transparency = transparency.Value
-            elseif mode.Value == "BoxHandleAdornment" then
-                local BoxObject = Character:FindFirstChild("BoxHandleAdornmentObject")
-                if not BoxObject then
-                    BoxObject = Instance.new("BoxHandleAdornment")
-                    BoxObject.Name = "BoxHandleAdornmentObject"
-                    BoxObject.Parent = Character
-                end
-                BoxObject.Adornee = AdorneePart
-                BoxObject.Size = AdorneePart:GetExtentsSize()
-                BoxObject.AlwaysOnTop = alwaysOnTop.Value
-                BoxObject.Color3 = color
-                BoxObject.Transparency = transparency.Value
-            elseif mode.Value == "Highlight" then
-                local HighlightObject = Character:FindFirstChild("HighlightObject")
-                if not HighlightObject then
-                    HighlightObject = Instance.new("Highlight")
-                    HighlightObject.Name = "HighlightObject"
-                    HighlightObject.Parent = Character
-                end
-                HighlightObject.Adornee = AdorneePart
-                HighlightObject.FillColor = color
-                HighlightObject.FillTransparency = (fill.Value and fillTransparency.Value) or 1
-                HighlightObject.OutlineColor = color
-                HighlightObject.OutlineTransparency = (outline.Value and outlineTransparency.Value) or 1
-            end
-        end
-    end
-
-    local function updateAll()
-        for _, plr in next, Players:GetPlayers() do
-            UpdateChams(plr)
-        end
-    end
-
-    chams = Tabs.Render:CreateToggle({
-        Name = "Chams",
-        Keybind = nil,
+    esp = Tabs.Render:CreateToggle({
+        Name = "ESP",
+        HoverText = "Shows people through walls.",
         Callback = function(callback)
             if callback then
-                for _, plr in next, Players:GetPlayers() do
-                    UpdateChams(plr)
-                    connection = plr.CharacterAdded:Connect(function()
-                        UpdateChams(plr)
-                    end)
-                end
-                connection2 = Players.PlayerAdded:Connect(function(plr)
-                    UpdateChams(plr)
-                end)
+                espLibrary:start()
             else
-                for _, plr in next, Players:GetPlayers() do
-                    RemoveChams(plr)
-                end
-                if connection then
-                    connection:Disconnect()
-                end
-                if connection2 then
-                    connection2:Disconnect()
-                end
+                espLibrary:stop()
             end
         end
     })
 
-    mode = chams:CreateDropDown({
+    adorneePart = esp:CreateDropdown({
+        Name = "Attach Part",
+        List = {"Head", "HumanoidRootPart", "Full Character"},
+        Default = "Full Character",
+        Function = function(v)
+            espLibrary.adorneePart = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end
+    })
+
+    mode = esp:CreateDropdown({
         Name = "Mode",
-        List = {"SelectionBox", "BoxHandleAdornment", "Highlight"},
+        List = {"BoxHandleAdornment", "Highlight"}, --"SelectionBox", "BoxHandleAdornment", "Highlight"
         Default = "SelectionBox",
         Callback = function(v)
+            espLibrary.mode = v
             local modeVisibility = {
-                SelectionBox = {lineThickness, surfaceTransparency, color, transparency},
+                --SelectionBox = {lineThickness, surfaceTransparency, color, transparency},
                 BoxHandleAdornment = {color, transparency},
                 Highlight = {outline, outlineColor, outlineTransparency, fill, fillMode, fillColor, fillTransparency}
             }
-    
             for _, group in pairs(modeVisibility) do
                 for _, item in ipairs(group) do
                     if item.MainObject then
@@ -2110,132 +1992,59 @@ runFunction(function()
                     end
                 end
             end
-    
             for _, item in ipairs(modeVisibility[v]) do
                 if item.MainObject then
                     item.MainObject.Visible = true
                 end
             end
-            if chams.Enabled then
-                chams:ReToggle(true)
+            if esp.Enabled then
+                esp:ReToggle(true)
+                espLibrary:updateAll()
             end
         end
     })
 
-    fillMode = chams:CreateDropDown({
-        Name = "Fill color mode",
-        List = {"Team", "Custom"},
-        Default = "Team",
-        Function = function(v) 
-            if color.MainObject then
-                color.MainObject.Visible = v == "Custom"
-            end
-            if teammates.MainObject then
-                teammates.MainObject.Visible = v == "Custom"
-            end
-        end
-    })
-
-    color = chams:CreateColorSlider({
-        Name = "Color",
-        Default = Color3.fromRGB(255, 0, 0),
-        Function = function(v)
-            updateAll()
-        end
-    })
-
-    adorneePart = chams:CreateDropDown({
-        Name = "Attach Part",
-        List = {"Head", "HumanoidRootPart", "Full Character"},
-        Default = "Full Character",
-        Function = function(v) 
-        end
-    })
-
-    lineThickness = chams:CreateSlider({
-        Name = "Line Thickness",
-        Function = function(v) 
-            updateAll()
-        end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-
-    surfaceTransparency = chams:CreateSlider({
-        Name = "Surface Transparency",
-        Function = function(v) 
-            updateAll()
-        end,
-        Min = 0,
-        Max = 10,
-        Default = 1,
-        Round = 1
-    })
-
-    outline = chams:CreateToggle({
-        Name = "Outline",
-        Default = true,
-        Function = function(v)
-            if outlineColor.MainObject then
-                outlineColor.MainObject.Visible = v
-            end
-            if outlineTransparency.MainObject then
-                outlineTransparency.MainObject.Visible = v
-            end
-        end
-    })
-    outline.MainObject.Visible = false
-
-    outlineColor = chams:CreateColorSlider({
-        Name = "Outline color",
-        Default = Color3.fromRGB(255, 0, 0),
-        Function = function(v)
-            updateAll()
-        end
-    })
-    outlineColor.MainObject.Visible = false
-
-    outlineTransparency = chams:CreateSlider({
-        Name = "Outline Transparency",
-        Function = function(v) 
-            updateAll()
-        end,
-        Min = 0,
-        Max = 1,
-        Default = 0,
-        Round = 1
-    })
-    outlineTransparency.MainObject.Visible = false
-
-    fill = chams:CreateToggle({
+    fill = esp:CreateToggle({
         Name = "Fill",
         Default = true,
         Function = function(v)
-            if fillColor.MainObject then
-                fillColor.MainObject.Visible = v
-            end
-            if fillTransparency.MainObject then
-                fillTransparency.MainObject.Visible = v
-            end
+            espLibrary.fill = v
+            if fillColor.MainObject then fillColor.MainObject.Visible = v end
+            if fillTransparency.MainObject then fillTransparency.MainObject.Visible = v end
         end
     })
     fill.MainObject.Visible = false
 
-    fillColor = chams:CreateColorSlider({
+    fillMode = esp:CreateDropdown({
+        Name = "Fill color mode",
+        List = {"Team", "Custom"},
+        Default = "Team",
+        Function = function(v)
+            espLibrary.fillMode = v
+            if color.MainObject then color.MainObject.Visible = v == "Custom" end
+            if teammates.MainObject then teammates.MainObject.Visible = v == "Custom" end
+        end
+    })
+
+    fillColor = esp:CreateColorSlider({
         Name = "Fill color",
         Default = Color3.fromRGB(255, 0, 0),
-        Function = function(v) 
-            updateAll()
+        Function = function(v)
+            espLibrary.fillColor = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
         end
     })
     fillColor.MainObject.Visible = false
 
-    fillTransparency = chams:CreateSlider({
+    fillTransparency = esp:CreateSlider({
         Name = "Fill Transparency",
-        Function = function(v) 
-            updateAll()
+        Function = function(v)
+            espLibrary.fillTransparency = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
         end,
         Min = 0,
         Max = 1,
@@ -2244,10 +2053,62 @@ runFunction(function()
     })
     fillTransparency.MainObject.Visible = false
 
-    transparency = chams:CreateSlider({
+    outline = esp:CreateToggle({
+        Name = "Outline",
+        Default = true,
+        Function = function(v)
+            espLibrary.outline = v
+            if outlineColor.MainObject then outlineColor.MainObject.Visible = v end
+            if outlineTransparency.MainObject then outlineTransparency.MainObject.Visible = v end
+        end
+    })
+    outline.MainObject.Visible = false
+
+    outlineColor = esp:CreateColorSlider({
+        Name = "Outline color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            espLibrary.outlineColor = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end
+    })
+    outlineColor.MainObject.Visible = false
+
+    outlineTransparency = esp:CreateSlider({
+        Name = "Outline Transparency",
+        Function = function(v)
+            espLibrary.outlineTransparency = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+    outlineTransparency.MainObject.Visible = false
+
+    color = esp:CreateColorSlider({
+        Name = "Color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Function = function(v)
+            espLibrary.color = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end
+    })
+
+    transparency = esp:CreateSlider({
         Name = "Transparency",
-        Function = function(v) 
-            updateAll()
+        Function = function(v)
+            espLibrary.transparency = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
         end,
         Min = 0,
         Max = 1,
@@ -2255,19 +2116,67 @@ runFunction(function()
         Round = 1
     })
 
-    teammates = chams:CreateToggle({
-        Name = "Teammates",
-        Default = false,
-        Function = function(v) 
-            updateAll()
+    --[[
+    lineThickness = esp:CreateSlider({
+        Name = "Line Thickness",
+        Function = function(v)
+            espLibrary.lineThickness = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end,
+        Min = 0,
+        Max = 1,
+        Default = 0,
+        Round = 1
+    })
+
+    surfaceTransparency = esp:CreateSlider({
+        Name = "Surface Transparency",
+        Function = function(v)
+            espLibrary.surfaceTransparency = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end,
+        Min = 0,
+        Max = 10,
+        Default = 1,
+        Round = 1
+    })
+    ]]
+
+    alwaysOnTop = esp:CreateToggle({
+        Name = "AlwaysOnTop",
+        Default = true,
+        Function = function(v)
+            if mode.Value == "BoxHandleAdornment" then
+                esp.boxHandleAlwaysOnTop = v
+            elseif mode.Value == "Highlight" then
+                esp.highlightAlwaysOnTop = v
+            end
         end
     })
 
-    useTeamColor = chams:CreateToggle({
+    useTeamColor = esp:CreateToggle({
         Name = "TeamColor",
         Default = false,
-        Function = function(v) 
-            updateAll()
+        Function = function(v)
+            espLibrary.useTeamColor = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
+        end
+    })
+
+    teammates = esp:CreateToggle({
+        Name = "Teammates",
+        Default = false,
+        Function = function(v)
+            espLibrary.teammates = v
+            if esp.Enabled then
+                espLibrary:updateAll()
+            end
         end
     })
 end)
@@ -2278,7 +2187,7 @@ runFunction(function()
     local chinaHatTrail
     chinaHat = Tabs.Render:CreateToggle({
         Name = "ChinaHat",
-        Keybind = nil,
+        HoverText = "Puts a china hat on your head.",
         Callback = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat("chinaHat", function()
@@ -2302,7 +2211,7 @@ runFunction(function()
 						end
 						chinaHatTrail.CFrame = head.CFrame * CFrame.new(0, 1.1, 0)
 						chinaHatTrail.Velocity = Vector3.zero
-						chinaHatTrail.LocalTransparencyModifier = ((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.6 and 1 or 0)
+						chinaHatTrail.LocalTransparencyModifier = head.LocalTransparencyModifier--((Camera.CFrame.Position - Camera.Focus.Position).Magnitude <= 0.6 and 1 or 0)
 					else
 						if chinaHatTrail then
 							chinaHatTrail:Destroy()
@@ -2337,7 +2246,7 @@ runFunction(function()
     local id = {Value = ""}
     crossHair = Tabs.Render:CreateToggle({
         Name = "CustomCrossHair",
-        Keybind = nil,
+        HoverText = "Changes your crosshair.",
         Callback = function(callback)
             if callback then
                 Mouse.Icon = "rbxassetid://" .. id.Value
@@ -2451,7 +2360,7 @@ runFunction(function()
         end
     })
 
-    EspMode = Esp:CreateDropDown({
+    EspMode = Esp:CreateDropdown({
         Name = "Mode",
         List = {"Image"},
         Default = "Image",
@@ -2470,7 +2379,7 @@ runFunction(function()
         end
     })
 
-    NameMode = Esp:CreateDropDown({
+    NameMode = Esp:CreateDropdown({
         Name = "Name Mode",
         List = {"Username", "DisplayName"},
         Default = "Username",
@@ -2501,14 +2410,16 @@ end)
 runFunction(function()
     local fovChanger = {Enabled = false}
     local fov = {Value = 80}
+    local oldfov
     fovChanger = Tabs.Render:CreateToggle({
-        Name = "FovChanger",
-        Keybind = nil,
+        Name = "FOVChanger",
+        HoverText = "Changes your field for view.",
         Callback = function(callback)
             if callback then
+                oldfov = Camera.FieldOfView
                 Camera.FieldOfView = fov.Value
             else
-                Camera.FieldOfView = OldFov
+                Camera.FieldOfView = oldfov
             end
         end
     })
@@ -2530,7 +2441,7 @@ runFunction(function()
     local connection
     fullbright = Tabs.Render:CreateToggle({
         Name = "Fullbright",
-        Keybind = nil,
+        HoverText = "Makes everything brigher.",
         Callback = function(callback)
             if callback then
                 params.Brightness = Lighting.Brightness
@@ -2586,12 +2497,13 @@ runFunction(function()
 
     keyStrokes = Tabs.Render:CreateToggle({
         Name = "KeyStrokes",
+        HoverText = "Creates ui with keys and shows which ones you held.",
         Callback = function(callback)
             Mana.KeyStrokes:toggle()
         end
     })
 
-    mode = keyStrokes:CreateDropDown({
+    mode = keyStrokes:CreateDropdown({
         Name = "Mode",
         Function = function(v) 
             Mana.KeyStrokes:changeSymbols(v)
@@ -2652,7 +2564,7 @@ runFunction(function()
         end
     })
 
-    textXAllignment = keyStrokes:CreateDropDown({
+    textXAllignment = keyStrokes:CreateDropdown({
         Name = "Text X Pos",
         Function = function(v) 
             Mana.KeyStrokes:updateTextPosition(v, textYAllignment.Value)
@@ -2661,7 +2573,7 @@ runFunction(function()
         Default = "Left"
     })
 
-    textYAllignment = keyStrokes:CreateDropDown({
+    textYAllignment = keyStrokes:CreateDropdown({
         Name = "Text Y Pos",
         Function = function(v) 
             Mana.KeyStrokes:updateTextPosition(textXAllignment.Value, v)
@@ -2685,16 +2597,18 @@ runFunction(function()
     local nameTagsFolder = Instance.new("Folder")
     nameTagsFolder.Name = "NameTagsFolder"
     nameTagsFolder.Parent = CoreGui or workspace
-    
+    local connections = {}
+    local lastFullUpdate
+
     for _, existing in pairs(CoreGui:GetChildren()) do
         if existing.Name == "NameTagsFolder" and existing ~= nameTagsFolder then
             existing:Destroy()
         end
     end
-    
+
     local function CleanupPlayerNameTag(plr)
         local playerName = typeof(plr) == "string" and plr or plr.Name
-        
+
         if billboardGuis[playerName] then
             if billboardGuis[playerName].Parent then
                 billboardGuis[playerName]:Destroy()
@@ -2702,7 +2616,7 @@ runFunction(function()
             billboardGuis[playerName] = nil
         end
     end
-    
+
     local textLabelProps = {
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -2751,7 +2665,8 @@ runFunction(function()
 
         local character = getCharacter(plr)
         local humanoid = getHumanoid(plr)
-        local rootPart = getHumanoidRootPart(plr)
+        local humanoidRootPart = getHumanoidRootPart(plr)
+        local localHumanoidRootPart = getHumanoidRootPart()
         
         local textLabel = billboardGui:FindFirstChild("NameTagText")
         if not textLabel then return end
@@ -2759,12 +2674,11 @@ runFunction(function()
         local nameText = mode.Value == "Username" and plr.Name or plr.DisplayName
         local parts = {}
 
-        table.insert(parts, string.format("<font color=\"rgb(%d, %d, %d)\">%d</font>", 
+        table.insert(parts, string.format("<font color=\"rgb(%d, %d, %d)\">%s</font>",
             color.RawColorTable.R,
             color.RawColorTable.G,
             color.RawColorTable.B,
-            nameText
-        ))
+        nameText))
         
         if showHP.Value then
             local health = math.floor(humanoid.Health)
@@ -2779,15 +2693,15 @@ runFunction(function()
             health))
         end
         
-        if showDistance.Value and isAlive(LocalPlayer) then
-            local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+        if showDistance.Value and isAlive() then
+            local distance = math.floor((localHumanoidRootPart.Position - humanoidRootPart.Position).Magnitude)
             table.insert(parts, string.format(" [%dm]", distance))
         end
         
         textLabel.Text = table.concat(parts)
         
-        if showDistance.Value and isAlive(LocalPlayer) then
-            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude
+        if showDistance.Value and isAlive() then
+            local distance = (localHumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
             local scaleFactor = math.clamp(1 - (distance / maxDistance.Value) * 0.5, 0.5, 1)
             if math.abs(textLabel.TextSize - (16 * scaleFactor)) > 0.5 then
                 textLabel.TextSize = 16 * scaleFactor
@@ -2816,43 +2730,32 @@ runFunction(function()
         end
     end
     
-    local function DisconnectAll()
-        for _, connection in pairs(connections) do
-            if typeof(connection) == "RBXScriptConnection" and connection.Connected then
-                connection:Disconnect()
-            end
-        end
-        connections = {}
-    end
 
     nameTags = Tabs.Render:CreateToggle({
         Name = "NameTags",
-        Keybind = nil,
+        HoverText = "Adds nametag above every player.",
         Callback = function(callback)
-            RunLoops:UnbindFromRenderStep("NameTags")
-            DisconnectAll()
             if callback then
-                CleanupAllNameTags()
-                local playerRemovingConn = Players.PlayerRemoving:Connect(function(plr)
-                    if nameTags.Enabled then
-                        CleanupPlayerNameTag(plr)
-                    end
-                end)
-                table.insert(connections, playerRemovingConn)
-                local lastFullUpdate = 0
+                table.insert(connections, Players.PlayerRemoving:Connect(function(plr) -- note: here connections is a new table, not accross this whole script
+                    CleanupPlayerNameTag(plr)
+                end))
+                lastFullUpdate = 0
                 RunLoops:BindToRenderStep("NameTags", function()
                     local now = tick()
-                    local LocalPlayer = Players.LocalPlayer
                     if now - lastFullUpdate > 0.5 then
-                        lastFullUpdate = now                      
+                        lastFullUpdate = now
                         for _, plr in pairs(Players:GetPlayers()) do
                             if plr ~= LocalPlayer then
                                 if isAlive(plr) and (not billboardGuis[plr.Name] or not billboardGuis[plr.Name].Parent) then
                                     CreateNameTag(plr)
+                                    table.insert(connections, plr.CharacterRemoving:Connect(function()
+                                        CleanupPlayerNameTag(plr)
+                                    end))
                                 elseif (not isAlive(plr)) and billboardGuis[plr.Name] then
                                     CleanupPlayerNameTag(plr)
                                 end
                             end
+                            
                         end
                     end
                     for name, gui in pairs(billboardGuis) do
@@ -2863,12 +2766,15 @@ runFunction(function()
                     end
                 end)
             else
+                for _, connection in next, connections do
+                    betterDisconnect(connection)
+                end
                 CleanupAllNameTags()
             end
         end
     })
 
-    mode = nameTags:CreateDropDown({
+    mode = nameTags:CreateDropdown({
         Name = "Name Mode",
         List = {"Username", "DisplayName"},
         Default = "Username",
@@ -2935,27 +2841,40 @@ end)
 
 runFunction(function()
     local rainbowSkin = {Enabled = false}
-    local mode = {Value = "Random"}
+    local mode = {Value = "FullCharacter"}
+    local colorMode = {Value = "Random"}
     local color = {Value = Color3.fromRGB(255, 255, 255)}
     local delay = {Value = 0.1}
+    local newColor
+
     rainbowSkin = Tabs.Render:CreateToggle({
         Name = "RainbowSkin",
-        Keybind = nil,
+        HoverText = "Makes your skin rainbow/random color.",
         Callback = function(callback)
             repeat
-                for _, part in pairs(getCharacter(LocalPlayer):GetDescendants()) do
+                for _, part in next, getCharacter():GetDescendants() do
                     if part:IsA("BasePart") then
-                        local color = mode.Value == "Random" and Color3.new(math.random(), math.random(), math.random()) or color.Value
-                        part.Color = color
+                        if mode.Value == "FullCharacter" then
+                            part.Color = (colorMode.Value == "Random") and Color3.new(math.random(), math.random(), math.random()) or color.Value
+                        else
+                            part.Color = (colorMode.Value == "Random") and Color3.new(math.random(), math.random(), math.random()) or color.Value
+                        end
                     end
                 end
                 wait(delay.Value)
-            until not callback
+            until not rainbowSkin.Enabled
         end
     })
 
-    mode = rainbowSkin:CreateDropDown({
+    mode = rainbowSkin:CreateDropdown({
         Name = "Mode",
+        List = {"FullCharacter", "PerPart"},
+        Default = "PerPart",
+        Function = function(v) end
+    })
+
+    colorMode = rainbowSkin:CreateDropdown({
+        Name = "ColorMode",
         List = {"Random", "Custom"},
         Default = "Random",
         Function = function(v)
@@ -2988,50 +2907,47 @@ runFunction(function()
     local volume = {Value = 1}
     local sound
     local current, max = 1, 1
+    local currentID
 
     soundPlayer = Tabs.Render:CreateToggle({
         Name = "SoundPlayer",
-        Keybind = nil,
+        HoverText = "Plays music.",
         Callback = function(callback)
-            coroutine.wrap(function()
-                while soundPlayer.Enabled do
-                    local currentID
-
-                    if mode.Value == "Random" then
-                        currentID = #sounds.List > 0 and sounds.List[math.random(1, #sounds.List)] or "142376088"
-                    elseif mode.Value == "Order" then
-                        max = #sounds.List
-                        currentID = sounds.List[current] or "142376088"
-                        current = current + 1
-                        if current > max then current = 1 end
-                    end
-                    if currentID and currentID ~= "" then
-                        if sound then
-                            sound:Stop()
-                            sound:Destroy()
-                        end
-
-                        sound = Instance.new("Sound")
-                        sound.SoundId = tonumber(currentID) and "rbxassetid://" .. currentID or currentID
-                        sound.Volume = volume.Value
-                        sound.Parent = workspace
-                        sound:Play()
-
-                        repeat wait() until sound.IsLoaded
-
-                        sound.Ended:Wait()
-                    end
+            repeat
+                if mode.Value == "Random" then
+                    currentID = #sounds.List > 0 and sounds.List[math.random(1, #sounds.List)] or "142376088"
+                elseif mode.Value == "Order" then
+                    max = #sounds.List
+                    currentID = sounds.List[current] or "142376088"
+                    current = current + 1
+                    if current > max then current = 1 end
                 end
-                if not soundPlayer.Enabled and sound then
-                    sound:Stop()
-                    sound:Destroy()
-                    sound = nil
+                if currentID and currentID ~= "" then
+                    if sound then
+                        sound:Stop()
+                        sound:Destroy()
+                    end
+
+                    sound = Instance.new("Sound")
+                    sound.SoundId = tonumber(currentID) and "rbxassetid://" .. currentID or currentID
+                    sound.Volume = volume.Value
+                    sound.Parent = workspace
+                    sound:Play()
+
+                    repeat task.wait() until sound.IsLoaded
+
+                    sound.Ended:Wait()
                 end
-            end)()
+            until not soundPlayer.Enabled
+            if not soundPlayer.Enabled and sound then
+                sound:Stop()
+                sound:Destroy()
+                sound = nil
+            end
         end
     })
 
-    mode = soundPlayer:CreateDropDown({
+    mode = soundPlayer:CreateDropdown({
         Name = "Mode",
         List = {"Random", "Order"},
         Default = "Random",
@@ -3073,21 +2989,21 @@ runFunction(function()
 
     local function addHighlight(obj)
         if obj:FindFirstChild("SpawnESP") then return end
-        local spawnESP = Instance.new("Highlight")
-        spawnESP.Name = "SpawnESP"
-        spawnESP.Adornee = obj
-        spawnESP.Parent = obj
-        spawnESP.FillColor = fillColor.Value
-        spawnESP.FillTransparency = fill.Value and fillTransparency.Value or 1
-        spawnESP.OutlineColor = outlineColor.Value
-        spawnESP.OutlineTransparency = outline.Value and outlineTransparency.Value or 1
-        spawnESP.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        table.insert(objects, spawnESP)
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "SpawnESP"
+        highlight.Adornee = obj
+        highlight.Parent = obj
+        highlight.FillColor = fillColor.Value
+        highlight.FillTransparency = fill.Value and fillTransparency.Value or 1
+        highlight.OutlineColor = outlineColor.Value
+        highlight.OutlineTransparency = outline.Value and outlineTransparency.Value or 1
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        table.insert(objects, highlight)
     end
 
     spawnEsp = Tabs.Render:CreateToggle({
         Name = "SpawnESP",
-        Keybind = nil,
+        HoverText = "Highlights every spawn that has 0 transparency.",
         Callback = function(callback)
             if callback then
                 for _, obj in pairs(workspace:GetDescendants()) do
@@ -3215,35 +3131,54 @@ runFunction(function()
     local viewClip = {Enabled = false}
     viewClip = Tabs.Render:CreateToggle({
         Name = "ViewClip",
-        Keybind = nil,
-        Callback = function(callback) 
+        HoverText = "Makes your camera go through objects.",
+        Callback = function(callback)
             LocalPlayer.DevCameraOcclusionMode = callback and "Invisicam" or "Zoom"
         end
     })
 end)
 
--- Utility tab
+-- // Utility tab
 runFunction(function()
     local antiAFK = {Enabled = false}
+    local mode = {Value = "AutoClick"}
+    local connection
     antiAFK = Tabs.Utility:CreateToggle({
         Name = "AntiAFK",
-        Keybind = nil,
+        HoverText = "Makes you able to idle for inf amount of time,\nAutoClick clicks when you idle.\nDisableConnections disables connections and requires getconnections function.",
         Callback = function(callback) 
-            if callback then 
-                if getconnections then                     
-                    for i,v in next, getconnections(LocalPlayer.Idled) do
-                        v:Disable()
+            if callback then
+                if mode.Value == "AutoClick" then
+                connection = localPlayer.Idled:Connect(function()
+                    virtualUser:Button2Down(Vector2.new(0, 0))
+                    task.wait(0.1)
+                    virtualUser:Button2Up(Vector2.new(0, 0))
+                end)
+                elseif mode.Value == "DisableConnections" then
+                    if getconnections then
+                        for i,v in next, getconnections(LocalPlayer.Idled) do
+                            v:Disable()
+                        end
+                    else
+                        GuiLibrary:CreateNotification("AntiAFK", "Missing getconnections function.", 10, "Error")
+                        antiAFK:Toggle(true)
                     end
-                else
-                    GuiLibrary:CreateNotification("AntiAFK", "Missing getconnections function.", 10, false, "error")
-                    antiAFK:Toggle(true)
                 end
             else
-                for i,v in next, getconnections(LocalPlayer.Idled) do
-                    v:Enable()
+                if getconnections then
+                    for i,v in next, getconnections(LocalPlayer.Idled) do
+                        v:Enable()
+                    end
                 end
             end
         end
+    })
+
+    mode = antiAFK:CreateDropdown({
+        Name = "Mode",
+        List = {"AutoClick", "DisableConnections"},
+        Default = "AutoClick",
+        Function = function(v) end
     })
 end)
 
@@ -3251,20 +3186,20 @@ runFunction(function()
     local antiFling = {Enabled = false}
     antiFling = Tabs.Utility:CreateToggle({
         Name = "AntiFling",
-        Keybind = nil,
+        HoverText = "Makes people unable to push/fling you.\nDisables collision.",
         Callback = function(callback) 
             if callback then 
-                RunLoops:BindToHeartbeat("AntiFling", function(Delta)
-                    for _, part in next, getCharacter(LocalPlayer):GetChildren() do
-                        if part:IsA("BasePart") and part.Name == not "HumanoidRootPart" then
+                RunLoops:BindToHeartbeat("AntiFling", function()
+                    for _, part in next, getCharacter():GetChildren() do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                             part.CanCollide = false
                         end
                     end
                 end)
             else
                 RunLoops:UnbindFromHeartbeat("AntiFling")
-                for _, part in next, getCharacter(LocalPlayer):GetChildren() do
-                    if part:IsA("BasePart") and part.Name == not "HumanoidRootPart" then
+                for _, part in next, getCharacter():GetChildren() do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                         part.CanCollide = true
                     end
                 end
@@ -3272,6 +3207,7 @@ runFunction(function()
         end
     })
 end)
+
 
 --[[patched but i don't want to remove it
 runFunction(function()
@@ -3393,28 +3329,28 @@ end)
 runFunction(function()
     local antiKick = {Enabled = false}
 	local first = false
-    local OldNameCall
+    local oldNameCall
     antiKick = Tabs.Utility:CreateToggle({
         Name = "AntiKick",
-        Keybind = nil,
+        HoverText = "Removes client sided kicks.\nRequires hookmetamethod function.",
         Callback = function(callback) 
             if callback then
                 if hookmetamethod then
-                    OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
+                    oldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
                         local NameCallMethod = getnamecallmethod()
         
                         if tostring(string.lower(NameCallMethod)) == "kick" and callback and not first then
-                            GuiLibrary:CreateNotification("AntiKick", "Detected kick attempt.", 7, false, "warn")
+                            GuiLibrary:CreateNotification("AntiKick", "Detected kick attempt.", 7, "Warning")
                             return nil
                         end
         
-                        return OldNameCall(Self, ...)
+                        return oldNameCall(Self, ...)
                     end)
                     if not first then
                         first = true
                     end
                 else
-                    GuiLibrary:CreateNotification("AntiKick", "Missing hookmetamethod function.", 10, false)
+                    GuiLibrary:CreateNotification("AntiKick", "Missing hookmetamethod function.", 10, "Error")
                     antiKick:Toggle(true)
                     return
                 end
@@ -3464,7 +3400,7 @@ runFunction(function()
         end
     })
 
-    local Mode = AutoClickDetector:CreateDropDown({
+    local Mode = AutoClickDetector:CreateDropdown({
         Name = "Mode",
         List = {"Toggle", "Button"},
         Default = "Toggle",
@@ -3497,23 +3433,23 @@ runFunction(function()
     local sameServer = {Value = false}
     autoRejoin = Tabs.Utility:CreateToggle({
         Name = "AutoRejoin",
-        Keybind = nil,
+        HoverText = "Automatically rejoins when you get kicked for idling.",
         Callback = function(callback) 
             if callback then 
                 repeat wait(delay.Value) until autoRejoin.Enabled == false or #CoreGui.RobloxPromptGui.promptOverlay:GetChildren() ~= 0
                 if autoRejoin.Enabled and sameServer then 
                     if #Players:GetPlayers() <= 1 then
-                        LocalPlayer:Kick("\nRejoining...")
+                        localPlayer:Kick("\nRejoining...")
                         task.wait()
-                        TeleportService:Teleport(PlaceId, LocalPlayer)
+                        teleportService:Teleport(PlaceId, localPlayer)
                     else
-                        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
+                        teleportService:TeleportToPlaceInstance(PlaceId, JobId, localPlayer)
                     end
                 else
                     if #Players:GetPlayers() <= 1 then
-                        LocalPlayer:Kick("\nRejoining...")
+                        localPlayer:Kick("\nRejoining...")
                         task.wait()
-                        TeleportService:Teleport(PlaceId, LocalPlayer)
+                        teleportService:Teleport(PlaceId, localPlayer)
                     end
                 end
             end
@@ -3538,14 +3474,16 @@ end)
 
 runFunction(function()
     local cameraUnlock = {Enabled = false}
+    local oldZoomDistance
     cameraUnlock = Tabs.Utility:CreateToggle({
         Name = "CameraUnlock",
-        Keybind = nil,
-        Callback = function(callback) 
-            if callback then 
-                LocalPlayer.CameraMaxZoomDistance = 99999999
+        HoverText = "Makes you able to zoom out your camera very far.",
+        Callback = function(callback)
+            if callback then
+                oldZoomDistance = localPlayer.CameraMaxZoomDistance
+                localPlayer.CameraMaxZoomDistance = 99999999
             else
-                LocalPlayer.CameraMaxZoomDistance = OldCameraMaxZoomDistance
+                localPlayer.CameraMaxZoomDistance = oldZoomDistance
             end
         end
     })
@@ -3559,10 +3497,9 @@ runFunction(function()
     local delay = {Value = 1}
     local hideFloodMessage = {Value = false}
     local connection, max, current = nil, 0, 1
-
     chatSpammer = Tabs.Utility:CreateToggle({
         Name = "ChatSpammer",
-        Keybind = nil,
+        HoverText = "Automatically sends messages in chat.",
         Callback = function(callback) 
             if callback then
                 if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
@@ -3570,14 +3507,14 @@ runFunction(function()
                         local msg
                         if mode.Value == "Random" then
                             if #spamMessages.List == 0 then
-                                msg = "Maanaaaa was here"
+                                msg = "Hello world!"
                             else
                                 msg = spamMessages.List[math.random(1, #spamMessages.List)]
                             end
                         elseif mode.Value == "Order" then
                             max = #spamMessages.List
                             if #spamMessages.List == 0 then
-                                msg = "Maanaaaa was here"
+                                msg = "Hello world!"
                             end
                             if spamMessages.List[current] then
                                 msg = spamMessages.List[current]
@@ -3601,7 +3538,6 @@ runFunction(function()
                             connection = RCTScrollContentView.ChildAdded:Connect(function(msg)
                                 if msg.ContentText == "You must wait before sending another message." then
                                     msg.Visible = false
-                                    print("detected flood message")
                                 end
                             end)
                         end
@@ -3615,7 +3551,7 @@ runFunction(function()
         end
     })
 
-    mode = chatSpammer:CreateDropDown({
+    mode = chatSpammer:CreateDropdown({
         Name = "Mode",
         List = {"Random", "Order"},
         Default = "Random",
@@ -3645,6 +3581,7 @@ runFunction(function()
     })
 end)
 
+-- // i hate this
 if Animate and CheckForAllAnimateParams(Animate) == true then
     runFunction(function()
         local customAnimations = {Enabled = false}
@@ -3670,7 +3607,7 @@ if Animate and CheckForAllAnimateParams(Animate) == true then
         }
         customAnimations = Tabs.Utility:CreateToggle({
             Name = "CustomAnimations",
-            Keybind = nil,
+            HoverText = "Customizes your animations.",
             Callback = function(callback) 
                 if callback then 
                     Animate.idle.Animation1.AnimationId = tonumber(idleAnimation1.Value) and "http://www.roblox.com/asset/?id=" .. idleAnimation1.Value or idleAnimation1.Value
@@ -3767,7 +3704,7 @@ runFunction(function()
     local connection
     consoleCommands = Tabs.Utility:CreateToggle({
         Name = "ConsoleCommands",
-        Keybind = nil,
+        HoverText = "Creates a command bar in dev console.",
         Callback = function(callback)
             if callback then
                 commandbar = Instance.new("Frame")
@@ -3824,7 +3761,7 @@ runFunction(function()
                 end))
             else
                 commandbar:Destroy()
-                if connection then connection:Disconnect() end
+                betterDisconnect(connection)
             end
         end
     })
@@ -4072,7 +4009,7 @@ runFunction(function()
         end
     })
 
-    mode = godMode:CreateDropDown({
+    mode = godMode:CreateDropdown({
         Name = "Mode",
         List = {"Heal", "HRP", "AntiKnockback", "Invulnerability"},
         Default = "Heal",
@@ -4111,7 +4048,7 @@ runFunction(function()
     local objects = {}
     fastProximityPrompts = Tabs.Utility:CreateToggle({
         Name = "FastProximityPrompts",
-        Keybind = nil,
+        HoverText = "Makes you able to customize proximity prompt hold duration.",
         Callback = function(callback)
             if callback then
                 for _, ProximityObject in pairs(workspace:GetDescendants()) do
@@ -4153,13 +4090,13 @@ runFunction(function()
     local fpsUnlocker = {Enabled = false}
     fpsUnlocker = Tabs.Utility:CreateToggle({
         Name = "FPSUnlocker",
-        Keybind = nil,
+        HoverText = "Unlocks your FPS.",
         Callback = function(callback)
             if callback then
                 if setfpscap then
                     setfpscap(10000000)
                 else
-                    GuiLibrary:CreateNotification("FPSUnlocker", "Missing setfpscap function.", 10, false, "error")
+                    GuiLibrary:CreateNotification("FPSUnlocker", "Missing setfpscap function.", 10, "Error")
                     fpsUnlocker:Toggle(true)
                     return
                 end
@@ -4173,16 +4110,16 @@ runFunction(function()
     local connection
     infiniteJump = Tabs.Utility:CreateToggle({
         Name = "InfinityJump",
-        Keybind = nil,
+        HoverText  = "Allows you to jump infinitely.",
         Callback = function(callback) 
             if callback then 
                 connection = UserInputService.JumpRequest:Connect(function()
                     if callback then
-                        getHumanoid(LocalPlayer):ChangeState(3)
+                        getHumanoid():ChangeState(3)
                     end
                 end)
             else
-                if connection then connection:Disconnect() end
+                betterDisconnect(connection)
             end
         end
     })
@@ -4212,11 +4149,11 @@ runFunction(function()
     local rejoin = {Enabled = false}
     rejoin = Tabs.Utility:CreateToggle({
         Name = "Rejoin",
-        Keybind = nil,
+        HoverText = "Rejoins the same game to the same server.",
         Callback = function(callback) 
             if callback then 
                 rejoin:Toggle(false, false)
-                TeleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
+                teleportService:TeleportToPlaceInstance(PlaceId, JobId, LocalPlayer)
             end
         end
     })
@@ -4226,11 +4163,11 @@ runFunction(function()
     local serverHop = {Enabled = false}
     serverHop = Tabs.Utility:CreateToggle({
         Name = "ServerHop",
-        Keybind = nil,
+        HoverText = "Joins the same game but to the different server.",
         Callback = function(callback) 
             if callback then 
                 serverHop:Toggle(false, false)
-                TeleportService:Teleport(PlaceId)
+                teleportService:Teleport(PlaceId)
             end
         end
     })
@@ -4325,7 +4262,7 @@ runFunction(function()
 
     antiVoid = Tabs.World:CreateToggle({
         Name = "AntiVoid",
-        Keybind = nil,
+        HoverText = "Makes you unable to fall into the void.",
         Callback = function(callback)
             if callback then
                 RunLoops:BindToRenderStep("AntiVoid", function()
@@ -4339,18 +4276,17 @@ runFunction(function()
                             AntiVoidPlatform.Transparency = 1
                             AntiVoidPlatform.Parent = workspace
                         end
-
-                        connection = RunService.Stepped:Connect(function(deltaTime)
-                            local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                            if antiVoid.Enabled then
-                                savePosition(deltaTime)
-                                RescueFromVoid()
-                                
-                                if mode.Value == "Jump" and AntiVoidPlatform and RootPart and RootPart.Position.Y > (voidYpos + math.abs(voidYpos)) then
-                                    AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos - 50, RootPart.Position.Z)
-                                end
-                            end
-                        end)
+                    end
+                end)
+                connection = RunService.Stepped:Connect(function(deltaTime)
+                    local RootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if antiVoid.Enabled then
+                        savePosition(deltaTime)
+                        RescueFromVoid()
+                        
+                        if mode.Value == "Jump" and AntiVoidPlatform and RootPart and RootPart.Position.Y > (voidYpos + math.abs(voidYpos)) then
+                            AntiVoidPlatform.CFrame = CFrame.new(RootPart.Position.X, voidYpos - 50, RootPart.Position.Z)
+                        end
                     end
                 end)
             else
@@ -4358,14 +4294,12 @@ runFunction(function()
                 if AntiVoidPlatform then
                     AntiVoidPlatform:Destroy()
                 end
-                if connection then
-                    connection:Disconnect()
-                end
+                betterDisconnect(connection)
             end
         end
     })
 
-    mode = antiVoid:CreateDropDown({
+    mode = antiVoid:CreateDropdown({
         Name = "Mode",
         Function = function(v) end,
         List = {"Jump", "Teleport"},
@@ -4410,7 +4344,7 @@ runFunction(function()
 
     atmosphereModule = Tabs.World:CreateToggle({
         Name = "Atmopshere",
-        Keybind = nil,
+        HoverText = "Customizes the atmosphere of the game.",
         Callback = function(callback)
             if callback then
                 for i, v in pairs(Lighting:GetChildren()) do
@@ -4535,21 +4469,22 @@ end)
 
 runFunction(function()
     local gravity = {Enabled = false}
-    local gravityValue = {Value = 18}
-    local gravityEnabled = false
+    local value = {Value = 18}
+    local oldGravity
     gravity = Tabs.World:CreateToggle({
         Name = "Gravity",
-        Keybind = nil,
+        HoverText = "Changes the game gravity.",
         Callback = function(callback)
             if callback then
-                workspace.Gravity = gravityValue.Value
+                oldGravity = workspace.Gravity
+                workspace.Gravity = value.Value
             else
-                workspace.Gravity = workspaceGravity
+                workspace.Gravity = oldGravity
             end
         end
     })
     
-    gravityValue = gravity:CreateSlider({
+    value = gravity:CreateSlider({
         Name = "Gravity",
         Function = function(v)
             if gravity.Enabled then
@@ -4581,7 +4516,7 @@ runFunction(function()
     local connection
     customLighting = Tabs.World:CreateToggle({
         Name = "Lighting",
-        Keybind = nil,
+        HoverText = "Customizes the lighting of the game.",
         Callback = function(callback)
             if callback then
                 Lighting.ShadowSoftness = shadowSoftness.Value
@@ -4728,131 +4663,132 @@ end)
 
 runFunction(function()
     local customSky = {Enabled = false}
-    local skyUp = {Value = ""}
-	local skyDown = {Value = ""}
-	local skyLeft = {Value = ""}
-	local skyRight = {Value = ""}
-	local skyFront = {Value = ""}
-	local skyBack = {Value = ""}
-	local skySun = {Value = ""}
+    local up = {Value = ""}
+    local down = {Value = ""}
+    local left = {Value = ""}
+    local right = {Value = ""}
+    local front = {Value = ""}
+    local back = {Value = ""}
+    local sun = {Value = ""}
     local sunSize = {Value = 11}
-	local skyMoon = {Value = ""}
+    local moon = {Value = ""}
     local moonSize = {Value = 11}
     local oldSkyObjects = {}
     local skyObject
     local connection
+
     customSky = Tabs.World:CreateToggle({
         Name = "Sky",
-        Keybind = nil,
+        HoverText = "Customizes the sky of the game.",
         Callback = function(callback)
             if callback then
-                for i,v in pairs(Lighting:GetChildren()) do
-					if v:IsA("PostEffect") or (v:IsA("Sky") and v.Name == not "SkyObject") then
-						table.insert(oldSkyObjects, v)
-						v.Parent = game
-					end
-				end
-				skyObject = Instance.new("Sky")
+                for _, v in pairs(Lighting:GetChildren()) do
+                    if v:IsA("PostEffect") or (v:IsA("Sky") and v.Name ~= "SkyObject") then
+                        table.insert(oldSkyObjects, v)
+                        v.Parent = game
+                    end
+                end
+
+                skyObject = Instance.new("Sky")
                 skyObject.Name = "SkyObject"
                 skyObject.Parent = Lighting
-				skyObject.SkyboxBk = "rbxassetid://"..skyBack.Value
-                skyObject.SkyboxDn = "rbxassetid://"..skyDown.Value
-                skyObject.SkyboxFt = "rbxassetid://"..skyFront.Value
-                skyObject.SkyboxLf = "rbxassetid://"..skyLeft.Value
-                skyObject.SkyboxRt = "rbxassetid://"..skyRight.Value
-                skyObject.SkyboxUp = "rbxassetid://"..skyUp.Value
-                skyObject.SunTextureId = "rbxassetid://"..skySun.Value
-                skyObject.MoonTextureId = "rbxassetid://"..skyMoon.Value
+                skyObject.SkyboxBk = "rbxassetid://" .. back.Value
+                skyObject.SkyboxDn = "rbxassetid://" .. down.Value
+                skyObject.SkyboxFt = "rbxassetid://" .. front.Value
+                skyObject.SkyboxLf = "rbxassetid://" .. left.Value
+                skyObject.SkyboxRt = "rbxassetid://" .. right.Value
+                skyObject.SkyboxUp = "rbxassetid://" .. up.Value
+                skyObject.SunTextureId = "rbxassetid://" .. sun.Value
+                skyObject.MoonTextureId = "rbxassetid://" .. moon.Value
                 skyObject.SunAngularSize = sunSize.Value
                 skyObject.MoonAngularSize = moonSize.Value
 
                 connection = skyObject.Changed:Connect(function()
                     skyObject.Name = "SkyObject"
                     skyObject.Parent = Lighting
-                    skyObject.SkyboxBk = "rbxassetid://"..skyBack.Value
-                    skyObject.SkyboxDn = "rbxassetid://"..skyDown.Value
-                    skyObject.SkyboxFt = "rbxassetid://"..skyFront.Value
-                    skyObject.SkyboxLf = "rbxassetid://"..skyLeft.Value
-                    skyObject.SkyboxRt = "rbxassetid://"..skyRight.Value
-                    skyObject.SkyboxUp = "rbxassetid://"..skyUp.Value
-                    skyObject.SunTextureId = "rbxassetid://"..skySun.Value
-                    skyObject.MoonTextureId = "rbxassetid://"..skyMoon.Value
+                    skyObject.SkyboxBk = "rbxassetid://" .. back.Value
+                    skyObject.SkyboxDn = "rbxassetid://" .. down.Value
+                    skyObject.SkyboxFt = "rbxassetid://" .. front.Value
+                    skyObject.SkyboxLf = "rbxassetid://" .. left.Value
+                    skyObject.SkyboxRt = "rbxassetid://" .. right.Value
+                    skyObject.SkyboxUp = "rbxassetid://" .. up.Value
+                    skyObject.SunTextureId = "rbxassetid://" .. sun.Value
+                    skyObject.MoonTextureId = "rbxassetid://" .. moon.Value
                     skyObject.SunAngularSize = sunSize.Value
                     skyObject.MoonAngularSize = moonSize.Value
                 end)
-			else
-                connection:Disconnect()
-				if skyObject then 
-                    skyObject:Destroy() 
+            else
+                betterDisconnect(connection)
+                if skyObject then skyObject:Destroy() end
+                for _, v in pairs(oldSkyObjects) do
+                    v.Parent = Lighting
                 end
-				for i,v in pairs(oldSkyObjects) do
-					v.Parent = Lighting
-				end
-				table.clear(oldSkyObjects)
+                table.clear(oldSkyObjects)
             end
         end
     })
 
-    skyBack = customSky:CreateTextBox({
+    back = customSky:CreateTextBox({
         Name = "SkyBack",
         PlaceholderText = "Sky Back ID",
         DefaultValue = "6444884337",
-        Function = function(v) end,
+        Function = function(v) back.Value = v end,
     })
 
-    skyDown = customSky:CreateTextBox({
+    down = customSky:CreateTextBox({
         Name = "SkyDown",
         PlaceholderText = "Sky Down ID",
         DefaultValue = "6444884785",
-        Function = function(v) end,
+        Function = function(v) down.Value = v end,
     })
 
-    skyFront = customSky:CreateTextBox({
+    front = customSky:CreateTextBox({
         Name = "SkyFront",
         PlaceholderText = "Sky Front ID",
         DefaultValue = "6444884337",
-        Function = function(v) end,
+        Function = function(v) front.Value = v end,
     })
 
-    skyLeft = customSky:CreateTextBox({
+    left = customSky:CreateTextBox({
         Name = "SkyLeft",
         PlaceholderText = "Sky Left ID",
         DefaultValue = "6444884337",
-        Function = function(v) end,
+        Function = function(v) left.Value = v end,
     })
 
-    skyRight = customSky:CreateTextBox({
+    right = customSky:CreateTextBox({
         Name = "SkyRight",
         PlaceholderText = "Sky Right ID",
         DefaultValue = "6444884337",
-        Function = function(v) end,
+        Function = function(v) right.Value = v end,
     })
 
-    skyUp = customSky:CreateTextBox({
+    up = customSky:CreateTextBox({
         Name = "SkyUp",
         PlaceholderText = "Sky Up ID",
         DefaultValue = "6412503613",
-        Function = function(v) end,
+        Function = function(v) up.Value = v end,
     })
 
-    skySun = customSky:CreateTextBox({
+    sun = customSky:CreateTextBox({
         Name = "SkySun",
         PlaceholderText = "Sky Sun ID",
         DefaultValue = "6196665106",
-        Function = function(v) end,
+        Function = function(v) sun.Value = v end,
     })
 
-    skyMoon = customSky:CreateTextBox({
+    moon = customSky:CreateTextBox({
         Name = "SkyMoon",
         PlaceholderText = "Sky Moon ID",
         DefaultValue = "6444320592",
-        Function = function(v) end,
+        Function = function(v) moon.Value = v end,
     })
 
     sunSize = customSky:CreateSlider({
         Name = "SunSize",
-        Function = function(v) 
-            if customSky.Enabled then
+        Function = function(v)
+            sunSize.Value = v
+            if customSky.Enabled and skyObject then
                 skyObject.SunAngularSize = v
             end
         end,
@@ -4864,8 +4800,9 @@ runFunction(function()
 
     moonSize = customSky:CreateSlider({
         Name = "MoonSize",
-        Function = function(v) 
-            if customSky.Enabled then
+        Function = function(v)
+            moonSize.Value = v
+            if customSky.Enabled and skyObject then
                 skyObject.MoonAngularSize = v
             end
         end,
@@ -4881,32 +4818,31 @@ runFunction(function()
     local hours = {Value = 13}
     local minutes = {Value = 0}
     local seconds = {Value = 0}
-    local timeOfDayEnabled = false
     local connection
+    local oldTime
+    local function updateTime()
+        Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..seconds.Value
+    end
     timeOfDay = Tabs.World:CreateToggle({
         Name = "TimeOfDay",
-        Keybind = nil,
+        HoverText = "Customizes the time of the game.",
         Callback = function(callback)
             if callback then
-                Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..seconds.Value
-                connection = Lighting.Changed:Connect(function()
-                    Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..seconds.Value
-                end)
+                oldTime = Lighting.TimeOfDay
+                updateTime()
+                connection = Lighting.Changed:Connect(updateTime())
             else
-                Lighting.TimeOfDay = LightingTime
-
-                if connection then
-                    connection:Disconnect()
-                end
+                Lighting.TimeOfDay = oldTime
+                betterDisconnect(connection)
             end
         end
     })
-        
+
     hours = timeOfDay:CreateSlider({
         Name = "Hours",
         Function = function(v)
-            if timeOfDay then 
-                Lighting.TimeOfDay = v..":"..minutes.Value..":"..seconds.Value
+            if timeOfDay.Enabled then
+                updateTime()
             end
         end,
         Min = 0,
@@ -4914,12 +4850,12 @@ runFunction(function()
         Default = 13,
         Round = 0
     })
-    
+
     minutes = timeOfDay:CreateSlider({
         Name = "Minutes",
         Function = function(v)
-            if timeOfDay.Enabled then 
-                Lighting.TimeOfDay = hours.Value..":"..v.. ":"..seconds.Value
+            if timeOfDay.Enabled then
+                updateTime()
             end
         end,
         Min = 0,
@@ -4927,12 +4863,12 @@ runFunction(function()
         Default = 0,
         Round = 0
     })
-    
+
     seconds = timeOfDay:CreateSlider({
         Name = "Seconds",
         Function = function(v)
-            if timeOfDay.Enabled then 
-                Lighting.TimeOfDay = hours.Value..":"..minutes.Value..":"..v
+            if timeOfDay.Enabled then
+                updateTime()
             end
         end,
         Min = 0,
@@ -4943,132 +4879,7 @@ runFunction(function()
 end)
 
 print("[ManaV2ForRoblox/Universal.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
-GuiLibrary:CreateNotification("Universal", "Loaded successfully! Press "..GuiLibrary.GuiKeybind.." to open GUI.", 5, true)
--- Private part
-
---[[
-if (Mana.Developer and Mana.Whitelisted) and Tabs.Private then
-    local PrivateStartTick = tick()
-
-    runFunction(function()
-        local FakeLagSend = {Value = false}
-        local FakeLagRecieve = {Value = false}
-        FakeLag = Tabs.Private:CreateToggle({
-            Name = "FakeLag",
-            Keybind = nil,
-            Callback = function(callback) 
-                if callback then
-                    if FakeLagSend.Value then 
-                        RunLoops:BindToHeartbeat("SendFakeLag", function() 
-                            if isAlive() and sethiddenproperty then
-                                sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
-                            elseif not sethiddenproperty then
-                                GuiLibrary:CreateNotification("FakeLag", "Missing sethiddenproperty function.", 10, false, "error")
-                                RunLoops:UnbindFromHeartbeat("SendFakeLag")
-                                FakeLag:Toggle(true)
-                            end
-                        end)
-                    end
-                    if FakeLagRecieve.Value then 
-                        settings().Network.IncomingReplicationLag = 99999999999999999
-                    end
-                else
-                    NetworkClient:SetOutgoingKBPSLimit(math.huge)
-                    settings().Network.IncomingReplicationLag = 0
-                    RunLoops:UnbindFromHeartbeat("SendFakeLag")
-                end
-            end
-        })
-        FakeLagSend = FakeLag:CreateToggle({
-            Name = "Sending",
-            Function = function() end,
-            Default = true
-        })
-        FakeLagRecieve = FakeLag:CreateToggle({
-            Name = "Recieving",
-            Function = function() end,
-            Default = false
-        })
-    end)
-
-    runFunction(function()
-        Tabs.Private:CreateToggle({
-            Name = "HackerDetector(Beta)",
-            Keybind = nil,
-            Callback = function(callback)
-                if callback then
-                    spawn(function()
-                        repeat
-                            task.wait()
-                            if (not callback) then return end
-                            for i, v in pairs(Players:GetChildren()) do
-                                if v:FindFirstChild("HumanoidRootPart") then
-                                    local oldpos = v.Character.HumanoidRootPart.Position
-                                    task.wait(0.5)
-                                    local newpos = Vector3.new(v.Character.HumanoidRootPart.Position.X, 0, v.Character.HumanoidRootPart.Position.Z)
-                                    local realnewpos = math.floor((newpos - Vector3.new(oldpos.X, 0, oldpos.Z)).magnitude) * 2
-                                    if realnewpos > 32 then
-                                        title = v.Name .. " is cheating"
-                                        text =  tostring(math.floor((newpos - Vector3.new(oldpos.X, 0, oldpos.Z)).magnitude))
-                                        CreateCoreNotification(title, text, 5)
-                                    end
-                                end
-                            end
-                        until (not callback)
-                    end)
-                end
-            end
-        })
-    end)
-
-    --PrivateTabDivider = Tabs.Private:CreateDivider("Tools")
-
-    runFunction(function()
-        DarkDex = Tabs.Private:CreateToggle({
-            Name = "DarkDex",
-            Keybind = nil,
-            Callback = function(callback)
-                if callback then
-                    loadstring(game:HttpGet('https://ithinkimandrew.site/scripts/tools/dark-dex.lua'))()
-                end
-            end
-        })
-    end)
-
-    runFunction(function()
-        Hydroxide = Tabs.Private:CreateToggle({
-            Name = "Hydroxide",
-            Keybind = nil,
-            Callback = function(callback)
-                if callback then
-                    local owner = "Upbolt"
-                    local branch = "revision"
-
-                    local function webImport(file)
-                        return loadstring(game:HttpGetAsync(("https://raw.githubusercontent.com/%s/Hydroxide/%s/%s.lua"):format(owner, branch, file)), file .. '.lua')()
-                    end
-
-                    webImport("init")
-                    webImport("ui/main")
-                end
-            end
-        })
-    end)
-
-    runFunction(function()
-        InfiniteYeld = Tabs.Private:CreateToggle({
-            Name = "InfiniteYeld",
-            Keybind = nil,
-            Callback = function(callback)
-                if callback then
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
-                end
-            end
-        })
-    end)
-
-    print("[ManaV2ForRoblox/Universal.lua]: Loaded private version in " .. tostring(tick() - PrivateStartTick) .. ". \n Loaded with private features in " .. tostring(tick() - startTick) .. ".")
-end
-]]
-
---Mana.GuiLibrary:LoadConfig()
+task.spawn(function()
+    repeat task.wait() until GuiLibrary.ConfigLoaded
+    GuiLibrary:CreateNotification("Universal", "Loaded successfully! Press "..GuiLibrary.GuiKeybind.." to open GUI.", 5, "Info")
+end)

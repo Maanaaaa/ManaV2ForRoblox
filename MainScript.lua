@@ -11,7 +11,7 @@ local startTick = tick()
 local UserInputService = game:GetService("UserInputService")
 local TextChatService = game:GetService("TextChatService")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
+local httpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -83,8 +83,8 @@ do
             print("MEEEEEEE " .. filepath)
             return loadstring(readfile("NewMana/" .. filepath))()
         elseif not betterisfile(filepath) and not shared.ManaDeveloper then -- auto update workspace files
-                local context = req.Body
-                writefile(filepath, context)
+            local context = req.Body
+            writefile("Mana/"..filepath, context)
             return loadstring(context)()
         else
             if isfile("Mana/" .. filepath) then
@@ -143,15 +143,18 @@ shared.Mana = Mana
 local GuiLibrary = Functions:RunFile("GuiLibrary.lua")--loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/refs/heads/main/GuiLibrary.lua"))()
 local playersHandler = Functions:RunFile("Libraries/playersHandler.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/refs/heads/main/libraries/entity.lua"))()
 local toolHandler = Functions:RunFile("Libraries/toolHandler.lua")
+local espLibrary = Functions:RunFile("Libraries/espLibrary.lua") --loadstring(game:HttpGet("https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/Libraries/espLibrary.lua"))()
 --local whitelistHandler = Functions:RunFile("Libraries/whiltelistHandler.lua")
 Mana.GuiLibrary = GuiLibrary
 Mana.Functions = Functions
 Mana.RunLoops = RunLoops
 Mana.PlayersHandler = playersHandler
 Mana.ToolHandler = toolHandler
+Mana.EspLibrary = espLibrary
 --Mana.WhitelistHandler = whitelistHandler
 Mana.Activated = true
 Mana.Whitelisted = false
+Mana.Loaded = false
 
 GuiLibrary:CreateWindow()
 
@@ -159,58 +162,42 @@ local Tabs = {
     Combat = GuiLibrary:CreateTab({
         Name = "Combat",
         Color = Color3.fromRGB(252, 60, 68),
-        Visible = true,
-        TabIcon = "CombatTabIcon.png",
-        Callback = function() end
+        TabIcon = "CombatTabIcon.png"
     }),
     Movement = GuiLibrary:CreateTab({
         Name = "Movement",
         Color = Color3.fromRGB(255, 148, 36),
-        Visible = true,
-        TabIcon = "MovementTabIcon.png",
-        Callback = function() end
+        TabIcon = "MovementTabIcon.png"
     }),
     Render = GuiLibrary:CreateTab({
         Name = "Render",
         Color = Color3.fromRGB(59, 170, 222),
-        Visible = true,
-        TabIcon = "RenderTabIcon.png",
-        Callback = function() end
+        TabIcon = "RenderTabIcon.png"
     }),
     Utility = GuiLibrary:CreateTab({
         Name = "Utility",
         Color = Color3.fromRGB(83, 214, 110),
-        Visible = true,
-        TabIcon = "MiscTabIcon.png", --"UtilityTabIcon",
-        Callback = function() end
+        TabIcon = "MiscTabIcon.png" --"UtilityTabIcon",
     }),
     World = GuiLibrary:CreateTab({
         Name = "World",
         Color = Color3.fromRGB(52 ,28, 228),
-        Visible = true,
-        TabIcon = "WorldTabIcon.png",
-        Callback = function() end
+        TabIcon = "WorldTabIcon.png"
     }),
-    Settings = GuiLibrary:CreateTab({
+    Settings = GuiLibrary:CreateOptionsTab({
         Name = "Settings",
         Color = Color3.fromRGB(240, 157, 62),
-        Visible = true,
-        TabIcon = "MiscTabIcon.png",
-        Callback = function() end
+        TabIcon = "MiscTabIcon.png"
     }),
-    Profiles = GuiLibrary:CreateTab({
+    Profiles = GuiLibrary:CreateOptionsTab({
         Name = "Profiles",
         Color = Color3.fromRGB(255, 255, 255),
-        Visible = true,
-        TabIcon = "MiscTabIcon.png",
-        Callback = function() end
+        TabIcon = "MiscTabIcon.png"
     }),
-    Friends = GuiLibrary:CreateTab({
+    Friends = GuiLibrary:CreateOptionsTab({
         Name = "Friends",
         Color = Color3.fromRGB(240, 157, 62),
-        Visible = true,
-        TabIcon = "PlayerImage.png",
-        Callback = function() end
+        TabIcon = "PlayerImage.png"
     }),
     --[[
     FE = GuiLibrary:CreateTab({
@@ -258,16 +245,16 @@ runFunction(function()
     local uiscale = {Value = 1}
     local uicornersradius = {Value = 4}
 
-    local divider = Tabs.Settings:CreateSecondDivider("UI")
+    local divider = Tabs.Settings:CreateDivider("UI")
 
-    local notifications = Tabs.Settings:CreateSecondToggle({
+    local notifications = Tabs.Settings:CreateToggle({
         Name = "Notifications",
         Callback = function(callback)
             GuiLibrary.Notifications = callback
         end
     })
 
-    local sounds = Tabs.Settings:CreateSecondToggle({
+    local sounds = Tabs.Settings:CreateToggle({
         Name = "Sounds",
         Callback = function(callback)
             GuiLibrary.Sounds = callback
@@ -316,7 +303,7 @@ end)
 runFunction(function()
     local textListEnabled = {Value = false}
     local divider = Tabs.Settings:CreateSecondDivider("Text List")
-    textListEnabled = Tabs.Settings:CreateSecondToggle({
+    textListEnabled = Tabs.Settings:CreateToggle({
         Name = "Text List",
         Callback = function(callback)
             Tabs.TextList:Toggle(callback, callback)
@@ -326,16 +313,16 @@ end)
 ]]
 
 runFunction(function()
-    local divider = Tabs.Settings:CreateSecondDivider("Slider")
+    local divider = Tabs.Settings:CreateDivider("Slider")
 
-    local sliderdoubleclick = Tabs.Settings:CreateSecondToggle({
+    local sliderdoubleclick = Tabs.Settings:CreateToggle({
         Name = "Double click",
         Callback = function(callback)
             GuiLibrary.SliderDoubleClick = callback
         end
     })
 
-    local slidercanoverride = Tabs.Settings:CreateSecondToggle({
+    local slidercanoverride = Tabs.Settings:CreateToggle({
         Name = "Value override",
         Callback = function(callback)
             GuiLibrary.SliderCanOverride = callback
@@ -344,7 +331,7 @@ runFunction(function()
 end)
 
 runFunction(function()
-    local divider = Tabs.Settings:CreateSecondDivider("Other")
+    local divider = Tabs.Settings:CreateDivider("Other")
 
     local sorttabs = Tabs.Settings:CreateButton({
         Name = "Sort tabs",
@@ -353,26 +340,23 @@ runFunction(function()
             local yoffset = 40
             local rowWidth = 7
             local totalyoffset = 247
-    
             local tabs = {}
-            for _, v in pairs(GuiLibrary.ObjectsThatCanBeSaved) do
-                if v.Type == "Tab" then
+            for _, v in pairs(GuiLibrary.ObjectsToSave.Tabs) do
+                if v.Type == "Tab" or v.Type == "OptionTab" then
                     table.insert(tabs, v)
                 end
             end
-            table.sort(tabs, function(a, b) return a.Table.Order < b.Table.Order end)
-    
-            for index, tabData in ipairs(tabs) do
-                local tab = tabData.Table.MainObject
+            table.sort(tabs, function(a, b) return a.API.Order < b.API.Order end)
+            for index, tabTable in ipairs(tabs) do
+                local container = tabTable.API.Container
                 local row = math.floor((index - 1) / rowWidth)
                 local col = (index - 1) % rowWidth
-    
-                tab.Position = UDim2.new(0, xoffset + (col * totalyoffset), 0, yoffset + (row * 50))
+                container.Position = UDim2.new(0, xoffset + (col * totalyoffset), 0, yoffset + (row * 50))
             end
         end
     })
     
-
+    --[[
     local unpinall = Tabs.Settings:CreateButton({
         Name = "Pin/Un pin all tabs",
         Callback = function()
@@ -383,11 +367,12 @@ runFunction(function()
             end
         end
     })
+    ]]
 
     local uninject = Tabs.Settings:CreateButton({
         Name = "Uninject",
         Callback = function()
-            GuiLibrary:SaveConfig(saveasuniversal)
+            GuiLibrary:SaveConfig()
             Mana = nil
             GuiLibrary:Destruct()
         end
@@ -396,7 +381,7 @@ runFunction(function()
     local reinject = Tabs.Settings:CreateButton({
         Name = "Reinject",
         Callback = function()
-            GuiLibrary:SaveConfig(saveasuniversal)
+            GuiLibrary:SaveConfig()
             Mana = nil
             GuiLibrary:Destruct()
             Functions:RunFile("MainScript.lua")
@@ -413,62 +398,52 @@ end)
 
 -- Profiles tab
 runFunction(function()
-    local onrejoin = {Value = true}
-    local autosaveonrejoin = {Value = false}
     local delay = {Value = 15}
+    local resetprofile = {}
     local profilesList = {}
+    --local profiles = isfile("Mana/ProfilesList.json") and httpService:JSONDecode(readfile("Mana/ProfilesList.json")) or {"Default"}
 
-    local divider = Tabs.Profiles:CreateSecondDivider("Config")
-
-    local autosave = Tabs.Profiles:CreateSecondToggle({
-        Name = "AutoSave",
-        Callback = function(callback)
-            if callback then
-                while callback and wait(delay.Value) do
-                    GuiLibrary:SaveConfig()
-                end
-            end
-        end
-    })
-
-    autosaveonrejoin = Tabs.Profiles:CreateSecondToggle({
-        Name = "On rejoin",
-        Callback = function(v) end
-    })
+    local divider = Tabs.Profiles:CreateDivider("Config")
 
     delay = Tabs.Profiles:CreateSlider({
-        Name = "Delay",
+        Name = "AutoSave Delay",
         Function = function(v)
+            GuiLibrary.autoSaveDelay = v
         end,
         Min = 1,
         Max = 60,
-        Default = 15,
+        Default = 5,
         Round = 0
     })
 
-    local resetprofile = Tabs.Profiles:CreateButton({
+    resetprofile = Tabs.Profiles:CreateButton({
         Name = "Reset current profile",
         Callback = function()
-        Mana = nil
-        GuiLibrary:Destruct()
-        if isfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") then delfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") end
-        Functions:RunFile("MainScript.lua")
+            Mana = nil
+            GuiLibrary:Destruct()
+            --if isfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") then delfile("Mana/Config/"..game.PlaceId..GuiLibrary.CurrentProfile..".json") end
+            if isfile("Mana/Config/"..game.PlaceId..".json") then delfile("Mana/Config/"..game.PlaceId..".json"); print('shit deleted') end
+            Functions:RunFile("MainScript.lua")
         end
     })
 
-    local profilesList = Tabs.Profiles:CreateTextList({
+    --[[this shit is broken and unstable and i dont have time to fix this shit
+    profilesList = Tabs.Profiles:CreateTextList({
         Name = "Profiles",
-        List = {"Default"},
+        DefaultList = profiles,
         PlaceholderText = "Profile name",
         Choose = true,
         MultiChoose = false,
         Default = "Default",
         Callback = function(v, bool)
+            print(profilesList.List or profiles)
+            writefile("Mana/ProfilesList.json", httpService:JSONEncode(profilesList.List or profiles))
             if bool then
                 GuiLibrary:switchProfile(v)
             end
         end
     })
+    ]]
 end)
 
 -- Friends tab
@@ -482,9 +457,9 @@ runFunction(function()
         List = {},
         PlaceholderText = "Friend Name",
         Callback = function(v)
-            if list.v then
-                table.remove(Friends.List, list.v)
-                list.v = nil
+            if list[v] then
+                table.remove(Friends.List, list[v])
+                list[v] = nil
             else
                 table.insert(Friends.List, v)
             end
@@ -533,7 +508,7 @@ runFunction(function()
         Round = 0
     })
 
-    customTextEnabled = Tabs.TextList:CreateSecondToggle({
+    customTextEnabled = Tabs.TextList:CreateToggle({
         Name = "Custom text",
         Default = true,
         Callback = function(callback)
@@ -565,7 +540,7 @@ runFunction(function()
     })
     customTextSize.MainObject.Visible = false
 
-    autoXAllignment = Tabs.TextList:CreateSecondToggle({
+    autoXAllignment = Tabs.TextList:CreateToggle({
         Name = "Auto text X align.",
         Default = false,
         Callback = function(callback)
@@ -608,7 +583,10 @@ local suc, res = pcall(function()
     Functions:RunFile("Scripts/" .. PlaceId .. ".lua")
 end)
 
-if not suc then warn("[ManaV2ForRoblox/MainScript.lua]: an error occured while attempting to load game script: " .. res) end
+if not suc then
+    warn("[ManaV2ForRoblox/MainScript.lua]: an error occured while attempting to load game script: " .. res)
+    GuiLibrary.CanLoadConfig = true
+end
 
 LocalPlayer.OnTeleport:Connect(function(State)
     if State == Enum.TeleportState.Started then
@@ -623,6 +601,8 @@ LocalPlayer.OnTeleport:Connect(function(State)
     end
 end)
 
+repeat task.wait() until GuiLibrary.CanLoadConfig -- // so da game module will load before config will load
 GuiLibrary.Loaded = true
-GuiLibrary:LoadConfig()
+Mana.Loaded = true
 --GuiLibrary:Toggle()
+GuiLibrary:LoadConfig()

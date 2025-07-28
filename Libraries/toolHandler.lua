@@ -1,3 +1,8 @@
+--[[
+    tool handler module
+    
+    Made by Maanaaaa
+]]
 local players = game:GetService("Players")
 local lplr = players.LocalPlayer
 local connection

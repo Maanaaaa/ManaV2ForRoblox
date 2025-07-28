@@ -8,17 +8,16 @@ repeat task.wait() until game:IsLoaded()
 
 local userInputService = game:GetService("UserInputService")
 local tweenService = game:GetService("TweenService")
-local htppservice = game:GetService("HttpService")
+local httpService = game:GetService("HttpService")
 local textService = game:GetService("TextService")
-local StarterGui = game:GetService("StarterGui")
+local starterGui = game:GetService("StarterGui")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 
 local getasset = getcustomasset
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local configsaving = true
+local mouse = LocalPlayer:GetMouse()
 local LastPress = 0
 local SliderLastPress = 0
 local Developer = shared.ManaDeveloepr
@@ -28,8 +27,11 @@ local TabsFrame
 local Tabs = {}
 local Fonts = {}
 local Keybinds = {}
+local OptionFunctions = {}
 local guilibrary = {
+    autoSaveDelay = 5,
     Loaded = false,
+    ConfigLoaded = false,
     Device = "None",
     Scale = 1,
     MobileScale = 0.45,
@@ -37,11 +39,10 @@ local guilibrary = {
     SoundsVolume = 1,
     GuiKeybind = "RightShift",
     Toggled = false,
-    CurrentProfile = "Default",
-    ProfilePath = "",
-    Rainbow = false,
-    RaibowSpeed = 0,
+    --Rainbow = false,
+    --RainbowSpeed = 0,
     AllowNotifications = true,
+    NotificationsMode = "Built-in",
     TouchEnabled = false,
     SliderDoubleClick = true,
     textlist = {
@@ -50,6 +51,7 @@ local guilibrary = {
     },
     uiCornersRadius = 0,
     SliderCanOverride = false,
+    CanLoadConfig = false,
     ArrayList = {},
     Objects = {},
     Functions = {},
@@ -58,9 +60,16 @@ local guilibrary = {
     APIs = {},
     pinnedobjects = {},
     rainbowObjects = {},
-    ObjectsThatCanBeSaved = {}
+    ObjectsThatCanBeSaved = {},
+    ObjectsToSave = {
+        Tabs = {},
+        Toggles = {},
+        Options = {}
+    },
+    SaveData = {}
 }
 
+-- // todo here: make better names for colors instead of color1, 2.../primary color, secondary..
 local guipallet = {
     ThemeMode = "Default",
     Color1 = Color3.fromRGB(14, 14, 23),
@@ -68,12 +77,14 @@ local guipallet = {
     Color3 = Color3.fromRGB(66, 68, 66),
     Color4 = Color3.fromRGB(49, 51, 64),
     Color5 = Color3.fromRGB(20, 20, 20),
+    Color6 = Color3.fromRGB(200, 200, 200),
     ToggleColor = Color3.fromRGB(0, 0, 0),
     ToggleColor2 = Color3.fromRGB(52, 235, 58),
     TextColor = Color3.fromRGB(255, 255, 255),
-    GrayTextColor = Color3.fromRGB(220, 220, 220),
-    NormalNotificationColor = Color3.fromRGB(102, 205, 67),
-    ErrorNotificationColor = Color3.fromRGB(205, 64, 78),
+    PlaceholderColor = Color3.fromRGB(220, 220, 220),
+    InfoColor = Color3.fromRGB(180, 180, 180),
+    WarningColor = Color3.new(198, 205, 64), -- 250, 230, 50
+    ErrorColor = Color3.fromRGB(205, 64, 78),
     Font = Enum.Font.Arial
 }
 guilibrary.GuiPallet = guipallet
@@ -86,9 +97,10 @@ local guiObjects = {
     Color5 = {},
     ToggleColor = {},
     ToggleColor2 = {},
+    TextLabels = {},
     TextColor = {},
-    GrayTextColor = {},
-    Font = {}
+    --Font = {},
+    UICorners = {}
 }
 guilibrary.GuiObjects = guiObjects
 
@@ -119,7 +131,7 @@ local tweens = {
 			return tweenService:Create(obj, tweenInfo, {Position = UDim2.new(1, 900, 1, y)})
 		end,
 		progress = function(obj, obj2, delay, height, height2)
-			local tweenInfo = TweenInfo.new(delay, Enum.EasingStyle.Quad)
+			local tweenInfo = TweenInfo.new(delay, Enum.EasingStyle.Linear)
 			return {
 				tweenService:Create(obj, tweenInfo, {Size = UDim2.new(0, 0, 0, height)}),
 				tweenService:Create(obj2, tweenInfo, {Size = UDim2.new(0, 0, 0, height2)})
@@ -166,12 +178,16 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.OnTopOfCoreBlur = true -- so if you even get kicked or banned you'll still see gui :)
 local ClickGui = Instance.new("Frame", ScreenGui)
 ClickGui.Name = "ClickGui"
-local Notifications = Instance.new("Folder", ScreenGui)
-local KeyStrokesGui = Instance.new("Folder", ScreenGui)
-local TextListGui = Instance.new("Folder", ScreenGui)
+local notificationsGui = Instance.new("Folder", ScreenGui)
+notificationsGui.Name = "Notifications"
+local keyStrokesGui = Instance.new("Folder", ScreenGui)
+keyStrokesGui.Name = "KeyStrokes"
+local hoverTextGui = Instance.new("Folder", ScreenGui)
+hoverTextGui.Name = "HoverTexts"
 guilibrary.ScreenGui = ScreenGui
 guilibrary.ClickGui = ClickGui
-guilibrary.KeyStrokesGui = KeyStrokesGui
+guilibrary.keyStrokesGui = keyStrokesGui
+guilibrary.hoverTextGui = hoverTextGui
 
 local manaObjects = Instance.new("Folder")
 manaObjects.Parent = ScreenGui
@@ -233,7 +249,7 @@ local function GetCustomAsset(path)
             textlabel:Remove()
         end)
         local req = requestfunc({
-            Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. path:gsub("Mana/Assets", "Assets"),
+            Url = "https://raw.githubusercontent.com/Maanaaaa/ManaV2ForRoblox/main/" .. path:gsub("NewMana/Assets", "Assets"),
             Method = "GET"
         })
         writefile(path, req.Body)
@@ -243,9 +259,6 @@ local function GetCustomAsset(path)
     end
     return cachedassets[path]
 end
-
-
-local configtable = {}
 
 function guilibrary:isObjectInTable(table, object) -- from old vape
     for i,v in pairs(table) do
@@ -271,18 +284,225 @@ local function createFolder(name)
     end
 end
 
-createFolder("Mana")
-createFolder("Mana/Assets")
-createFolder("Mana/Config")
-createFolder("Mana/Config/Universal")
-createFolder("Mana/Scripts")
-createFolder("Mana/Modules")
+createFolder("NewMana")
+createFolder("NewMana/Assets")
+createFolder("NewMana/Config")
+createFolder("NewMana/Config/Universal")
+createFolder("NewMana/Scripts")
+createFolder("NewMana/Modules")
 
--- made this by looking at old vape's saving system + new one
+-- // made this by looking at old vape's saving system + new one (mostly at new)
+function guilibrary:SaveConfig()
+    local data = {
+        Tabs = {},
+        Toggles = {},
+        Options = {}
+    }
+
+    for tabKey, tabData in next, guilibrary.ObjectsToSave.Tabs do
+        data.Tabs[tabKey] = {
+            Name = tabData.Name,
+            Position = {tabData.API.Container.Position.X.Scale, tabData.API.Container.Position.X.Offset, tabData.API.Container.Position.Y.Scale, tabData.API.Container.Position.Y.Offset},
+            Type = "Tab",
+            Options = {}
+        }
+        if tabData.Type == "OptionTab" then
+            for optionKey, optionData in next, tabData.Options do -- // had to do it this way since there are multiple options named the same
+                local newOptionData = {Type = optionData.Type}
+                if optionData.Type == "ColorSlider" then
+                    newOptionData.RelativeTable = optionData.API.RelativeTable
+                elseif optionData.Type == "Slider" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "Dropdown" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "Toggle" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "TextList" then
+                    newOptionData.List = optionData.API.List
+                end
+                data.Tabs[tabKey].Options[optionKey] = newOptionData
+            end
+        end
+    end
+
+    for toggleKey, toggleData in next, guilibrary.ObjectsToSave.Toggles do
+        if toggleData.API.Name ~= "ServerHop" or toggleData.API.Name ~= "Rejoin" then
+            data.Toggles[toggleKey] = {
+                Name = toggleData.Name,
+                Enabled = toggleData.API.Enabled,
+                Keybind = toggleData.API.Keybind,
+                Options = {}
+            }
+            for optionKey, optionData in next, toggleData.Options do -- // had to do it this way since there are multiple options named the same
+                local newOptionData = {Type = optionData.Type}
+                if optionData.Type == "ColorSlider" then
+                    newOptionData.RelativeTable = optionData.API.RelativeTable
+                elseif optionData.Type == "Slider" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "Dropdown" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "Toggle" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "TextList" then
+                    newOptionData.List = optionData.API.List
+                end
+                data.Toggles[toggleKey].Options[optionKey] = newOptionData
+            end
+        end
+    end
+
+    --[[
+    for key, optionData in next, guilibrary.ObjectsToSave.Options do
+        local newOptionData = {Type = optionData.Type}
+        if optionData.Type == "ColorSlider" then
+            newOptionData.RelativeTable = optionData.API.RelativeTable
+        elseif optionData.Type == "Slider" then
+            newOptionData.Value = optionData.API.Value
+        elseif optionData.Type == "Dropdown" then
+            print(optionData.API.Name)
+            newOptionData.Value = optionData.API.Value
+        elseif optionData.Type == "Toggle" then
+            newOptionData.Value = optionData.API.Value
+        elseif optionData.Type == "TextList" then
+            newOptionData.List = optionData.API.List
+        end
+        data.Options[key] = newOptionData
+    end
+    ]]
+
+    writefile("Mana/Config/" .. game.PlaceId .. ".json", httpService:JSONEncode(data))
+end
+
+function guilibrary:LoadConfig()
+    local success, config = pcall(function()
+        return httpService:JSONDecode(readfile("Mana/Config/" .. game.PlaceId .. ".json"))
+    end)
+
+    if not success then
+        guilibrary:CreateNotification("Config loader", "Error loading config: "..tostring(config), 5, "Error")
+        return
+    end
+
+    for tabKey, tabData in next, config.Tabs do
+        local tabTable = guilibrary.ObjectsToSave.Tabs[tabKey]
+        print(table.unpack(tabData.Position))
+        tabTable.API.Container.Position = UDim2.new(unpack(tabData.Position))
+        if tabTable.Type == "OptionTab" then
+            for optionKey, optionData in next, config.Tabs[tabKey].Options do -- // had to do it this way since there are multiple options named the same
+                if guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey] then
+                    if optionData.Type == "ColorSlider" then
+                        if optionData.RelativeTable then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Set(table.unpack(optionData.RelativeTable))
+                        end
+                    elseif optionData.Type == "Slider" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Set(optionData.Value)
+                        end
+                    elseif optionData.Type == "Dropdown" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Select(optionData.Value)
+                        end
+                    elseif optionData.Type == "Toggle" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Toggle(true)
+                        end
+                    elseif optionData.Type == "TextBox" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Set(optionData.Value)
+                        end
+                    elseif optionData.Type == "TextList" then
+                        local API = guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API
+                        for _, v in next, optionData.List do
+                            API:CreateListObject(v)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for toggleKey, toggleData in next, config.Toggles do
+        if guilibrary.ObjectsToSave.Toggles[toggleKey] then
+            local api = guilibrary.ObjectsToSave.Toggles[toggleKey].API
+            if toggleData.Enabled then
+                api:Toggle(true)
+            end
+            if toggleData.Keybind ~= "none" then
+                api:UpdateKeybind(false, toggleData.Keybind)
+            end
+            for optionKey, optionData in next, config.Toggles[toggleKey].Options do -- // had to do it this way since there are multiple options named the same
+                if guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey] then
+                    if optionData.Type == "ColorSlider" then
+                        if optionData.RelativeTable then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Set(table.unpack(optionData.RelativeTable))
+                        end
+                    elseif optionData.Type == "Slider" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Set(optionData.Value)
+                        end
+                    elseif optionData.Type == "Dropdown" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Select(optionData.Value)
+                        end
+                    elseif optionData.Type == "Toggle" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Toggle(true)
+                        end
+                    elseif optionData.Type == "TextBox" then
+                        if optionData.Value then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Set(optionData.Value)
+                        end
+                    elseif optionData.Type == "TextList" then
+                        local API = guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API
+                        for _, v in next, optionData.List do
+                            API:CreateListObject(v)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    --[[
+    for key, optionData in next, config.Options do
+        if guilibrary.ObjectsToSave.Options[key] then
+            if optionData.Type == "ColorSlider" then
+                if optionData.RelativeTable then
+                    guilibrary.ObjectsToSave.Options[key].API:Set(table.unpack(optionData.RelativeTable))
+                end
+            elseif optionData.Type == "Slider" then
+                if optionData.Value then
+                    guilibrary.ObjectsToSave.Options[key].API:Set(optionData.Value)
+                end
+            elseif optionData.Type == "Dropdown" then
+                if optionData.Value then
+                    guilibrary.ObjectsToSave.Options[key].API:Select(optionData.Value)
+                end
+            elseif optionData.Type == "Toggle" then
+                if optionData.Value then
+                    guilibrary.ObjectsToSave.Options[key].API:Toggle(true)
+                end
+            elseif optionData.Type == "TextBox" then
+                if optionData.Value then
+                    guilibrary.ObjectsToSave.Options[key].API:Set(optionData.Value)
+                end
+            elseif optionData.Type == "TextList" then
+                local API = guilibrary.ObjectsToSave.Options[key].API
+                for _, v in next, optionData.List do
+                    guilibrary.ObjectsToSave.Options[key].API:CreateListObject(v)
+                end
+            end
+        end
+    end
+    ]]
+    guilibrary.ConfigLoaded = true
+end
+
+--[[
 function guilibrary:SaveConfig()
     local savedata = {}
-    local path = "Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile
-    guilibrary.ProfilePath = path
+    --local path = "NewMana/Config/"..game.PlaceId..guilibrary.CurrentProfile
+    --guilibrary.ProfilePath = path
 
     for objtable, obj in pairs(guilibrary.ObjectsThatCanBeSaved) do
         if obj.Type == "Tab" then
@@ -300,11 +520,11 @@ function guilibrary:SaveConfig()
                 Position = {obj.mainobject.Position.X.Scale, obj.mainobject.Position.X.Offset, obj.mainobject.Position.Y.Scale, obj.mainobject.Position.Y.Offset}
             }
         elseif obj.Type == "Toggle" then
-            if obj.Table.Name == not "UnInject" and "ReInject" and "DeleteConfig" then
+            if obj.Table.Name ~= "UnInject" and obj.Table.Name ~= "ReInject" and obj.Table.Name ~= "DeleteConfig" then
                 savedata[objtable] = {
                     Name = obj.Table.Name,
                     Type = "Toggle",
-                    value = obj.Table.Value,
+                    Value = obj.Table.Value,
                     Keybind = obj.Table.Keybind
                 }
             end
@@ -312,50 +532,193 @@ function guilibrary:SaveConfig()
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "ColorSlider",
-                value = obj.Table.Value
+                Value = obj.Table.Value
             }
         elseif obj.Type == "Slider" then
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "Slider",
-                value = obj.Table.Value
+                Value = obj.Table.Value
             }
         elseif obj.Type == "Dropdown" then
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "Dropdown",
-                value = obj.Table.Value
+                Value = obj.Table.Value
             }
         elseif obj.Type == "OptionToggle" then
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "OptionToggle",
-                value = obj.Table.Value
+                Value = obj.Table.Value
             }
         elseif obj.Type == "TextBox" then
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "TextBox",
-                value = obj.Table.Text
+                Value = obj.Table.Text
             }
         elseif obj.Type == "TextList" then
             savedata[objtable] = {
                 Name = obj.Table.Name,
                 Type = "TextList",
-                list = obj.Table.List
+                List = obj.Table.List
             }
         else
             warn("[ManaV2ForRoblox/Guilibrary.lua]: can't save config from unknown object: "..obj.Type.." (objtype).")
             --warn("[ManaV2ForRoblox/Guilibrary.lua]: can't save config from unknown object: "..obj.Name or obj.Table.Name.."-"..obj.Type.." (name - obj).")
         end
     end
-    writefile(path..".json", htppservice:JSONEncode(savedata))
-    writefile("Mana/CurrentProfile.txt", guilibrary.CurrentProfile)
+    writefile("NewMana/Config/"..game.PlaceId..".json", httpService:JSONEncode(savedata))
+    --writefile("NewMana/CurrentProfile.txt", guilibrary.CurrentProfile)
 end
+]]
 
+--[[
+function guilibrary:SaveConfig()
+    local newSaveData = {}
+    for optionTable, option in next, guilibrary.ObjectsThatCanBeSaved do
+        if option.Type == "Tab" or option.Type == "OptionTab" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Type = "Tab",
+                Position = {option.MainObject.Position.X.Scale, option.MainObject.Position.X.Offset, option.MainObject.Position.Y.Scale, option.MainObject.Position.Y.Offset}
+            }
+        elseif option.Type == "CustomTab" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Type = "CustomTab",
+                Pinned = option.Pinned,
+                Position = option.Position
+            }
+        elseif option.Type == "Toggle" then
+            if option.Name ~= "UnInject" and option.Name ~= "ReInject" and option.Name ~= "DeleteConfig" then
+                newSaveData[optionTable] = {
+                    Name = option.Name,
+                    Value = option.Value,
+                    Keybind = option.Keybind,
+                    Type = "Toggle"
+                }
+            end
+        elseif option.Type == "ColorSlider" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Type = "ColorSlider",
+                RelativeTable = option.Api.RelativeTable or option.RelativeTable
+            }
+        elseif option.Type == "Slider" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Value = option.Value,
+                Type = "Slider"
+            }
+        elseif option.Type == "Dropdown" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Value = option.Value,
+                Type = "Dropdown"
+            }
+        elseif option.Type == "OptionToggle" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Value = option.Value,
+                Type = "OptionToggle"
+            }
+        elseif option.Type == "TextBox" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                Value = option.Value,
+                Type = "TextBox"
+            }
+        elseif option.Type == "TextList" then
+            newSaveData[optionTable] = {
+                Name = option.Name,
+                List = option.List,
+                Chosen = option.Chosen,
+                ChosenList = option.ChosenList,
+                Type = "TextList"
+            }
+        end
+    end
+    writefile("NewMana/Config/"..game.PlaceId..".json", httpService:JSONEncode(newSaveData))
+end
+]]
+
+--[[
+function guilibrary:LoadConfig()
+    local success, result = pcall(function()
+        return httpService:JSONDecode(readfile("NewMana/Config/"..game.PlaceId..".json"))
+    end)
+
+    if success and type(result) == "table" then
+        for index, option in next, result do
+            if guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, index) then
+                local objectTable = guilibrary.ObjectsThatCanBeSaved[index]
+                
+                if option.Type == "Tab" or option.Type == "OptionTab" then
+                    objectTable.MainObject.Position = UDim2.new(table.unpack(option.Position))
+                elseif option.Type == "CustomTab" then
+                    objectTable.MainObject.Position = UDim2.new(table.unpack(option.Position))
+                    if objectTable.Api and objectTable.Api.Pin then
+                        objectTable.Api:Pin(option.Pinned or false)
+                    end
+                elseif option.Type == "Toggle" then
+                    if objectTable.Api and objectTable.Api.Toggle then
+                        if option.Value ~= nil then
+                            objectTable.Api:Toggle(option.Value)
+                        end
+                        if option.Keybind and objectTable.Api.UpdateKeybind then
+                            objectTable.Api:UpdateKeybind(false, option.Keybind)
+                        end
+                    end
+                elseif option.Type == "ColorSlider" then
+                    if objectTable.Api and objectTable.Api.Set and option.RelativeTable then
+                        objectTable.Api:Set(table.unpack(option.RelativeTable), false)
+                    end
+                elseif option.Type == "Slider" then
+                    if objectTable.Api and objectTable.Api.Set and option.Value then
+                        objectTable.Api:Set(option.Value, guilibrary.SliderCanOverride)
+                    end
+                elseif option.Type == "Dropdown" then
+                    if objectTable.Api and objectTable.Api.Select and option.Value then
+                        objectTable.Api:Select(option.Value)
+                    end
+                elseif option.Type == "OptionToggle" then
+                    if objectTable.Api and objectTable.Api.Toggle and option.Value ~= nil then
+                        objectTable.Api:Toggle(option.Value)
+                    end
+                elseif option.Type == "TextBox" then
+                    if objectTable.Api and objectTable.Api.Set and option.Value then
+                        objectTable.Api:Set(option.Value)
+                    end
+                elseif option.Type == "TextList" then
+                    if objectTable.Api and (option.List or option.list) then
+                        local listData = option.List or option.list
+                        for _, v in next, listData do
+                            if objectTable.Api.CreateListObject then
+                                objectTable.Api:CreateListObject(v)
+                            end
+                        end
+                        if objectTable.Api.Choose and option.Chosen then
+                            objectTable.Api:Set(option.Chosen)
+                        end
+                        if objectTable.Api.MultiChoose and option.ChosenList then
+                            for _, v in next, option.ChosenList do
+                                objectTable.Api:Set(v)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+]]
+
+--[[
 function guilibrary:LoadConfig()
     local success, profile = pcall(function()
-        return readfile("Mana/CurrentProfile.txt")
+        return readfile("NewMana/CurrentProfile.txt")
     end)
 
     if success and profile ~= nil then
@@ -365,7 +728,8 @@ function guilibrary:LoadConfig()
     end
 
     local success, result = pcall(function()
-        return htppservice:JSONDecode(readfile("Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json"))
+        --return httpService:JSONDecode(readfile("NewMana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json"))
+        return httpService:JSONDecode(readfile("NewMana/Config/"..game.PlaceId..".json"))
     end)
 
     if success and type(result) == "table" then
@@ -378,22 +742,22 @@ function guilibrary:LoadConfig()
                     guilibrary.ObjectsThatCanBeSaved[objtable].mainobject.Position = UDim2.new(table.unpack(obj.Position))
                     guilibrary.ObjectsThatCanBeSaved[objtable].Table:Pin(obj.Pinned or false)
                 elseif obj.Type == "Toggle" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    if obj.Table.Name == not "UnInject" and "ReInject" and "DeleteConfig" then
-                        guilibrary.ObjectsThatCanBeSaved[objtable].Table:Toggle(true, obj.value)
-                        guilibrary.ObjectsThatCanBeSaved[objtable].Table:UpdateKeybind(obj.Keybind)
+                    if obj.Name ~= "UnInject" and obj.Name ~= "ReInject" and obj.Name ~= "DeleteConfig" then
+                        guilibrary.ObjectsThatCanBeSaved[objtable].Table:Toggle(true, obj.Value)
+                        guilibrary.ObjectsThatCanBeSaved[objtable].Table:UpdateKeybind(false, obj.Keybind)
                     end
                 elseif obj.Type == "OptionToggle" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Toggle(obj.value)
+                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Toggle(obj.Value)
                 elseif obj.Type == "ColorSlider" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
 
                 elseif obj.Type == "Slider" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Set(obj.value, guilibrary.SliderCanOverride)
+                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Set(obj.Value, guilibrary.SliderCanOverride)
                 elseif obj.Type == "Dropdown" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Select(obj.value)
+                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Select(obj.Value)
                 elseif obj.Type == "TextBox" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Set(obj.value)
+                    guilibrary.ObjectsThatCanBeSaved[objtable].Table:Set(obj.Value)
                 elseif obj.Type == "TextList" and guilibrary:isObjectInTable(guilibrary.ObjectsThatCanBeSaved, objtable) then
-                    for i, v in pairs(obj.list) do
+                    for i, v in pairs(obj.List) do
                         guilibrary.ObjectsThatCanBeSaved[objtable].Table:CreateListObject(v)
                     end
                 else
@@ -402,24 +766,40 @@ function guilibrary:LoadConfig()
             end)
         end
     else
-        warn("[ManaV2ForRoblox/GuiLibrary.lua]: an error occured while loading config: "..result.."\n happens when profile is just created.")
+        warn("[ManaV2ForRoblox/GuiLibrary.lua]: an error occured while loading config: "..result..". \nIf this keeps happening report it to @mankacoder on discord.")
+        guilibrary:CreateNotification("Profiles", "an error occured while loading config: "..result..".\nIf this keeps happening report it to @mankacoder on discord.", 15, false)
     end
 end
+]]
 
+--[[
 function guilibrary:switchProfile(profile)
-    if isfile("Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json") then
+    if isfile("NewMana/Config/"..game.PlaceId..profile..".json") then
         guilibrary.CurrentProfile = profile
     else
         warn("[ManaV2ForRoblox/Guilibrary.lua]: Unable to load profile "..profile.." - not found, instead creating it.")
+        guilibrary:CreateNotification("Profiles", "Unable to load profile "..profile.." - not found, instead creating it.", 5, true)
         guilibrary.CurrentProfile = profile
-        writefile("Mana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json", "{}")
+        writefile("NewMana/Config/"..game.PlaceId..guilibrary.CurrentProfile..".json", "{}")
     end
-    if isfile("Mana/CurrentProfile.txt") then
-        delfile("Mana/CurrentProfile.txt")
-        writefile("Mana/CurrentProfile.txt", guilibrary.CurrentProfile)
+    if isfile("NewMana/CurrentProfile.txt") then
+        delfile("NewMana/CurrentProfile.txt")
+        writefile("NewMana/CurrentProfile.txt", guilibrary.CurrentProfile)
     end
     guilibrary:LoadConfig()
 end
+]]
+
+
+spawn(function()
+    repeat
+        if shared.Mana.Loaded then
+            guilibrary:SaveConfig()
+        end
+        task.wait(guilibrary.autoSaveDelay or 10)
+    until not shared.Mana
+end)
+
 --// end of cool config system
 
 --// start of cool theme system
@@ -457,10 +837,6 @@ function guilibrary:sortObjects()
             if not table.find(guiObjects.TextColor, obj) then
                 table.insert(guiObjects.TextColor, obj)
             end
-        elseif obj.TextColor3 == guipallet.GrayTextColor then
-            if not table.find(guiObjects.GrayTextColor, obj) then
-                table.insert(guiObjects.GrayTextColor, obj)
-            end
         elseif obj.Font == guipallet.Font then
             if not table.find(guiObjects.Font, obj) then
                 table.insert(guiObjects.Font, obj)
@@ -494,9 +870,6 @@ function guilibrary:updateObjects()
     for i, v in pairs(guiObjects.TextColor) do
         v.TextColor3 = guipallet.TextColor
     end
-    for i, v in pairs(guiObjects.GrayTextColor) do
-        v.TextColor3 = guipallet.GrayTextColor
-    end
     for i, v in pairs(guiObjects.Font) do
         v.Font = guipallet.Font
     end
@@ -505,20 +878,26 @@ end
 function guilibrary:setColor(colorName, color)
     guipallet[colorName] = color
 end
---// end of cool theme system
+-- // end of cool theme system
+
+-- // cool functions
+local function betterDisconnect(connection)
+    if typeof(connection) == "RBXScriptConnection" then
+        connection:Disconnect()
+    end
+end
 
 function guilibrary:Destruct()
     for i, v in pairs(connections) do
-        v:Disconnect()
-        v:disconnect()
-        v = nil
+        betterDisconnect(v)
     end
-    for i, v in pairs(guilibrary.Objects) do
-        if v.Type == "Toggle" then
-            if v.Enabled then
-                v:Toggle(true, false)
-            end
+    for i, v in pairs(guilibrary.ObjectsToSave.Toggles) do
+        if v.API.Enabled then
+            pcall(function()
+                v.API:Toggle(true, false)
+            end)
         end
+
     end
     ScreenGui:Destroy()
     if shared.Mana then shared.Mana = nil end
@@ -530,27 +909,36 @@ function guilibrary:Toggle(state)
     local state = state or not guilibrary.Toggled
     guilibrary.Toggled = state
 
+    --[[
     for _, v in pairs(guilibrary.ObjectsThatCanBeSaved) do
-        if v.Type == "Tab" and not v.Table.Pinned and not v.CustomTab then
-            v.mainobject.Visible = state
+        if v.Type == "Tab" then
+            v.Container.Visible = state
+        elseif v.Type == "CustomTab" and not v.Pinned then
+            v.Container.Visible = state
         elseif v.CustomTab and v.Toggleable then
-            v.mainobject.Visible = state
+            v.Container.Visible = state
         end
     end
+    ]]
+
+    for _, v in next, guilibrary.ObjectsToSave.Tabs do
+        if v.Type == "Tab" or v.Type == "OptionTab" then
+            v.API.Container.Visible = state
+        end
+    end
+
+    --[[
+    for _, v in next, guilibrary.ObjectsThatCanBeSaved do
+        if v.Type == "CustomTab" or v.CustomTab then
+            v.MainObject.Visible = state
+        end
+    end
+    ]]
 
     if guilibrary.APIs.KeyStrokes then
         guilibrary.APIs.KeyStrokes:toggleDragButton(state)
     end
 end
-
---[[old autosave
-spawn(function()
-    repeat
-        conf.functions:WriteConfigs(configtable)
-        task.wait(30)
-    until (not configsaving)
-end)
-]]
 
 local function dragGUI(gui, button)
 	if not button then button = gui end
@@ -686,7 +1074,7 @@ function guilibrary:RemoveObject(ObjectName)
 end
 
 function guilibrary:updateUICorners(radius)
-    for i, v in pairs(guilibrary.uiCorners) do
+    for i, v in pairs(guiObjects.UICorners) do
         v.CornerRadius = UDim.new(0, radius)
     end
 end
@@ -714,118 +1102,169 @@ function guilibrary:getIndex(table, obj)
     return
 end
 
+function guilibrary:addHoverText(obj, text)
+    local connection
+    local hoverText = Instance.new("TextLabel")
+    hoverText.Name = "HoverText"
+    hoverText.BackgroundColor3 = guipallet.Color3
+    hoverText.Font = guipallet.Font
+    hoverText.Text = text
+    hoverText.TextColor3 = guipallet.TextColor
+    hoverText.TextSize = 14
+    hoverText.TextXAlignment = Enum.TextXAlignment.Left
+    hoverText.Visible = false
+    hoverText.ZIndex = 1000
+    hoverText.BackgroundTransparency = 0.2
+    hoverText.BorderSizePixel = 0
+    hoverText.AnchorPoint = Vector2.new(0, 1)
+    hoverText.Parent = hoverTextGui
+    table.insert(guiObjects.TextLabels, hoverText)
+
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, guilibrary.UICornerRadius)
+    uiCorner.Parent = hoverText
+    table.insert(guiObjects.UICorners, uiCorner)
+
+
+    local size = textService:GetTextSize(text, hoverText.TextSize, hoverText.Font, Vector2.new(1000, 1000))
+    hoverText.Size = UDim2.new(0, size.X + 6, 0, size.Y + 4)
+
+    table.insert(connections, obj.MouseEnter:Connect(function()
+        hoverText.Position = UDim2.new(0, mouse.X - 2, 0, mouse.Y)
+        hoverText.Visible = true
+        connection = mouse.Move:Connect(function()
+            hoverText.Position = UDim2.new(0, mouse.X - 2, 0, mouse.Y)
+        end)
+    end))
+
+    table.insert(connections, obj.MouseLeave:Connect(function()
+        hoverText.Visible = false
+        betterDisconnect(connection)
+    end))
+end
+-- // end of cool functions
+
 -- // notifications
-function guilibrary:CreateNotification(notifTitle, notifText, delay, normal)
+function guilibrary:CreateNotification(notifTitle, notifText, delay, mode)
     if not guilibrary.Notifications then return end
-    if not guilibrary.Loaded and (notifText:find("Enabled") or notifText:find("Disabled")) then return end
-	local order = #Notifications:GetChildren() + 1
-	local Background = Instance.new("Frame")
-	local top = Instance.new("Frame")
-	local UICorner = Instance.new("UICorner")
-	local fixer = Instance.new("Frame")
-	local title = Instance.new("TextLabel")
-	local text = Instance.new("TextLabel")
-	local progressbar = Instance.new("Frame")
-	local UICorner_2 = Instance.new("UICorner")
-	local fixer_2 = Instance.new("Frame")
-	local UICorner_3 = Instance.new("UICorner")
+    --if not guilibrary.Loaded and (notifText:find("Enabled") or notifText:find("Disabled")) then return end
+    if guilibrary.NotificationsMode == "Built-in" then
+        local order = #notificationsGui:GetChildren() + 1
+        local Background = Instance.new("Frame")
+        local top = Instance.new("Frame")
+        local UICorner = Instance.new("UICorner")
+        local fixer = Instance.new("Frame")
+        local title = Instance.new("TextLabel")
+        local text = Instance.new("TextLabel")
+        local progressbar = Instance.new("Frame")
+        local UICorner_2 = Instance.new("UICorner")
+        local fixer_2 = Instance.new("Frame")
+        local UICorner_3 = Instance.new("UICorner")
 
-	Background.Name = "Background"
-	Background.Parent = Notifications
-	Background.AnchorPoint = Vector2.new(0.5, 0)
-	Background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	Background.BackgroundTransparency = 0.5
-	Background.BorderSizePixel = 0
-	Background.Position = UDim2.new(1, 900, 0.8, 0)
-	Background.Size = UDim2.new(0, 100, 0, 115)
+        Background.Name = "Background"
+        Background.Parent = notificationsGui
+        Background.AnchorPoint = Vector2.new(0.5, 0)
+        Background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        Background.BackgroundTransparency = 0.5
+        Background.BorderSizePixel = 0
+        Background.Position = UDim2.new(1, 900, 0.8, 0)
+        Background.Size = UDim2.new(0, 100, 0, 115)
 
-	top.Name = "top"
-	top.Parent = Background
-	top.BackgroundColor3 = (normal and guipallet.NormalNotificationColor or guipallet.ErrorNotificationColor)
-	top.BorderSizePixel = 0
-	top.Size = UDim2.new(1, 0, 0, 8)
+        top.Name = "top"
+        top.Parent = Background
+        top.BackgroundColor3 = (mode == "Info" and guipallet.InfoColor) or (mode == "Warning" and guipallet.WarningColor) or (mode == "Error" and guipallet.ErrorColor) --(normal and guipallet.NormalNotificationColor or guipallet.ErrorNotificationColor)
+        top.BorderSizePixel = 0
+        top.Size = UDim2.new(1, 0, 0, 8)
 
-	UICorner.Parent = top
+        UICorner.Parent = top
 
-	fixer.Name = "fixer"
-	fixer.Parent = top
-	fixer.BackgroundColor3 = (normal and guipallet.NormalNotificationColor or guipallet.ErrorNotificationColor)
-	fixer.BorderSizePixel = 0
-	fixer.Position = UDim2.new(0, 0, 0, 6)
-	fixer.Size = UDim2.new(1, 0, 0, 2)
+        fixer.Name = "fixer"
+        fixer.Parent = top
+        fixer.BackgroundColor3 = (mode == "Info" and guipallet.InfoColor) or (mode == "Warning" and guipallet.WarningColor) or (mode == "Error" and guipallet.ErrorColor)
+        fixer.BorderSizePixel = 0
+        fixer.Position = UDim2.new(0, 0, 0, 6)
+        fixer.Size = UDim2.new(1, 0, 0, 2)
 
-	title.Name = "title"
-	title.Parent = Background
-	title.BackgroundTransparency = 1
-	title.Position = UDim2.new(0, 0, 0, 30)
-	title.Size = UDim2.new(1, 0, 0, 28)
-	title.Font = guipallet.Font
-	title.Text = "          "..notifTitle
-	title.TextColor3 = (normal and guipallet.NormalNotificationColor or guipallet.ErrorNotificationColor)
-	title.TextSize = 24.000
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextYAlignment = Enum.TextYAlignment.Top
+        title.Name = "title"
+        title.Parent = Background
+        title.BackgroundTransparency = 1
+        title.Position = UDim2.new(0, 0, 0, 30)
+        title.Size = UDim2.new(1, 0, 0, 28)
+        title.Font = guipallet.Font
+        title.Text = "          "..notifTitle
+        title.TextColor3 = (mode == "Info" and guipallet.InfoColor) or (mode == "Warning" and guipallet.WarningColor) or (mode == "Error" and guipallet.ErrorColor)
+        title.TextSize = 24
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.TextYAlignment = Enum.TextYAlignment.Top
 
-	text.Name = "text"
-	text.Parent = Background
-	text.BackgroundTransparency = 1
-	text.Position = UDim2.new(0, 0, 0, 68)
-	text.Size = UDim2.new(1, 0, 0, 28)
-	text.Font = guipallet.Font
-	text.Text = "          "..notifText
-	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-	text.TextSize = 24
-	text.TextXAlignment = Enum.TextXAlignment.Left
-	text.TextYAlignment = Enum.TextYAlignment.Top
+        text.Name = "text"
+        text.Parent = Background
+        text.BackgroundTransparency = 1
+        text.Position = UDim2.new(0, 0, 0, 68)
+        text.Size = UDim2.new(1, 0, 0, 28)
+        text.Font = guipallet.Font
+        text.Text = "          "..notifText
+        text.TextColor3 = guipallet.TextColor
+        text.TextSize = 24
+        text.TextXAlignment = Enum.TextXAlignment.Left
+        text.TextYAlignment = Enum.TextYAlignment.Top
 
-	progressbar.Name = "progressbar"
-	progressbar.Parent = Background
-	progressbar.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-	progressbar.BorderSizePixel = 0
-	progressbar.Position = UDim2.new(0, 0, 0.930000007, 0)
-	progressbar.Size = UDim2.new(1, 0, 0, 8)
+        progressbar.Name = "progressbar"
+        progressbar.Parent = Background
+        progressbar.BackgroundColor3 = guipallet.Color6
+        progressbar.BorderSizePixel = 0
+        progressbar.Position = UDim2.new(0, 0, 0.930000007, 0)
+        progressbar.Size = UDim2.new(1, 0, 0, 8)
 
-	UICorner_2.Parent = progressbar
+        UICorner_2.Parent = progressbar
 
-	fixer_2.Name = "fixer"
-	fixer_2.Parent = progressbar
-	fixer_2.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-	fixer_2.BorderSizePixel = 0
-	fixer_2.Size = UDim2.new(1, 0, 0, 2)
+        fixer_2.Name = "fixer"
+        fixer_2.Parent = progressbar
+        fixer_2.BackgroundColor3 = guipallet.Color6
+        fixer_2.BorderSizePixel = 0
+        fixer_2.Size = UDim2.new(1, 0, 0, 2)
 
-	UICorner_3.Parent = Background
+        UICorner_3.Parent = Background
 
-	local textsize = textService:GetTextSize(title.Text, title.TextSize, title.Font, Vector2.new(100000, 100000))
-	local textsize2 = textService:GetTextSize(text.Text, text.TextSize, text.Font, Vector2.new(100000, 100000))
-	local y = -(5 + 120 * order)
-	local position = UDim2.new(1, 0, 1, y)
-	Background.Position = position
+        local textsize = textService:GetTextSize(title.Text, title.TextSize, title.Font, Vector2.new(100000, 100000))
+        local textsize2 = textService:GetTextSize(text.Text, text.TextSize, text.Font, Vector2.new(100000, 100000))
+        local y = -(5 + 120 * order)
+        local position = UDim2.new(1, 0, 1, y)
+        Background.Position = position
 
-	if textsize2.X > textsize.X then textsize = textsize2 end
+        if textsize2.X > textsize.X then textsize = textsize2 end
 
-	Background.Size = UDim2.new(0, textsize.X + 38, 0, 115)
+        Background.Size = UDim2.new(0, textsize.X + 38, 0, 115)
 
-	Debris:AddItem(Background, delay + 0.9)
-	
-	tweens.notification.show(Background, y):Play()
-	for _, tween in next, tweens.notification.progress(progressbar, fixer_2, delay, 8, 2) do
-		tween:Play()
-	end
+        Debris:AddItem(Background, delay + 0.9)
+        
+        tweens.notification.show(Background, y):Play()
+        for _, tween in next, tweens.notification.progress(progressbar, fixer_2, delay, 8, 2) do
+            tween:Play()
+        end
 
-	task.wait(delay)
+        task.wait(delay)
 
-	tweens.notification.hide(Background, y):Play()
+        tweens.notification.hide(Background, y):Play()
+    elseif guilibrary.NotificationsMode == "Core" then
+        starterGui:SetCore("SendNotification", {
+            Title = notifTitle,
+            Text = notifText,
+            Duration = delay
+	    })
+    end
 end
 
-Notifications.ChildRemoved:Connect(function()
-    for index, notification in next, Notifications:GetChildren() do
+notificationsGui.ChildRemoved:Connect(function()
+    for index, notification in next, notificationsGui:GetChildren() do
         if notification:IsA("Frame") then
-            local order = #Notifications:GetChildren() + 1
+            local order = #notificationsGui:GetChildren() + 1
             local y = -(5 + 120 * index) --(index - 1)
             tweens.notification.move(notification, y):Play()
         end
     end
 end)
+-- // end of notifications
 
 -- // text list
 function guilibrary:CreateTextList()
@@ -1029,7 +1468,7 @@ function guilibrary:CreateKeyStrokes()
 	local dragButton = Instance.new("TextButton")
 	local dragCorner = Instance.new("UICorner")
 
-	Frame.Parent = KeyStrokesGui
+	Frame.Parent = keyStrokesGui
 	Frame.BackgroundTransparency = 1
 	Frame.BorderSizePixel = 0
 	Frame.Position = UDim2.new(0.244107738, 0, 0.493589729, 0)
@@ -1372,7 +1811,7 @@ function guilibrary:CreateKeyStrokes()
 	return api
 end
 
--- this is so shit
+-- // this is so shit
 function guilibrary:CreateSessionInfo()
     local SessionInfoTable = {
         Rainbow = false,
@@ -1484,11 +1923,6 @@ function guilibrary:CreateSessionInfo()
     return SessionInfoTable
 end
 
---[[
-    ToDo:
-    Add TargetInfo
-]]
-
 function guilibrary:CreateStatLabel(text)
     local statTable = {
         text = text
@@ -1540,6 +1974,1062 @@ function guilibrary:CreateStatLabel(text)
         text.Text = text
     end
 end
+-- // end of shit
+
+-- // Options
+-- // ColorSlider made by Wowzers and changed to ManaV2 style by Maanaaaa
+function OptionFunctions:CreateColorSlider(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local value = argstable.Default or argstable.DefaultValue or Color3.fromRGB(255, 255, 255)
+    local rainbow = argstable.Rainbow or false
+    local callback = argstable.Callback or argstable.Function or function() end
+    local hue, sat, val = 0, 1, 1
+    local relativeHue, relativeSat, relativeVal = 0, 0, 0
+    local objects = {}
+    local dragging = nil
+    local visible = false
+    local parent = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local colorsliderapi = {
+        Name = name,
+        Value = value,
+        RawColorTable = {R = 255, G = 255, B = 255},
+        Rainbow = rainbow,
+        Callback = callback
+    }
+
+    local moreButton = Instance.new("ImageButton")
+    local rainbowButton = Instance.new("TextButton")
+    local hueSlider = Instance.new("Frame")
+    local hueUICorner = Instance.new("UICorner")
+    local hueText = Instance.new("TextLabel")
+    local hueGradient = Instance.new("UIGradient")
+    local hueKnob = Instance.new("Frame")
+    local hueUICorner2 = Instance.new("UICorner")
+    local saturationSlider = Instance.new("Frame")
+    local saturationUICorner = Instance.new("UICorner")
+    local saturationText = Instance.new("TextLabel")
+    local saturationGradient = Instance.new("UIGradient")
+    local saturationKnob = Instance.new("Frame")
+    local saturationUICorner2 = Instance.new("UICorner")
+    local valueSlider = Instance.new("Frame")
+    local valueUICorner = Instance.new("UICorner")
+    local valueText = Instance.new("TextLabel")
+    local valueGradient = Instance.new("UIGradient")
+    local valueKnob = Instance.new("Frame")
+    local valueUICorner2 = Instance.new("UICorner")
+    local currentColor = Instance.new("Frame")
+    local currentColorUICorner = Instance.new("UICorner")
+
+    local colorPickerFrame = Instance.new("Frame", parent)
+    colorPickerFrame.Name = name
+    colorPickerFrame.Size = UDim2.new(1, 0, 0, 132)
+    colorPickerFrame.BackgroundTransparency = 1
+    colorsliderapi.MainObject = colorPickerFrame
+    colorsliderapi.Container = colorPickerFrame
+
+    moreButton.Name = "MoreButton"
+    moreButton.Size = UDim2.new(0, 12, 0, 6)
+    moreButton.Position = UDim2.new(0, textService:GetTextSize(name, 15, guipallet.Font, Vector2.new(1000, 1000)).X + 15, 0, 5)
+    moreButton.Rotation = 180
+    moreButton.BackgroundTransparency = 1
+    moreButton.Image = "rbxassetid://14368317595" -- arrow from vapev4
+    moreButton.Parent = colorPickerFrame
+
+    --[[somewhen
+    rainbowButton.Name = "RainbowButton"
+    rainbowButton.Size = UDim2.new(1, -30, 0, 5)
+    rainbowButton.Position = UDim2.new(0, 20, 0, 5)
+    rainbowButton.BackgroundTransparency = 1
+    rainbowButton.Font = guipallet.Font
+    rainbowButton.Text = "++"
+    rainbowButton.TextSize = 25
+    rainbowButton.TextColor3 = guipallet.TextColor
+    rainbowButton.Parent = colorPickerFrame
+    ]]
+
+    hueSlider.Name = "HueSlider"
+    hueSlider.Size = UDim2.new(1, -20, 0, 3)
+    hueSlider.Position = UDim2.new(0, 10, 0, 29)
+    hueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    hueSlider.BorderSizePixel = 0
+    hueSlider.Parent = colorPickerFrame
+
+    hueUICorner.CornerRadius = UDim.new(0, 2)
+    hueUICorner.Parent = hueSlider
+
+    hueText.Name = "HueText"
+    hueText.Size = UDim2.new(0, 30, 0, 15)
+    hueText.Position = UDim2.new(0, 10, 0, 0)
+    hueText.BackgroundTransparency = 1
+    hueText.Text = name
+    hueText.TextColor3 = guipallet.PlaceholderColor
+    hueText.Font = guipallet.Font
+    hueText.TextSize = 15
+    hueText.TextXAlignment = Enum.TextXAlignment.Left
+    hueText.Parent = colorPickerFrame
+
+    hueGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
+        ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
+        ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+    })
+    hueGradient.Parent = hueSlider
+    
+    hueKnob.Name = "HueKnob"
+    hueKnob.Size = UDim2.new(0, 15, 0, 15)
+    hueKnob.Position = UDim2.new(0, 184.5, 0, -6)
+    hueKnob.BorderSizePixel = 0
+    hueKnob.Parent = hueSlider
+
+    hueUICorner2.CornerRadius = UDim.new(1, 0)
+    hueUICorner2.Parent = hueKnob
+
+    saturationSlider.Name = "SaturationSlider"
+    saturationSlider.Size = UDim2.new(1, -20, 0, 3)
+    saturationSlider.Position = UDim2.new(0, 10, 0, 73)
+    saturationSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    saturationSlider.BorderSizePixel = 0
+    saturationSlider.Parent = colorPickerFrame
+    saturationSlider.Visible = false
+    table.insert(objects, saturationSlider)
+
+    saturationUICorner.CornerRadius = UDim.new(0, 2)
+    saturationUICorner.Parent = saturationSlider
+
+    saturationText.Name = "SaturationText"
+    saturationText.Size = UDim2.new(0, 30, 0, 15)
+    saturationText.Position = UDim2.new(0, 10, 0, 44)
+    saturationText.BackgroundTransparency = 1
+    saturationText.Text = "Saturation"
+    saturationText.TextColor3 = guipallet.PlaceholderColor
+    saturationText.Font = guipallet.Font
+    saturationText.TextSize = 15
+    saturationText.TextXAlignment = Enum.TextXAlignment.Left
+    saturationText.Parent = colorPickerFrame
+    saturationText.Visible = false
+    table.insert(objects, saturationText)
+
+    saturationGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(0, 1, 1))
+    })
+    saturationGradient.Parent = saturationSlider
+
+    saturationKnob.Name = "SaturationKnob"
+    saturationKnob.Size = UDim2.new(0, 15, 0, 15)
+    saturationKnob.Position = UDim2.new(0, 184.5, 0, -6)
+    saturationKnob.BorderSizePixel = 0
+    saturationKnob.Parent = saturationSlider
+    saturationKnob.Visible = false
+    table.insert(objects, saturationKnob)
+
+    saturationUICorner2.CornerRadius = UDim.new(1, 0)
+    saturationUICorner2.Parent = saturationKnob
+
+    valueSlider.Name = "valueSlider"
+    valueSlider.Size = UDim2.new(1, -20, 0, 3)
+    valueSlider.Position = UDim2.new(0, 10, 0, 117)
+    valueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    valueSlider.BorderSizePixel = 0
+    valueSlider.Parent = colorPickerFrame
+    valueSlider.Visible = false
+    table.insert(objects, valueSlider)
+
+    valueUICorner.CornerRadius = UDim.new(0, 2)
+    valueUICorner.Parent = valueSlider
+
+    valueText.Name = "ValueText"
+    valueText.Size = UDim2.new(0, 30, 0, 15)
+    valueText.Position = UDim2.new(0, 10, 0, 88)
+    valueText.BackgroundTransparency = 1
+    valueText.Text = "Value"
+    valueText.TextColor3 = guipallet.PlaceholderColor
+    valueText.Font = guipallet.Font
+    valueText.TextSize = 15
+    valueText.TextXAlignment = Enum.TextXAlignment.Left
+    valueText.Parent = colorPickerFrame
+    valueText.Visible = false
+    table.insert(objects, valueText)
+
+    valueGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(0, 1, 1))
+    })
+    valueGradient.Parent = valueSlider
+
+    valueKnob.Name = "ValueKnob"
+    valueKnob.Size = UDim2.new(0, 15, 0, 15)
+    valueKnob.Position = UDim2.new(0, 184.5, 0, -6)
+    valueKnob.BorderSizePixel = 0
+    valueKnob.Parent = valueSlider
+    valueKnob.Visible = false
+    table.insert(objects, valueKnob)
+
+    valueUICorner2.CornerRadius = UDim.new(1, 0)
+    valueUICorner2.Parent = valueKnob
+
+    currentColor.Name = "CurrentColor"
+    currentColor.Size = UDim2.new(0, 18, 0, 18)
+    currentColor.Position = UDim2.new(1, -30, 0, 0)
+    currentColor.BackgroundColor3 = value
+    currentColor.BorderColor3 = Color3.fromRGB(30, 30, 30)
+    currentColor.BorderSizePixel = 0
+    currentColor.Parent = colorPickerFrame
+
+    currentColorUICorner.CornerRadius = UDim.new(0, 5)
+    currentColorUICorner.Parent = currentColor
+
+    --[[
+    local function updateHue(hueValue)
+        hue = hueValue
+        saturationGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1, HSVtoRGB(hue, 1, 1))
+        })
+        valueGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(1, HSVtoRGB(hue, 1, 1))
+        })
+        local color = HSVtoRGB(hue, sat, val)
+        currentColor.BackgroundColor3 = color
+        colorsliderapi.Value = color
+        colorsliderapi.Callback(color)
+    end
+
+    local function updateSaturation(satValue)
+        sat = satValue
+        local color = HSVtoRGB(hue, sat, val)
+        currentColor.BackgroundColor3 = color
+        colorsliderapi.Value = color
+        colorsliderapi.Callback(color)
+    end
+
+    local function updateValue(valValue)
+        val = valValue
+        local color = HSVtoRGB(hue, sat, val)
+        currentColor.BackgroundColor3 = color
+        colorsliderapi.Value = color
+        colorsliderapi.Callback(color)
+    end
+    ]]
+
+    function colorsliderapi:Set(hueValue, satValue, valValue, rainbow, load)
+        hue = hueValue or hue
+        sat = satValue or sat
+        val = valValue or val
+        relativeHue = hue
+        relativeSat = sat
+        relativeVal = val
+        local color = guilibrary:HSVtoRGB(hue, sat, val)
+        rainbow = rainbow or false
+        value = color
+        local newColorTable = {
+            R = math.floor(color.R * 255 + 0.5),
+            G = math.floor(color.G * 255 + 0.5),
+            B = math.floor(color.B * 255 + 0.5)
+        }
+        colorsliderapi.RawColorTable = newColorTable
+
+        saturationGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(hue, 1, val))
+        })
+        valueGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(hue, sat, 1))
+        })
+        currentColor.BackgroundColor3 = color
+        if rainbow then
+            colorsliderapi.Rainbow = true
+            table.insert(guilibrary.rainbowObjects, colorsliderapi)
+        else
+            if guilibrary.rainbowObjects[colorsliderapi] then
+                table.remove(guilibrary.rainbowObjects, table.find(guilibrary.rainbowObjects, colorsliderapi))
+            end
+        end
+        colorsliderapi.Value = color
+        colorsliderapi.RelativeTable = {relativeHue, relativeSat, relativeVal}
+        callback(color)
+    end
+
+    table.insert(connections, moreButton.MouseButton1Click:Connect(function()
+        visible = not visible
+        for _, object in next, objects do
+            object.Visible = visible
+        end
+        if visible then
+            colorPickerFrame.Size = UDim2.new(1, 0, 0, 132)
+            moreButton.Rotation = 0
+        else
+            colorPickerFrame.Size = UDim2.new(1, 0, 0, 44)
+            moreButton.Rotation = 180
+        end
+    end))
+
+    table.insert(connections, hueSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "hue"
+            local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+            hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(relativeX, sat, val)
+            relativeHue = relativeX
+        end
+    end))
+
+    table.insert(connections, hueKnob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "hue"
+            local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+            hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(relativeX, sat, val)
+            relativeHue = relativeX
+        end
+    end))
+
+    table.insert(connections, saturationSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "saturation"
+            local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
+            saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(hue, relativeX, val)
+            relativeSat = relativeX
+        end
+    end))
+
+    table.insert(connections, saturationKnob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "saturation"
+            local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
+            saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(hue, relativeX, val)
+            relativeSat = relativeX
+        end
+    end))
+
+    table.insert(connections, valueSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "value"
+            local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
+            valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(hue, sat, relativeX)
+            relativeVal = relativeX
+        end
+    end))
+
+    table.insert(connections, valueKnob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = "value"
+            local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
+            valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+            colorsliderapi:Set(hue, sat, relativeX)
+            relativeVal = relativeX
+        end
+    end))
+
+    table.insert(connections, userInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            if dragging == "hue" then
+                local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
+                hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+                colorsliderapi:Set(relativeX, sat, val)
+                relativeHue = relativeX
+            elseif dragging == "saturation" then
+                local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
+                saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+                colorsliderapi:Set(hue,  relativeX, val)
+                relativeSat = relativeX
+            elseif dragging == "value" then
+                local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
+                valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
+                colorsliderapi:Set(hue, sat, relativeX)
+                relativeVal = relativeX
+            end
+        end
+    end))
+    
+    table.insert(connections, userInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = nil
+        end
+    end))
+
+    colorsliderapi:Set(0, 1, 1, false)
+
+    colorPickerFrame.Size = UDim2.new(1, 0, 0, 44)
+
+    colorsliderapi.RelativeTable = {relativeHue, relativeSat, relativeVal}
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        Name = name,
+        API = colorsliderapi,
+        Type = "ColorSlider"
+    }
+    return colorsliderapi
+end
+
+function OptionFunctions:CreateSlider(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local value = argstable.Default or argstable.DefaultValue or argstable.Min
+    local min = argstable.Min
+    local max = argstable.Max
+    local round = argstable.Round or 0
+    local Callback = argstable.Callback or argstable.Function or function() end
+    local parent = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local sliderapi = {
+        Name = name,
+        Value = value,
+        Min = min,
+        Max = max,
+        Round = round,
+        Callback = Callback
+    }
+
+    local slider = Instance.new("TextButton")
+    local SliderTextBox = Instance.new("TextBox")
+    local slidertext = Instance.new("TextLabel")
+    local slider_2 = Instance.new("Frame")
+
+    slider.Name = name
+    slider.Parent = parent
+    slider.BackgroundColor3 = guipallet.Color2
+    slider.BorderSizePixel = 0
+    slider.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
+    slider.Size = UDim2.new(0, 180, 0, 34)
+    slider.Text = ""
+    slider.AutoButtonColor = false
+    table.insert(guiObjects.Color2, slider)
+    sliderapi.MainObject = slider
+    sliderapi.Container = slider
+
+    SliderTextBox.Name = "SliderTextBox"
+    SliderTextBox.Parent = slider
+    SliderTextBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+    SliderTextBox.BackgroundTransparency = 1
+    SliderTextBox.BorderSizePixel = 0
+    SliderTextBox.Position = UDim2.new(0.0188679248, 0, 0, 0)
+    SliderTextBox.Size = UDim2.new(0, 180, 0, 33)
+    SliderTextBox.ZIndex = 1
+    SliderTextBox.Font = guipallet.Font
+    SliderTextBox.PlaceholderText = ""
+    SliderTextBox.Text = ""
+    SliderTextBox.TextColor3 = guipallet.TextColor
+    SliderTextBox.TextSize = 22
+    SliderTextBox.TextXAlignment = Enum.TextXAlignment.Left
+    SliderTextBox.TextEditable = false
+    SliderTextBox.Visible = false
+    table.insert(guiObjects.ToggleColor2, SliderTextBox)
+
+    slidertext.Name = "SliderText"
+    slidertext.Parent = slider
+    slidertext.BackgroundTransparency = 1
+    slidertext.BorderSizePixel = 0
+    slidertext.Position = UDim2.new(0.0188679248, 0, 0, 0)
+    slidertext.Size = UDim2.new(0, 180, 0, 33)
+    slidertext.ZIndex = 3
+    slidertext.Font = guipallet.Font
+    slidertext.Text = ""
+    slidertext.TextColor3 = guipallet.TextColor
+    slidertext.TextSize = 22
+    slidertext.TextXAlignment = Enum.TextXAlignment.Left
+
+    slider_2.Name = "Slider_2"
+    slider_2.Parent = slider
+    slider_2.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+    slider_2.BorderSizePixel = 0
+    slider_2.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
+    slider_2.Size = UDim2.new(0, 0, 0, 34)
+    slider_2.ZIndex = 2
+    table.insert(guiObjects, slider_2)
+
+
+    local function slide(input)
+        local sizeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local value = math.floor(((((max - min) * sizeX) + min) * (10 ^ round)) + 0.5) / (10 ^ round)
+
+        slider_2.Size = UDim2.new(sizeX, 0, 1, 0)
+        sliderapi.Value = value
+        slidertext.Text = argstable.Name..": "..tostring(value)
+
+        if not argstable.OnInputEnded then
+            Callback(value)
+        end
+    end
+
+    local sliding = false
+
+    table.insert(connections, slider.InputBegan:Connect(function(input)
+        local currentTime = tick()
+        local function HandleFocusLost(enter)
+            if enter then
+                local value = tonumber(SliderTextBox.Text)
+                if value then
+                    sliderapi:Set(value, guilibrary.SliderCanOverride)
+                end
+            end
+            slidertext.Visible = true
+            SliderTextBox.Visible = false
+            SliderTextBox.TextEditable = false
+        end
+    
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
+            if guilibrary.SliderDoubleClick and currentTime - SliderLastPress < 0.5 then
+                slidertext.Visible = false
+                SliderTextBox.Visible = true
+                SliderTextBox.TextEditable = true
+                SliderTextBox:CaptureFocus()
+                SliderTextBox.FocusLost:Connect(HandleFocusLost)
+            else
+                SliderLastPress = currentTime
+                sliding = true
+                slide(input)
+            end
+        end
+    end))
+    
+    table.insert(connections, SliderTextBox.FocusLost:Connect(function(enter)
+        if enter then
+            local value = tonumber(SliderTextBox.Text)
+            if value then
+                sliderapi:Set(value, guilibrary.SliderCanOverride)
+            end
+        end
+        slidertext.Visible = true
+        SliderTextBox.Visible = false
+        SliderTextBox.TextEditable = false
+    end))
+    
+    table.insert(connections, slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if argstable.OnInputEnded then
+                Callback(sliderapi.Value)
+            end
+            sliding = false
+        end
+    end))
+    
+    table.insert(connections, userInputService.InputChanged:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseMovement and userInputService.MouseEnabled) or (input.UserInputType == Enum.UserInputType.Touch) then
+            if sliding then
+                slide(input)
+            end
+        end
+    end))
+
+    function sliderapi:Set(value, CanOverride)
+        local SizeValue = math.floor((math.clamp(value, min, max) * (10 ^ round)) + 0.5) / (10 ^ round)
+        if CanOverride then
+            value = value
+        else
+            value = SizeValue
+        end
+
+        sliderapi.Value = value
+        slider_2.Size = UDim2.new((SizeValue - min) / (max - min), 0, 1, 0)
+        slidertext.Text = argstable.Name .. ": " .. tostring(value)
+
+        Callback(value)
+    end
+
+    sliderapi:Set(sliderapi.Value)
+
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        Name = name,
+        API = sliderapi,
+        Type = "Slider"
+    }
+    return sliderapi
+end
+
+function OptionFunctions:CreateDropdown(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local list = argstable.List or {}
+    local value = argstable.Default or argstable.DefaultValue or list[1] or nil
+    local callback = argstable.Callback or argstable.Function or function() end
+    local parent = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local dropdownapi = {
+        Name = name,
+        Value = value,
+        List = list,
+        Callback = callback
+    }
+
+    local function getvalue(index) 
+        local realindex
+        if index > #dropdownapi.List then
+            realindex = 1 
+        elseif index < 1 then
+            realindex = #dropdownapi.List
+        else
+            realindex = index
+        end
+        return realindex
+    end
+
+    local Dropdown = Instance.new("TextLabel")
+    local DropdownOptions = Instance.new("Frame")
+    local DropdownList = Instance.new("UIListLayout")
+    local DropdownOptionsButton = Instance.new("TextButton")
+
+    Dropdown.Name = name
+    Dropdown.Parent = parent
+    Dropdown.BackgroundTransparency = 1
+    Dropdown.BorderSizePixel = 0
+    --Dropdown.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
+    Dropdown.Size = UDim2.new(0, 175, 0, 25)
+    Dropdown.Font = guipallet.Font
+    Dropdown.Text = name .. ": " .. value
+    Dropdown.TextColor3 = guipallet.TextColor
+    Dropdown.TextSize = 22
+    --Dropdown.TextWrapped = true
+    Dropdown.TextXAlignment = Enum.TextXAlignment.Left
+    Dropdown.TextYAlignment = Enum.TextYAlignment.Bottom
+    --Dropdown.ZIndex = 5
+    dropdownapi.MainObject = Dropdown
+    dropdownapi.Container1 = Dropdown
+
+    DropdownOptions.Name = "DropdownOptions"
+    DropdownOptions.Parent = parent
+    DropdownOptions.BackgroundTransparency = 1
+    DropdownOptions.BorderSizePixel = 0
+    DropdownOptions.Position = UDim2.new(0, 0, 0, 25)
+    DropdownOptions.Size = UDim2.new(0, 175, 0, 25)
+    DropdownOptions.Visible = false
+    --DropdownOptions.ZIndex = 500
+    --DropdownOptions.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    dropdownapi.Container2 = DropdownOptions
+
+    DropdownList.Name = "DropdownList"
+    DropdownList.Parent = DropdownOptions
+    DropdownList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    DropdownList.SortOrder = Enum.SortOrder.LayoutOrder
+    DropdownList.Padding = UDim.new(0, 0)
+
+    DropdownOptionsButton.Name = "DropdownOptionsButton"
+    DropdownOptionsButton.Parent = Dropdown
+    DropdownOptionsButton.BackgroundTransparency = 1
+    DropdownOptionsButton.BorderSizePixel = 0
+    DropdownOptionsButton.Position = UDim2.new(0.942857146, 0, 0, 0)
+    DropdownOptionsButton.Size = UDim2.new(0, 25, 0, 25)
+    DropdownOptionsButton.Font = guipallet.Font
+    DropdownOptionsButton.Text = ">"
+    DropdownOptionsButton.Rotation = 90
+    DropdownOptionsButton.TextColor3 = guipallet.TextColor
+    DropdownOptionsButton.TextSize = 22
+    DropdownOptionsButton.TextWrapped = true
+
+    function dropdownapi:CreateOptionButton(name)
+        local button = Instance.new("TextButton")
+
+        button.Name = name
+        button.Parent = DropdownOptions
+        button.BackgroundColor3 = guipallet.Color1
+        button.BackgroundTransparency = 0.8
+        button.BorderSizePixel = 0
+        button.Size = UDim2.new(0, 175, 0, 25)
+        button.Font = guipallet.Font
+        button.Text = name
+        button.TextColor3 = guipallet.TextColor
+        button.TextSize = 22
+        button.TextWrapped = true
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.ZIndex = 500
+        table.insert(guiObjects.Color1, button)
+
+        button.MouseButton1Click:Connect(function()
+            dropdownapi:Select(name)
+            DropdownOptions.Visible = false
+            DropdownOptionsButton.Rotation = 90
+        end)
+    end
+
+    for i, v in pairs(list) do
+        dropdownapi:CreateOptionButton(v)
+    end
+
+    table.insert(connections, DropdownOptionsButton.MouseButton1Click:Connect(function()
+        if DropdownOptions.Visible then
+            DropdownOptions.Visible = false
+            DropdownOptionsButton.Rotation = 90
+        else
+            DropdownOptions.Visible = true
+            DropdownOptionsButton.Rotation = -90
+        end
+    end))
+
+    table.insert(connections, DropdownList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        local count = 0
+        for _, child in pairs(DropdownOptions:GetChildren()) do
+            if child:IsA("TextButton") then
+                count = count + 1
+            end
+        end
+        --ListFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+        DropdownOptions.Size = UDim2.new(0, 175, 0, count * 25)
+    end))
+
+    function dropdownapi:Select(option)
+        if dropdownapi.List[option] or guilibrary:findStringInTable(dropdownapi.List, option) then
+            dropdownapi.Value = dropdownapi.List[option] or dropdownapi.List[guilibrary:findStringInTable(dropdownapi.List, option)]
+            Dropdown.Text =  name..": "..tostring(option)
+            callback(option)
+        end
+    end
+
+    dropdownapi:Select(value)
+
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        Name = name,
+        API = dropdownapi,
+        Type = "Dropdown"
+    }
+    return dropdownapi
+end
+
+function OptionFunctions:CreateToggle(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local value = argstable.Default or argstable.DefaultValue or false
+    local callback = argstable.Callback or argstable.Function or function() end
+    local optionframe = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local toggleapi = {
+        Name = name,
+        Enabled = value,
+        Value = value,
+        Type = "OptionToggle",
+        Callback = callback
+    }
+
+    local Label = Instance.new("TextLabel")
+    local ActiveFrame = Instance.new("Frame")
+    local ToggleButton = Instance.new("TextButton")
+
+    Label.Name = name
+    Label.Parent = optionframe
+    Label.BackgroundTransparency = 1
+    Label.Position = UDim2.new(0.091, 0, 0.503, 0)
+    Label.Size = UDim2.new(0, 170, 0, 32)
+    Label.Font = guipallet.Font
+    Label.TextColor3 = guipallet.TextColor
+    Label.TextSize = 22
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Text = name
+    toggleapi.MainObject = Label
+    toggleapi.Container = Label
+
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Parent = Label
+    ToggleButton.BackgroundColor3 = guipallet.Color3
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(0.817, 0, 0.074, 0)
+    ToggleButton.Size = UDim2.new(0, 29, 0, 29)
+    ToggleButton.ZIndex = 2
+    ToggleButton.Text = ""
+    ToggleButton.AutoButtonColor = false
+
+    ActiveFrame.Name = "ActiveFrame"
+    ActiveFrame.Parent = Label
+    ActiveFrame.BackgroundColor3 = guipallet.Color3
+    ActiveFrame.BorderSizePixel = 0
+    ActiveFrame.Position = UDim2.new(0, 141, 0, 5)
+    ActiveFrame.Size = UDim2.new(0, 24, 0, 24)
+    ActiveFrame.ZIndex = 3
+    table.insert(guiObjects.Color3, ActiveFrame)
+
+    function toggleapi:Toggle(bool)
+        if bool == nil then
+            bool = not toggleapi.Enabled
+        end
+        if toggleapi.Enabled == bool then return end
+        toggleapi.Enabled = bool
+        toggleapi.Value = bool
+
+        spawn(function()
+            callback(bool)
+        end)
+
+        ActiveFrame.BackgroundColor3 = (bool and ((guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2)) or guipallet.Color3
+    end
+
+    function toggleapi:ReToggle()
+        toggleapi:Toggle()
+        toggleapi:Toggle()
+    end
+
+    toggleapi:Toggle(value)
+
+    table.insert(connections, ToggleButton.MouseButton1Click:Connect(function()
+        toggleapi:Toggle()
+    end))
+
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        Name = name,
+        API = toggleapi,
+        Type = "Toggle"
+    }
+    return toggleapi
+end
+
+function OptionFunctions:CreateButton(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local callback = argstable.Callback or argstable.Function or function() end
+    local parent = argstable.Parent
+    local buttontable = {
+        Name = name,
+        Callback = callback
+    }
+
+    local button = Instance.new("TextButton")
+
+    button.Name = name
+    button.Parent = parent
+    button.BackgroundColor3 = guipallet.ToggleColor
+    button.BackgroundTransparency = 0.5
+    button.BorderSizePixel = 0
+    button.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
+    button.Size = UDim2.new(0, 175, 0, 25)
+    button.Font = guipallet.Font
+    button.Text = name
+    button.TextColor3 = guipallet.TextColor
+    button.TextSize = 22
+    button.TextWrapped = true
+    button.TextXAlignment = Enum.TextXAlignment.Center
+    button.TextYAlignment = Enum.TextYAlignment.Center
+    table.insert(guiObjects.ToggleColor, button)
+
+    table.insert(connections, button.MouseButton1Click:Connect(function()
+        callback()
+    end))
+
+    return buttontable
+end
+
+function OptionFunctions:CreateTextBox(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local value = argstable.Default or argstable.DefaultValue or ""
+    local PlaceholderText = argstable.PlaceholderText or "nil"
+    local callback = argstable.Callback or argstable.Function or function() end
+    local parent = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local textboxapi = {
+        Name = name,
+        Value = value,
+        PlaceholderText = argstable.PlaceholderText,
+        Callback = callback
+    }
+    
+    local background = Instance.new("Frame")
+    local textbox = Instance.new("TextBox")
+
+    background.Name = name
+    background.Parent = parent
+    background.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+    background.BorderSizePixel = 0
+    background.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
+    background.Size = UDim2.new(0, 180, 0, 33)
+    textboxapi.MainObject = background
+    textboxapi.Container = background
+
+    textbox.Name = argstable.Name .. "TextBox"
+    textbox.Parent = background
+    textbox.BackgroundTransparency = 1
+    textbox.BorderSizePixel = 0
+    textbox.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
+    textbox.Size = UDim2.new(0, 180, 0, 33)
+    textbox.Font = guipallet.Font
+    textbox.Text = value
+    textbox.TextColor3 = guipallet.TextColor
+    textbox.PlaceholderColor3 = guipallet.PlaceholderColor
+    textbox.TextSize = 22
+    textbox.PlaceholderText = PlaceholderText
+
+    function textboxapi:Set(value)
+        textbox.Text = value
+        textboxapi.Value = value
+        callback(value)
+    end
+    
+    table.insert(connections, textbox.FocusLost:Connect(function()
+        textboxapi:Set(textbox.Text)
+    end))
+
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        API = textboxapi,
+        Type = "TextBox"
+    }
+    return textboxapi
+end
+
+function OptionFunctions:CreateTextList(argstable)
+    local name = argstable.Name:gsub("%s+$", "")
+    local list = argstable.DefaultList or {}
+    local PlaceholderText = argstable.PlaceholderText or "enter something..."
+    local Callback = argstable.Callback or argstable.Function or function() end
+    local parent = argstable.Parent
+    local tab = argstable.Tab
+    local toggleName = argstable.ToggleName
+    local tabName = argstable.TabName
+    local count = 0
+    local textlistapi = {
+        Name = argstable.Name,
+        List = list,
+        PlaceholderText = PlaceholderText,
+        Callback = Callback
+    }
+    
+    local textListBackground = Instance.new("Frame")
+    local textListBox = Instance.new("TextBox")
+    local addToListButton = Instance.new("TextButton")
+    local listFrame = Instance.new("ScrollingFrame")
+    local uiListLayout = Instance.new("UIListLayout")
+
+    textListBackground.Name = "textboxbackground"
+    textListBackground.Parent = parent
+    textListBackground.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+    textListBackground.BorderSizePixel = 0
+    textListBackground.Position = UDim2.new(0, 0, 0, 0)
+    textListBackground.Size = UDim2.new(0, 190, 0, 33)
+    textlistapi.MainObject = textListBackground
+
+    textListBox.Name = argstable.Name .. "TextBox"
+    textListBox.Parent = textListBackground
+    textListBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+    textListBox.BackgroundTransparency = 1
+    textListBox.BorderSizePixel = 0
+    textListBox.Position = UDim2.new(0, 0, 0, 0)
+    textListBox.Size = UDim2.new(0, 150, 0, 33)
+    textListBox.Font = guipallet.Font
+    textListBox.Text = ""
+    textListBox.TextColor3 = guipallet.TextColor
+    textListBox.PlaceholderColor3 = guipallet.PlaceholderColor
+    textListBox.TextSize = 22
+    textListBox.PlaceholderText = "  "..PlaceholderText
+
+    addToListButton.Name = "AddToListButton"
+    addToListButton.Parent = textListBackground
+    addToListButton.BackgroundColor3 = guipallet.Color2
+    addToListButton.BackgroundTransparency = 1
+    addToListButton.BorderSizePixel = 0
+    addToListButton.Position = UDim2.new(0.888888895, 0, 0, 0)
+    addToListButton.AutoButtonColor = false
+    addToListButton.Size = UDim2.new(0, 25, 0, 33)
+    addToListButton.Font = guipallet.Font
+    addToListButton.Text = "+"
+    addToListButton.TextColor3 = guipallet.TextColor
+    addToListButton.TextSize = 25
+
+    listFrame.Name = "ListFrame"
+    listFrame.Parent = parent
+    listFrame.BackgroundTransparency = 1
+    listFrame.BorderSizePixel = 0
+    listFrame.Position = UDim2.new(0, 0, 0, 0)
+    listFrame.Size = UDim2.new(0, 180, 0, 1)
+    listFrame.ScrollBarThickness = 1
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    uiListLayout.Parent = listFrame
+    uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    uiListLayout.Padding = UDim.new(0, 3)
+
+    table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        --ListFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+        if uiListLayout.AbsoluteContentSize.Y > 99 then
+            listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, 99)
+            listFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, count * 28)
+        else
+            listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+        end
+    end))
+
+    local textlistobjects = {}
+
+    function textlistapi:CreateListObject(text)
+        if not textlistobjects[text] then
+            local listobject = Instance.new("TextButton")
+            local removebutton = Instance.new("TextButton")
+            listobject.Name = "ListObject"
+            listobject.Parent = listFrame
+            listobject.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2
+            listobject.BorderSizePixel = 0
+            listobject.Size = UDim2.new(0, 180, 0, 25)
+            listobject.Font = guipallet.Font
+            listobject.Text = "  " .. text
+            listobject.TextColor3 = guipallet.TextColor
+            listobject.TextSize = 22
+            listobject.TextXAlignment = Enum.TextXAlignment.Left
+            listobject.TextYAlignment = Enum.TextYAlignment.Top
+            removebutton.Parent = listobject
+            removebutton.BackgroundTransparency = 1
+            removebutton.Size = UDim2.new(0, 25, 0, 25)
+            removebutton.Position = UDim2.new(0.888888895, 0, 0, 0)
+            removebutton.Font = guipallet.Font
+            removebutton.Text = "-"
+            removebutton.TextColor3 = guipallet.TextColor
+            removebutton.TextSize = 22
+            textlistobjects[text] = listobject
+            table.insert(list, text)
+            count = count + 1
+
+            Callback(text)
+
+            table.insert(connections, listobject.MouseButton1Click:Connect(function()
+                if guilibrary.textlist.lmb then
+                    listobject:Destroy()
+                    textlistobjects[text] = nil
+                    count = count - 1
+                    table.remove(list, guilibrary:findStringInTable(list, text))
+                end
+            end))
+
+            table.insert(connections, listobject.MouseButton2Click:Connect(function()
+                if guilibrary.textlist.rmb then
+                    listobject:Destroy()
+                    textlistobjects[text] = nil
+                    count = count - 1
+                    table.remove(list, guilibrary:findStringInTable(list, text))
+                end
+            end))
+
+            table.insert(connections, removebutton.MouseButton1Click:Connect(function()
+                listobject:Destroy()
+                textlistobjects[text] = nil
+                count = count - 1
+                table.remove(list, guilibrary:findStringInTable(list, text))
+            end))
+        end
+    end
+
+    addToListButton.MouseButton1Click:Connect(function()
+        textlistapi:CreateListObject(textListBox.Text)
+        textListBox.Text = ""
+    end)
+
+    for _, Name in next, list do
+        textlistapi:CreateListObject(Name)
+    end
+
+    guilibrary.ObjectsToSave[toggleName and "Toggles" or "Tabs"][toggleName and toggleName or tabName].Options[name] = { -- // .Options
+        API = textlistapi,
+        Type = "TextList"
+    }
+    return textlistapi
+end
 
 function guilibrary:CreateWindow()
     ScreenGui.Name = guilibrary:RandomString() -- like protect ok?
@@ -1567,160 +3057,33 @@ function guilibrary:CreateWindow()
         guilibrary.Scale = 0.45
     end
 
-    function guilibrary:CreateCustomTab(argstable)
-        local name = argstable.Name
-        local color = argstable.Color or guilibrary.TextColor
-        local tab = Instance.new("TextButton")
-        local tabtext = Instance.new("TextLabel")
-        local container = Instance.new("Frame")
-        local optionsbutton = Instance.new("TextButton")
-        local optionframe = Instance.new("Frame")
-        local pinbutton = Instance.new("TextButton")
-        local uiListLayout = Instance.new("UIListLayout")
-        local uiCorner = Instance.new("UICorner")
-
-        local tabtable = {
-            Name = name,
-            Pinned = false,
-            ObjectsVisible = true,
-            Toggled = false,
-            Position = UDim2.new(0, 40, 0, 40),
-            Order = #Tabs
-        }
-
-        table.insert(Tabs, #Tabs)
-
-        tab.Modal = true
-        tab.Name = name
-        tab.Selectable = true
-        tab.ZIndex = 1
-        tab.Parent = TabsFrame
-        tab.BackgroundColor3 = guipallet.Color1
-        tab.BorderSizePixel = 0
-        tab.Position = UDim2.new(0, 40, 0, 40)
-        tab.Size = UDim2.new(0, 207, 0, 40)
-        tab.Active = true
-        tab.LayoutOrder = 1 + #Tabs
-        tab.AutoButtonColor = false
-        tab.Text = ""
-        tab.Visible = false
-        tabtable.MainObject = tab
-        dragGUI(tab)
-    
-        tabtext.Name = name
-        tabtext.Parent = tab
-        tabtext.ZIndex = tab.ZIndex + 1
-        tabtext.BackgroundColor3 = guipallet.Color1
-        tabtext.BorderSizePixel = 0
-        tabtext.Position = UDim2.new(0, 0, 0, 0)
-        tabtext.Size = UDim2.new(0, 207, 0, 32)
-        tabtext.Font = guipallet.Font
-        tabtext.Text = " " .. name
-        tabtext.TextColor3 = color
-        tabtext.TextSize = 22
-        tabtext.TextWrapped = true
-        tabtext.TextXAlignment = Enum.TextXAlignment.Left
-        tabtext.TextYAlignment = Enum.TextYAlignment.Top
-        tabtext.Selectable = true
-
-        optionsbutton.Parent = tab
-        optionsbutton.Position = UDim2.new(0, 170, 0, 2)
-        optionsbutton.Size = UDim2.new(0, 32, 0, 32)
-        optionsbutton.BackgroundTransparency = 1
-        optionsbutton.Image = "http://www.roblox.com/asset/?id=12809025337"
-        optionsbutton.Rotation = 90
-
-        optionframe.Name = "OptionFrame"
-        optionframe.Parent = tab
-        optionframe.BackgroundColor3 = guipallet.Color2
-        optionframe.Position = UDim2.new(0.102424242, 0, 0.237059206, 0)
-        optionframe.Size = UDim2.new(0, 207, 0, 0)
-        optionframe.AutomaticSize = "Y"
-        optionframe.Visible = false
-
-        pinbutton.Parent = tabtext
-        pinbutton.BackgroundTransparency = 1
-        pinbutton.BorderSizePixel = 0
-        pinbutton.Position = UDim2.new(0, 150, 0, 4)
-        pinbutton.Size = UDim2.new(0, 20, 0, 20)
-        pinbutton.Font = guipallet.Font
-        pinbutton.Text = "📍"
-        pinbutton.TextColor3 = guilibrary.TextColor
-        pinbutton.TextTransparency = 0.4
-        pinbutton.TextSize = 22
-        
-        uiListLayout.Parent = tab
-        uiListLayout.FillDirection = Enum.FillDirection.Horizontal
-        uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        uiListLayout.Padding = UDim.new(0, 0)
-
-        uiCorner.Parent = tab
-        uiCorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
-        table.insert(guilibrary.uiCorners, uiCorner)
-
-        function tabtable:getContainer()
-            return container
-        end
-
-        function tabtable:Pin(bool)
-            bool = bool or not tabtable.Pinned
-            if bool then
-                tabtable.Pinned = true
-                pinbutton.TextTransparency = 0
-                table.insert(guilibrary.pinnedobjects, tabtable)
-            else
-                tabtable.Pinned = false
-                pinbutton.TextTransparency = 0.4
-                table.remove(guilibrary.pinnedobjects, table.find(guilibrary.pinnedobjects, tabtable))
-            end
-        end
-
-        function tabtable:Toggle(bool)
-            bool = bool or not tabtable.Toggled
-            tabtable.Toggled = bool
-            tab.Visible = bool
-        end
-
-        table.insert(connections, optionsbutton.MouseButton1Click:Connect(function()
-            optionframe.Visible = not optionframe.Visible
-        end))
-
-        table.insert(connections, pinbutton.MouseButton1Click:Connect(function()
-			tabtable:Pin()
-		end))
-    end
-
     function guilibrary:CreateTab(argstable)
         local tabname = argstable.Name
         local color = argstable.Color or Color3.fromRGB(83, 214, 110)
-        local customTab = argstable.CustomTab or false
-        local Callback = argstable.Callback or function() end
+        local tabicon = argstable.TabIcon
         local tab = Instance.new("TextButton")
         local tabnametext = Instance.new("TextLabel")
+        --local assetimage = Instance.new("ImageLabel")
         local showunshowbutton = Instance.new("TextButton")
-        local UIListLayout2 = Instance.new("UIListLayout")
-        local UICorner = Instance.new("UICorner")
-        local TopPadding = Instance.new("UIPadding")
-        local pinbutton = Instance.new("TextButton")
-        local togglesTable = {}
-        local ActualScrollingFrame
-        local ScrollingFrame
-
+        local uiListLayout = Instance.new("UIListLayout")
+        local frame = Instance.new("ScrollingFrame")
+        local background = Instance.new("Frame")
+        local uiCorner = Instance.new("UICorner")
+        local padding = Instance.new("UIPadding")
+    
         local tabtable = {
             Name = tabname,
-            CustomTab = customTab,
             BaseColor = color,
             Pinned = false,
             ObjectsVisible = true,
-            Toggled = false,
-            Callback = Callback,
             Position = UDim2.new(0, 40, 0, 40),
             Order = #Tabs,
             Toggles = {}
         }
+        local togglesTable = {}
 
-        table.insert(Tabs, tabtable)
-
+        table.insert(Tabs, #Tabs)
+    
         tab.Modal = true
         tab.Name = tabname .. "_TabTop"
         tab.Selectable = true
@@ -1735,16 +3098,16 @@ function guilibrary:CreateWindow()
         tab.AutoButtonColor = false
         tab.Text = ""
         tab.Visible = false
-        tabtable.MainObject = tab
+        tabtable.Container = tab
         dragGUI(tab)
-
-        tabnametext.Name = tabname
+    
+        tabnametext.Name = "tabName"
         tabnametext.Parent = tab
         tabnametext.ZIndex = tab.ZIndex + 1
         tabnametext.BackgroundColor3 = guipallet.Color1
-        tabnametext.BackgroundTransparency = 0
         tabnametext.BorderSizePixel = 0
-        tabnametext.Size = UDim2.new(0, 207, 0, 30)
+        tabnametext.Position = UDim2.new(0, 0, 0, 0)
+        tabnametext.Size = UDim2.new(0, 207, 0, 32)
         tabnametext.Font = guipallet.Font
         tabnametext.Text = " " .. tabname
         tabnametext.TextColor3 = color
@@ -1754,172 +3117,54 @@ function guilibrary:CreateWindow()
         tabnametext.TextYAlignment = Enum.TextYAlignment.Top
         tabnametext.Selectable = true
 
-        UICorner.Parent = tab
-        UICorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
-        table.insert(guilibrary.uiCorners, UICorner)
+        showunshowbutton.Parent = tabnametext
+        showunshowbutton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        showunshowbutton.BackgroundTransparency = 1
+        showunshowbutton.BorderSizePixel = 0
+        showunshowbutton.Position = UDim2.new(0, 178, 0, 2.5)
+        showunshowbutton.Size = UDim2.new(0, 20, 0, 20)
+        showunshowbutton.Font = guipallet.Font
+        showunshowbutton.Text = "-"
+        showunshowbutton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        showunshowbutton.TextTransparency = 0
+        showunshowbutton.TextSize = 22
 
-        TopPadding.Parent = tab
-        TopPadding.PaddingTop = UDim.new(0, 10)
+        uiCorner.Parent = tab
+        uiCorner.CornerRadius = guilibrary.UICorners and guilibrary.UICornersRadius or UDim.new(0, 0)
+        table.insert(guiObjects.UICorners, uiCorner)
 
-        if customTab then
-            tabtable.Toggleable = false
+        padding.Parent = tab
+        padding.PaddingTop = UDim.new(0, 10)
 
-            local container = Instance.new("Frame")
-            local background = Instance.new("Frame")
-            local optionsbutton = Instance.new("ImageButton")
-            local pinbutton = Instance.new("TextButton")
-            local uiListLayout = Instance.new("UIListLayout")
-            local uilistLayout2 = Instance.new("UIListLayout")
+        frame.Name = "TabToggles"
+        frame.Parent = tab
+        frame.BackgroundTransparency = 1
+        frame.BorderSizePixel = 0
+        frame.Position = UDim2.new(0, 0, 1.08, 0)
+        frame.Size = UDim2.new(0, 207, 0, 600)
+        frame.ScrollBarThickness = 1
+        frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        frame.ScrollingDirection = Enum.ScrollingDirection.Y
 
-            container.Name = "Container"
-            container.Parent = tab
-            container.BackgroundTransparency = 1
-            container.BorderSizePixel = 0
-            container.Position = UDim2.new(0, 0, 1, 0)
-            container.Size = UDim2.new(1, 0, 0, 0)
+        uiListLayout.Parent = frame
+        uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        uiListLayout.Padding = UDim.new(0, 0)
 
-            background.Name = "background"
-            background.Parent = tab
-            background.BackgroundColor3 = guipallet.Color2
-            background.Position = UDim2.new(0, 0, 1, 0)--UDim2.new(0.102424242, 0, 0.237059206, 0)
-            background.Size = UDim2.new(0, 207, 0, 0)
-            background.AutomaticSize = Enum.AutomaticSize.Y
-            background.Visible = false
-            ActualScrollingFrame = background
-
-            uiListLayout.Parent = background
-            uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-            uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            uiListLayout.Padding = UDim.new(0, 8)
-            
-            uilistLayout2.Parent = container
-            uilistLayout2.HorizontalAlignment = Enum.HorizontalAlignment.Center
-            uilistLayout2.SortOrder = Enum.SortOrder.LayoutOrder
-            uilistLayout2.Padding = UDim.new(0, 0)
-
-            optionsbutton.Parent = tab
-            optionsbutton.Position = UDim2.new(0, 170, 0, -6)
-            optionsbutton.Size = UDim2.new(0, 32, 0, 32)
-            optionsbutton.BackgroundTransparency = 1
-            optionsbutton.Image = "http://www.roblox.com/asset/?id=12809025337"
-            optionsbutton.Rotation = 90
-            optionsbutton.ZIndex = 2
-
-            pinbutton.Parent = tabnametext
-            pinbutton.BackgroundTransparency = 1
-            pinbutton.BorderSizePixel = 0
-            pinbutton.Position = UDim2.new(0, 150, 0, 4)
-            pinbutton.Size = UDim2.new(0, 20, 0, 20)
-            pinbutton.Font = guipallet.Font
-            pinbutton.Text = "📍"
-            pinbutton.TextColor3 = guipallet.TextColor
-            pinbutton.TextTransparency = 0.4
-            pinbutton.TextSize = 22
-            pinbutton.ZIndex = 2
-
-            tabnametext.Position = UDim2.new(0, 0, 0, -4) -- so the ui corner at the bottom will work 
-
-            function tabtable:Pin(bool)
-                bool = bool or not tabtable.Pinned
-                tabtable.Pinned = bool
-                pinbutton.TextTransparency = bool and 0 or 0.4
-                if bool then
-                    table.insert(guilibrary.pinnedobjects, tabtable)
-                else
-                    table.remove(guilibrary.pinnedobjects, table.find(guilibrary.pinnedobjects, tabtable))
-                end
-            end
-
-            function tabtable:getContainer()
-                return container
-            end
-
-            function tabtable:getUIListLayout()
-                return uilistLayout2
-            end
-
-            function tabtable:Toggle(bool, toggleable)
-                bool = bool or not tabtable.Toggled
-                tabtable.Toggled = bool
-                tabtable.Toggleable = toggleable or false
-                if not toggleable then
-                    tab.Visible = false
-                else
-                    tab.Visible = bool
-                end
-            end
-
-            table.insert(connections, pinbutton.MouseButton1Click:Connect(function()
-                tabtable:Pin()
-            end))
-
-            table.insert(connections, optionsbutton.MouseButton1Click:Connect(function()
-                background.Visible = not background.Visible
-                container.Visible = not container.Visible
-            end))
-        else
-            ActualScrollingFrame = Instance.new("ScrollingFrame")
-            ActualScrollingFrame.Name = "TabToggles"
-            ActualScrollingFrame.Parent = tab
-            ActualScrollingFrame.BackgroundTransparency = 1
-            ActualScrollingFrame.BorderSizePixel = 0
-            ActualScrollingFrame.Position = UDim2.new(0, 0, 0.97, 0)
-            ActualScrollingFrame.Size = UDim2.new(0, 207, 0, 600)
-            ActualScrollingFrame.ScrollBarThickness = 1
-            ActualScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-            ActualScrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y
-
-            showunshowbutton.Parent = tabnametext
-            showunshowbutton.BackgroundTransparency = 1
-            showunshowbutton.BorderSizePixel = 0
-            showunshowbutton.Position = UDim2.new(0, 178, 0, 2.5)
-            showunshowbutton.Size = UDim2.new(0, 20, 0, 20)
-            showunshowbutton.Font = guipallet.Font
-            showunshowbutton.Text = "-"
-            showunshowbutton.TextColor3 = guipallet.TextColor
-            showunshowbutton.TextTransparency = 0
-            showunshowbutton.TextSize = 22
-
-            if tabname == "Settings" or tabname == "Friends" or tabname == "Profiles" then
-                local background = Instance.new("Frame")
-                local uiListLayout = Instance.new("UIListLayout")
-
-                background.Name = "background"
-                background.Parent = ActualScrollingFrame
-                background.BackgroundColor3 = guipallet.Color2
-                background.Position = UDim2.new(0, 0, 0, 0)--UDim2.new(0.102424242, 0, 0.237059206, 0)
-                background.Size = UDim2.new(0, 207, 0, 0)
-                background.AutomaticSize = "Y"
-                ActualScrollingFrame = background
-
-                uiListLayout.Parent = background
-                uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-                uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                uiListLayout.Padding = UDim.new(0, 8)
+        table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+            if uiListLayout.AbsoluteContentSize.Y < 600 then
+                frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, 600)
             else
-                UIListLayout2.Parent = ActualScrollingFrame
-                UIListLayout2.HorizontalAlignment = Enum.HorizontalAlignment.Center
-                UIListLayout2.SortOrder = Enum.SortOrder.LayoutOrder
-                UIListLayout2.Padding = UDim.new(0, 0)
-                
-                table.insert(connections, UIListLayout2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                    local height = math.max(UIListLayout2.AbsoluteContentSize.Y, 600)
-                    ActualScrollingFrame.CanvasSize = UDim2.new(0, UIListLayout2.AbsoluteContentSize.X, 0, height)
-                end))
+                frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
             end
+        end))
 
-            table.insert(connections, showunshowbutton.MouseButton1Click:Connect(function()
-                tabtable.ObjectsVisible = not tabtable.ObjectsVisible
-                ActualScrollingFrame.Visible = not ActualScrollingFrame.Visible
-                showunshowbutton.Text = tabtable.ObjectsVisible and "-" or "+"
-            end))
-        end
-
-        ScrollingFrame = ActualScrollingFrame
-
-        function tabtable:GetMainObject()
-            return tab
-        end
+        table.insert(connections, showunshowbutton.MouseButton1Click:Connect(function()
+            tabtable.ObjectsVisible = not tabtable.ObjectsVisible
+            frame.Visible = not frame.Visible
+            showunshowbutton.Text = (tabtable.ObjectsVisible and "-" or "+")
+        end))
 
         function tabtable:CreateDivider(DividerText)
             local DividerFrame = Instance.new("Frame")
@@ -1968,51 +3213,49 @@ function guilibrary:CreateWindow()
             return Divider
         end
 
-        function tabtable:CreateToggle(data)
+        function tabtable:CreateToggle(argstable)
+            --[[
             local info = {
                 Name = data.Name,
                 --HoverText = data.HoverText,
-                Keybind = (configtable[data.Name.Keybind] or data.Keybind),
+                Keybind = (data.Keybind or "none"),
                 Callback = (data.Callback or function() end)
             }
+            ]]
 
-            configtable[data.Name] = {
-                Keybind = ((configtable[info.Name] and configtable[info.Name].Keybind) or "none"),
-                IsToggled = ((configtable[info.Name] and configtable[info.Name].IsToggled) or false)
-            }
+            local name = argstable.Name or "Hello world!"
+            local hoverText = argstable.HoverText or nil
+            local keybind = argstable.Keybind or "none"
+            local value = argstable.Default or argstable.DefaultValue or false
+            local callback = argstable.Callback or argstable.Function or function() end
 
-            local title = info.Name
-            --local ToolTip = info.HoverText
-            local keybind = info.Keybind
-            local Callback = info.Callback
-
-            keybind = (keybind or {Name = nil})
-            Keybinds[(keybind.Name or "%*")] = (keybind.Name == nil and false or true)
+            if type(keybind) == "table" then
+                keybind = keybind.Name or "none"
+            end
+            keybind = keybind or "none"
 
             local focus = {
                 Elements = {}
             }
 
             local ToggleTable = {
-                Name = data.Name or "",
+                Name = name,
                 Enabled = false,
-                Visible = true,
                 Keybind = keybind,
-                Callback = data.Callback or function() end,
-                Instance = "Toggle"
+                Callback = callback
             }
 
             table.insert(tabtable.Toggles, #tabtable.Toggles)
-            table.insert(togglesTable, togglesTable.Name)
+            table.insert(togglesTable, name)
 
             table.sort(togglesTable, function(a, b)
                 return a < b
             end)
 
-            local order = guilibrary:getIndex(togglesTable, data.Name)
+            local order = guilibrary:getIndex(togglesTable, name)
 
             if order == nil then
-                order = #togglesTable + 1
+                order = #tabtable.Toggles + 1
             end
 
             local toggle = Instance.new("TextButton")
@@ -2022,25 +3265,26 @@ function guilibrary:CreateWindow()
             local optionframe = Instance.new("Frame")
             local UIListLayout = Instance.new("UIListLayout")
 
-            toggle.Name = title .. "_Toggle"
-            toggle.Parent = ScrollingFrame
+            toggle.Name = name
+            toggle.Parent = frame
             toggle.BackgroundColor3 = guipallet.ToggleColor
             toggle.BorderSizePixel = 0
             toggle.Position = UDim2.new(0.0827946085, -17, 0.133742347, 33)
             toggle.Size = UDim2.new(0, 207, 0, 40)
             toggle.Text = ""
             toggle.LayoutOrder = order
+            ToggleTable.Container = toggle
+            table.insert(guiObjects.ToggleColor, toggle)
 
             togname.Parent = toggle
-            togname.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             togname.BackgroundTransparency = 1
             togname.BorderSizePixel = 0
             togname.Position = UDim2.new(0.0338164233, 0, 0.163378686, 0)
             togname.Size = UDim2.new(0, 192, 0, 26)
             togname.Font = guipallet.Font
-            togname.Text = title
-            togname.TextColor3 = Color3.fromRGB(255, 255, 255)
-            togname.TextSize = 22.000
+            togname.Text = name
+            togname.TextColor3 = guipallet.TextColor
+            togname.TextSize = 22
             togname.TextWrapped = true
             togname.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -2051,8 +3295,8 @@ function guilibrary:CreateWindow()
             optionsframebutton.Image = "http://www.roblox.com/asset/?id=12809025337"
             optionsframebutton.Rotation = 90
 
-            optionframe.Name = "OptionFrame" .. info.Name
-            optionframe.Parent = ScrollingFrame
+            optionframe.Name = name.."OptionFrame"
+            optionframe.Parent = frame
             optionframe.BackgroundColor3 = guipallet.Color2
             optionframe.Position = UDim2.new(0.102424242, 0, 0.237059206, 0)
             optionframe.Size = UDim2.new(0, 207, 0, 0)
@@ -2067,69 +3311,83 @@ function guilibrary:CreateWindow()
 
             BindText.Name = "BindText"
             BindText.Parent = optionframe
-            BindText.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
             BindText.BackgroundTransparency = 1
             BindText.Position = UDim2.new(0.0989583358, 0, 0, 0)
             BindText.Size = UDim2.new(0, 175, 0, 33)
             BindText.Font = guipallet.Font
-            BindText.Text = "Bind: none"
-            BindText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            BindText.Text = "Bind: " .. keybind
+            BindText.TextColor3 = guipallet.TextColor
             BindText.TextSize = 22
             BindText.TextXAlignment = Enum.TextXAlignment.Left
             BindText.TextYAlignment = Enum.TextYAlignment.Center
 
-            ToggleTable.MainObject = toggle
+            if hoverText then
+                guilibrary:addHoverText(toggle, hoverText)
+            end
 
-            BindText.MouseEnter:Connect(function()
-                focus.Elements["toggle_" .. title] = true
-            end)
+            table.insert(connections, BindText.MouseEnter:Connect(function()
+                focus.Elements["toggle_" .. name] = true
+            end))
             
-            BindText.MouseLeave:Connect(function()
-                focus.Elements["toggle_" .. title] = false
-            end)
+            table.insert(connections, BindText.MouseLeave:Connect(function()
+                focus.Elements["toggle_" .. name] = false
+            end))
             
-            local oldkey = keybind.Name
+            local oldkey = keybind
             local isclicked
             local cooldown
             
-            function ToggleTable:UpdateKeybind(remove, keybind)
+            function ToggleTable:UpdateKeybind(remove, newKeybind)
                 if remove then
-                    oldkey = keybind
-                    keybind = "none"
-                    BindText.Text = "Bind: " .. keybind
+                    oldkey = "none"
+                    ToggleTable.Keybind = "none"
+                    BindText.Text = "Bind: none"
                 else
-                    oldkey = keybind
-                    keybind = keybind or "none"
-                    BindText.Text = "Bind: " .. keybind
+                    oldkey = newKeybind or "none"
+                    ToggleTable.Keybind = newKeybind or "none"
+                    BindText.Text = "Bind: " .. (newKeybind or "none")
                 end
             end
             
-            BindText.MouseButton1Click:Connect(function()
-                if not focus.Elements["toggle_" .. title] or isclicked then return end
+            local keybindConnection
+            table.insert(connections, BindText.MouseButton1Click:Connect(function()
+                if not focus.Elements["toggle_"..name] or isclicked then return end
                 isclicked = true
                 BindText.Text = "Bind: ..."
             
-                local connection
-                connection = userInputService.InputBegan:Connect(function(input)
+                if keybindConnection then
+                    keybindConnection:Disconnect()
+                end
+                
+                keybindConnection = userInputService.InputBegan:Connect(function(input)
                     local inputName = input.KeyCode.Name
                     if inputName == "Unknown" and input.UserInputType == Enum.UserInputType.MouseButton2 then
-                        isclicked = true
-                        BindText.Text = "Bind: " .. (oldkey ~= nil and oldkey or "none")
-                        connection:Disconnect()
-                    elseif inputName == oldkey then
                         ToggleTable:UpdateKeybind(true)
-                        connection:Disconnect()
+                        isclicked = false
+                        betterDisconnect(keybindConnection)
+                    elseif inputName == "Unknown" then
+                        return
                     elseif inputName ~= "Unknown" and inputName ~= oldkey then
-                        if not isclicked then return end
                         ToggleTable:UpdateKeybind(false, inputName)
                         isclicked = false
                         cooldown = true
-                        wait(0.5)
-                        cooldown = false
-                        connection:Disconnect()
+                        task.spawn(function()
+                            task.wait(0.5)
+                            cooldown = false
+                        end)
+                        betterDisconnect(keybindConnection)
+                    elseif inputName == oldkey then
+                        ToggleTable:UpdateKeybind(false)
+                        isclicked = false
+                        cooldown = true
+                        task.spawn(function()
+                            task.wait(0.5)
+                            cooldown = false
+                        end)
+                        betterDisconnect(keybindConnection)
                     end
                 end)
-            end)
+            end))
 
             table.insert(connections, toggle.MouseButton2Click:Connect(function()
                 optionframe.Visible = not optionframe.Visible
@@ -2151,12 +3409,13 @@ function guilibrary:CreateWindow()
             
             function ToggleTable:Toggle(silent, bool)
                 bool = bool or (not ToggleTable.Enabled)
+                if bool == ToggleTable.Enabled then return end
                 silent = silent or false
                 ToggleTable.Enabled = bool
                 local tweenName = (bool and "enable") or "disable"
             
                 spawn(function()
-                    guilibrary:CreateNotification(title, (bool and "Enabled " or "Disabled ") .. title, 4, bool)
+                    guilibrary:CreateNotification(name, (bool and "Enabled " or "Disabled ") .. name, 4, "Info")
                 end)
 
                 if bool then
@@ -2170,7 +3429,7 @@ function guilibrary:CreateWindow()
                 end
 
                 spawn(function()
-                    Callback(bool)
+                    callback(bool)
                 end)
             end
 
@@ -2184,14 +3443,14 @@ function guilibrary:CreateWindow()
             end))
             
             table.insert(connections, userInputService.InputBegan:Connect(function(input)
-                if oldkey and not cooldown and not isclicked and input.KeyCode.Name == oldkey and not userInputService:GetFocusedTextBox() then
+                if oldkey and oldkey ~= "none" and not cooldown and not isclicked and input.KeyCode.Name == oldkey and not userInputService:GetFocusedTextBox() then
                     ToggleTable:Toggle()
                 end
             end))
 
             function ToggleTable:CreateDivider(DividerText)
                 local Divider = Instance.new("TextLabel")
-                Divider.Name = title .. "_TextLabelDivider"
+                Divider.Name = name.."Divider"
                 Divider.Parent = optionframe
                 Divider.BackgroundTransparency = 1
                 Divider.BorderSizePixel = 0
@@ -2199,1793 +3458,583 @@ function guilibrary:CreateWindow()
                 Divider.Size = UDim2.new(0, 180, 0, 18)
                 Divider.Font = guipallet.Font
                 Divider.Text = DividerText
-                Divider.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Divider.TextColor3 = guipallet.TextColor
                 Divider.TextSize = 18
                 Divider.TextXAlignment = Enum.TextXAlignment.Center
                 Divider.TextYAlignment = Enum.TextYAlignment.Center
                 return Divider
             end
 
-            -- ColorSlider made by Wowzers and changed to ManaV2 style by Maanaaaa
             function ToggleTable:CreateColorSlider(argstable)
                 local name = argstable.Name
-                local value = argstable.Default or Color3.fromRGB(255, 255, 255)
+                local value = argstable.Default or argstable.DefaultValue or Color3.fromRGB(255, 255, 255)
                 local rainbow = argstable.Rainbow or false
                 local callback = argstable.Callback or argstable.Function or function() end
-                local hue, sat, val = 0, 1, 1
-                local dragging = nil
-                local visible = false
-                local optionObjects = {}
-                local colorsliderapi = {
+                return OptionFunctions:CreateColorSlider({
                     Name = name,
                     Value = value,
-                    RawColorTable = {R = 255, G = 255, B = 255},
                     Rainbow = rainbow,
-                    Callback = callback
-                }
-            
-                local colorPickerFrame = Instance.new("Frame")
-                local moreButton = Instance.new("ImageButton")
-                local rainbowButton = Instance.new("TextButton")
-                local hueSlider = Instance.new("Frame")
-                local hueUICorner = Instance.new("UICorner")
-                local hueText = Instance.new("TextLabel")
-                local hueGradient = Instance.new("UIGradient")
-                local hueKnob = Instance.new("Frame")
-                local hueUICorner2 = Instance.new("UICorner")
-                local saturationSlider = Instance.new("Frame")
-                local saturationUICorner = Instance.new("UICorner")
-                local saturationText = Instance.new("TextLabel")
-                local saturationGradient = Instance.new("UIGradient")
-                local saturationKnob = Instance.new("Frame")
-                local saturationUICorner2 = Instance.new("UICorner")
-                local valueSlider = Instance.new("Frame")
-                local valueUICorner = Instance.new("UICorner")
-                local valueText = Instance.new("TextLabel")
-                local valueGradient = Instance.new("UIGradient")
-                local valueKnob = Instance.new("Frame")
-                local valueUICorner2 = Instance.new("UICorner")
-                local currentColor = Instance.new("Frame")
-                local currentColorUICorner = Instance.new("UICorner")
-            
-                colorPickerFrame.Name = "ColorPicker"
-                colorPickerFrame.Size = UDim2.new(1, 0, 0, 132)
-                colorPickerFrame.BackgroundTransparency = 1
-                colorPickerFrame.Parent = optionframe
-                colorsliderapi.MainObject = colorPickerFrame
-
-                moreButton.Name = "MoreButton"
-                moreButton.Size = UDim2.new(0, 12, 0, 6)
-                moreButton.Position = UDim2.new(0, textService:GetTextSize(name, 15, guipallet.Font, Vector2.new(1000, 1000)).X + 15, 0, 5)
-                moreButton.Rotation = 180
-                moreButton.BackgroundTransparency = 1
-                moreButton.Image = "rbxassetid://14368317595" -- arrow from vapev4
-                moreButton.Parent = colorPickerFrame
-
-                --[[next update
-                rainbowButton.Name = "RainbowButton"
-                rainbowButton.Size = UDim2.new(1, -30, 0, 5)
-                rainbowButton.Position = UDim2.new(0, 20, 0, 5)
-                rainbowButton.BackgroundTransparency = 1
-                rainbowButton.Font = guipallet.Font
-                rainbowButton.Text = "++"
-                rainbowButton.TextSize = 25
-                rainbowButton.TextColor3 = guipallet.TextColor
-                rainbowButton.Parent = colorPickerFrame
-                ]]
-            
-                hueSlider.Name = "HueSlider"
-                hueSlider.Size = UDim2.new(1, -20, 0, 3)
-                hueSlider.Position = UDim2.new(0, 10, 0, 29)
-                hueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                hueSlider.BorderSizePixel = 0
-                hueSlider.Parent = colorPickerFrame
-
-                hueUICorner.CornerRadius = UDim.new(0, 2)
-                hueUICorner.Parent = hueSlider
-
-                hueText.Name = "HueText"
-                hueText.Size = UDim2.new(0, 30, 0, 15)
-                hueText.Position = UDim2.new(0, 10, 0, 0)
-                hueText.BackgroundTransparency = 1
-                hueText.Text = name
-                hueText.TextColor3 = guipallet.GrayTextColor
-                hueText.Font = guipallet.Font
-                hueText.TextSize = 15
-                hueText.TextXAlignment = Enum.TextXAlignment.Left
-                hueText.Parent = colorPickerFrame
-            
-                hueGradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-                    ColorSequenceKeypoint.new(0.167, Color3.fromRGB(255, 255, 0)),
-                    ColorSequenceKeypoint.new(0.333, Color3.fromRGB(0, 255, 0)),
-                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-                    ColorSequenceKeypoint.new(0.667, Color3.fromRGB(0, 0, 255)),
-                    ColorSequenceKeypoint.new(0.833, Color3.fromRGB(255, 0, 255)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
                 })
-                hueGradient.Parent = hueSlider
-                
-                hueKnob.Name = "HueKnob"
-                hueKnob.Size = UDim2.new(0, 15, 0, 15)
-                hueKnob.Position = UDim2.new(0, 184.5, 0, -6)
-                hueKnob.BorderSizePixel = 0
-                hueKnob.Parent = hueSlider
-
-                hueUICorner2.CornerRadius = UDim.new(1, 0)
-                hueUICorner2.Parent = hueKnob
-            
-                saturationSlider.Name = "SaturationSlider"
-                saturationSlider.Size = UDim2.new(1, -20, 0, 3)
-                saturationSlider.Position = UDim2.new(0, 10, 0, 73)
-                saturationSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                saturationSlider.BorderSizePixel = 0
-                saturationSlider.Parent = colorPickerFrame
-                table.insert(optionObjects, saturationSlider)
-
-                saturationUICorner.CornerRadius = UDim.new(0, 2)
-                saturationUICorner.Parent = saturationSlider
-
-                saturationText.Name = "SaturationText"
-                saturationText.Size = UDim2.new(0, 30, 0, 15)
-                saturationText.Position = UDim2.new(0, 10, 0, 44)
-                saturationText.BackgroundTransparency = 1
-                saturationText.Text = "Saturation"
-                saturationText.TextColor3 = guipallet.GrayTextColor
-                saturationText.Font = guipallet.Font
-                saturationText.TextSize = 15
-                saturationText.TextXAlignment = Enum.TextXAlignment.Left
-                saturationText.Parent = colorPickerFrame
-                table.insert(optionObjects, saturationText)
-            
-                saturationGradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                    ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(0, 1, 1))
-                })
-                saturationGradient.Parent = saturationSlider
-            
-                saturationKnob.Name = "SaturationKnob"
-                saturationKnob.Size = UDim2.new(0, 15, 0, 15)
-                saturationKnob.Position = UDim2.new(0, 184.5, 0, -6)
-                saturationKnob.BorderSizePixel = 0
-                saturationKnob.Parent = saturationSlider
-                table.insert(optionObjects, saturationKnob)
-
-                saturationUICorner2.CornerRadius = UDim.new(1, 0)
-                saturationUICorner2.Parent = saturationKnob
-
-                valueSlider.Name = "valueSlider"
-                valueSlider.Size = UDim2.new(1, -20, 0, 3)
-                valueSlider.Position = UDim2.new(0, 10, 0, 117)
-                valueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                valueSlider.BorderSizePixel = 0
-                valueSlider.Parent = colorPickerFrame
-                table.insert(optionObjects, valueSlider)
-
-                valueUICorner.CornerRadius = UDim.new(0, 2)
-                valueUICorner.Parent = valueSlider
-
-                valueText.Name = "ValueText"
-                valueText.Size = UDim2.new(0, 30, 0, 15)
-                valueText.Position = UDim2.new(0, 10, 0, 88)
-                valueText.BackgroundTransparency = 1
-                valueText.Text = "Value"
-                valueText.TextColor3 = guipallet.GrayTextColor
-                valueText.Font = guipallet.Font
-                valueText.TextSize = 15
-                valueText.TextXAlignment = Enum.TextXAlignment.Left
-                valueText.Parent = colorPickerFrame
-                table.insert(optionObjects, valueText)
-            
-                valueGradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-                    ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(0, 1, 1))
-                })
-                valueGradient.Parent = valueSlider
-            
-                valueKnob.Name = "ValueKnob"
-                valueKnob.Size = UDim2.new(0, 15, 0, 15)
-                valueKnob.Position = UDim2.new(0, 184.5, 0, -6)
-                valueKnob.BorderSizePixel = 0
-                valueKnob.Parent = valueSlider
-                table.insert(optionObjects, valueKnob)
-
-                valueUICorner2.CornerRadius = UDim.new(1, 0)
-                valueUICorner2.Parent = valueKnob
-
-                currentColor.Name = "CurrentColor"
-                currentColor.Size = UDim2.new(0, 18, 0, 18)
-                currentColor.Position = UDim2.new(1, -30, 0, 0)
-                currentColor.BackgroundColor3 = value
-                currentColor.BorderColor3 = Color3.fromRGB(30, 30, 30)
-                currentColor.BorderSizePixel = 0
-                currentColor.Parent = colorPickerFrame
-
-                currentColorUICorner.CornerRadius = UDim.new(0, 5)
-                currentColorUICorner.Parent = currentColor
-
-                --[[
-                local function updateHue(hueValue)
-                    hue = hueValue
-                    saturationGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                        ColorSequenceKeypoint.new(1, HSVtoRGB(hue, 1, 1))
-                    })
-                    valueGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-                        ColorSequenceKeypoint.new(1, HSVtoRGB(hue, 1, 1))
-                    })
-                    local color = HSVtoRGB(hue, sat, val)
-                    currentColor.BackgroundColor3 = color
-                    colorsliderapi.Value = color
-                    colorsliderapi.Callback(color)
-                end
-            
-                local function updateSaturation(satValue)
-                    sat = satValue
-                    local color = HSVtoRGB(hue, sat, val)
-                    currentColor.BackgroundColor3 = color
-                    colorsliderapi.Value = color
-                    colorsliderapi.Callback(color)
-                end
-            
-                local function updateValue(valValue)
-                    val = valValue
-                    local color = HSVtoRGB(hue, sat, val)
-                    currentColor.BackgroundColor3 = color
-                    colorsliderapi.Value = color
-                    colorsliderapi.Callback(color)
-                end
-                ]]
-
-                function colorsliderapi:Set(hueValue, satValue, valValue, rainbow)
-                    hue = hueValue
-                    sat = satValue or sat
-                    val = valValue or val
-                    local color = guilibrary:HSVtoRGB(hue, sat, val)
-                    rainbow = rainbow or false
-                    value = color
-                    local newColorTable = {
-                        R = math.floor(color.R * 255 + 0.5),
-                        G = math.floor(color.G * 255 + 0.5),
-                        B = math.floor(color.B * 255 + 0.5)
-                    }
-                    colorsliderapi.RawColorTable = newColorTable
-
-                    saturationGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                        ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(hue, 1, val))
-                    })
-                    valueGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-                        ColorSequenceKeypoint.new(1, guilibrary:HSVtoRGB(hue, sat, 1))
-                    })
-                    currentColor.BackgroundColor3 = color
-                    if rainbow then
-                        colorsliderapi.Rainbow = true
-                        table.insert(guilibrary.rainbowObjects, colorsliderapi)
-                    else
-                        if guilibrary.rainbowObjects[colorsliderapi] then
-                            table.remove(guilibrary.rainbowObjects, table.find(guilibrary.rainbowObjects, colorsliderapi))
-                        end
-                    end
-                    colorsliderapi.Value = color
-                    callback(color)
-                end
-
-                table.insert(connections, moreButton.MouseButton1Click:Connect(function()
-                    visible = not visible
-                    for _, object in next, optionObjects do
-                        object.Visible = visible
-                    end
-                    if visible then
-                        colorPickerFrame.Size = UDim2.new(1, 0, 0, 132)
-                        moreButton.Rotation = 0
-                    else
-                        colorPickerFrame.Size = UDim2.new(1, 0, 0, 44)
-                        moreButton.Rotation = 180
-                    end
-                end))
-            
-                table.insert(connections, hueSlider.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "hue"
-                        local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                        hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(relativeX, sat, val)
-                    end
-                end))
-
-                table.insert(connections, hueKnob.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "hue"
-                        local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                        hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(relativeX, sat, val)
-                    end
-                end))
-            
-                table.insert(connections, saturationSlider.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "saturation"
-                        local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
-                        saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(hue, relativeX, val)
-                    end
-                end))
-
-                table.insert(connections, saturationKnob.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "saturation"
-                        local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
-                        saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(hue, relativeX, val)
-                    end
-                end))
-            
-                table.insert(connections, valueSlider.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "value"
-                        local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
-                        valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(hue, sat, relativeX)
-                    end
-                end))
-
-                table.insert(connections, valueKnob.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = "value"
-                        local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
-                        valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                        colorsliderapi:Set(hue, sat, relativeX)
-                    end
-                end))
-            
-                table.insert(connections, userInputService.InputChanged:Connect(function(input)
-                    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        if dragging == "hue" then
-                            local relativeX = math.clamp((input.Position.X - hueSlider.AbsolutePosition.X) / hueSlider.AbsoluteSize.X, 0, 1)
-                            hueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                            colorsliderapi:Set(relativeX, sat, val)
-                        elseif dragging == "saturation" then
-                            local relativeX = math.clamp((input.Position.X - saturationSlider.AbsolutePosition.X) / saturationSlider.AbsoluteSize.X, 0, 1)
-                            saturationKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                            colorsliderapi:Set(hue,  relativeX, val)
-                        elseif dragging == "value" then
-                            local relativeX = math.clamp((input.Position.X - valueSlider.AbsolutePosition.X) / valueSlider.AbsoluteSize.X, 0, 1)
-                            valueKnob.Position = UDim2.new(relativeX, -2.5, 0, -6)
-                            colorsliderapi:Set(hue, sat, relativeX)
-                        end
-                    end
-                end))
-                
-                table.insert(connections, userInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = nil
-                    end
-                end))
-
-                colorsliderapi:Set(0, 1, 1, false)
-
-                for _, object in next, optionObjects do
-                    object.Visible = visible
-                end
-                colorPickerFrame.Size = UDim2.new(1, 0, 0, 44)
-            
-                guilibrary.ObjectsThatCanBeSaved[name .. "ColorSlider"] = {
-                    Table = colorsliderapi,
-                    mainobject = colorPickerFrame,
-                    Type = "ColorSlider"
-                }
-                return colorsliderapi
             end
             function ToggleTable:CreateSlider(argstable)
-                local Value = argstable.Default or argstable.Min
+                local name = argstable.Name
+                local value = argstable.Default or argstable.DefaultValue or argstable.Min
                 local min = argstable.Min
                 local max = argstable.Max
                 local round = argstable.Round or 0
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local sliderapi = {
-                    Value = Value,
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateSlider({
+                    Name = name,
+                    Default = value,
                     Min = min,
                     Max = max,
                     Round = round,
-                    Callback = Callback
-                }
-
-                local slider = Instance.new("TextButton")
-                local SliderTextBox = Instance.new("TextBox")
-                local slidertext = Instance.new("TextLabel")
-                local slider_2 = Instance.new("Frame")
-            
-                slider.Name = "Slider"
-                slider.Parent = optionframe
-                slider.BackgroundColor3 = guipallet.Color2
-                slider.BorderSizePixel = 0
-                slider.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
-                slider.Size = UDim2.new(0, 180, 0, 34)
-                slider.Text = ""
-                slider.AutoButtonColor = false
-            
-                SliderTextBox.Name = "SliderTextBox"
-                SliderTextBox.Parent = slider
-                SliderTextBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2
-                SliderTextBox.BackgroundTransparency = 1
-                SliderTextBox.BorderSizePixel = 0
-                SliderTextBox.Position = UDim2.new(0.0188679248, 0, 0, 0)
-                SliderTextBox.Size = UDim2.new(0, 180, 0, 33)
-                SliderTextBox.ZIndex = 1
-                SliderTextBox.Font = guipallet.Font
-                SliderTextBox.PlaceholderText = ""
-                SliderTextBox.Text = ""
-                SliderTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-                SliderTextBox.TextSize = 22
-                SliderTextBox.TextXAlignment = Enum.TextXAlignment.Left
-                SliderTextBox.TextEditable = false
-                SliderTextBox.Visible = false
-
-                slidertext.Name = "SliderText"
-                slidertext.Parent = slider
-                slidertext.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                slidertext.BackgroundTransparency = 1
-                slidertext.BorderSizePixel = 0
-                slidertext.Position = UDim2.new(0.0188679248, 0, 0, 0)
-                slidertext.Size = UDim2.new(0, 180, 0, 33)
-                slidertext.ZIndex = 3
-                slidertext.Font = guipallet.Font
-                slidertext.Text = ""
-                slidertext.TextColor3 = Color3.fromRGB(255, 255, 255)
-                slidertext.TextSize = 22
-                slidertext.TextXAlignment = Enum.TextXAlignment.Left
-            
-                slider_2.Name = "Slider_2"
-                slider_2.Parent = slider
-                slider_2.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2
-                slider_2.BorderSizePixel = 0
-                slider_2.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
-                slider_2.Size = UDim2.new(0, 0, 0, 34)
-                slider_2.ZIndex = 2
-
-                sliderapi.MainObject = slider
-            
-                local function slide(input)
-                    local sizeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-                    local value = math.floor(((((max - min) * sizeX) + min) * (10 ^ round)) + 0.5) / (10 ^ round)
-
-                    slider_2.Size = UDim2.new(sizeX, 0, 1, 0)
-                    sliderapi.Value = value
-                    slidertext.Text = argstable.Name .. ": " .. tostring(value)
-
-                    if not argstable.OnInputEnded then
-                        Callback(value)
-                    end
-                end
-            
-                local sliding = false
-            
-                table.insert(connections, slider.InputBegan:Connect(function(input)
-                    local currentTime = tick()
-                    local function HandleFocusLost(enter)
-                        if enter then
-                            local value = tonumber(SliderTextBox.Text)
-                            if value then
-                                sliderapi:Set(value, guilibrary.SliderCanOverride)
-                            end
-                        end
-                        slidertext.Visible = true
-                        SliderTextBox.Visible = false
-                        SliderTextBox.TextEditable = false
-                    end
-                
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
-                        if guilibrary.SliderDoubleClick and currentTime - SliderLastPress < 0.5 then
-                            slidertext.Visible = false
-                            SliderTextBox.Visible = true
-                            SliderTextBox.TextEditable = true
-                            SliderTextBox:CaptureFocus()
-                            SliderTextBox.FocusLost:Connect(HandleFocusLost)
-                        else
-                            SliderLastPress = currentTime
-                            sliding = true
-                            slide(input)
-                        end
-                    end
-                end))
-                
-                table.insert(connections, SliderTextBox.FocusLost:Connect(function(enter)
-                    if enter then
-                        local value = tonumber(SliderTextBox.Text)
-                        if value then
-                            sliderapi:Set(value, guilibrary.SliderCanOverride)
-                        end
-                    end
-                    slidertext.Visible = true
-                    SliderTextBox.Visible = false
-                    SliderTextBox.TextEditable = false
-                end))
-                
-                table.insert(connections, slider.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        if argstable.OnInputEnded then
-                            Callback(sliderapi.Value)
-                        end
-                        sliding = false
-                    end
-                end))
-                
-                table.insert(connections, userInputService.InputChanged:Connect(function(input)
-                    if (input.UserInputType == Enum.UserInputType.MouseMovement and userInputService.MouseEnabled) or (input.UserInputType == Enum.UserInputType.Touch) then
-                        if sliding then
-                            slide(input)
-                        end
-                    end
-                end))
-            
-                function sliderapi:Set(value, CanOverride)
-                    local SizeValue = math.floor((math.clamp(value, min, max) * (10 ^ round)) + 0.5) / (10 ^ round)
-                    if CanOverride then
-                        value = value
-                    else
-                        value = SizeValue
-                    end
-
-                    sliderapi.Value = value
-                    slider_2.Size = UDim2.new((SizeValue - min) / (max - min), 0, 1, 0)
-                    slidertext.Text = argstable.Name .. ": " .. tostring(value)
-
-                    Callback(value)
-                end
-
-                sliderapi:Set(sliderapi.Value)
-            
-                guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Slider"] = {
-                    Table = sliderapi,
-                    mainobject = slider,
-                    Type = "Slider"
-                }
-                return sliderapi
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
+                })
             end
-            function ToggleTable:CreateDropDown(argstable)
+            function ToggleTable:CreateDropdown(argstable)
                 local name = argstable.Name
-                local list = argstable.List or {}
-                local value = argstable.Default or list[1] and list[1] or "nothing"
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local dropdownapi = {
+                local list = argstable.List or argstable.DefaultList or {}
+                local value = argstable.Default or list[1] or nil
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateDropdown({
                     Name = name,
-                    Value = value,
                     List = list,
-                    Callback = Callback
-                }
-            
-                local function getvalue(index) 
-                    local realindex
-                    if index > #dropdownapi.List then
-                        realindex = 1 
-                    elseif index < 1 then
-                        realindex = #dropdownapi.List
-                    else
-                        realindex = index
-                    end
-                    return realindex
-                end
-            
-                local Dropdown = Instance.new("TextLabel")
-                local DropdownOptions = Instance.new("Frame")
-                local DropdownList = Instance.new("UIListLayout")
-                local DropdownOptionsButton = Instance.new("TextButton")
-
-                Dropdown.Name = "Dropdown"
-                Dropdown.Parent = optionframe
-                Dropdown.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                Dropdown.BackgroundTransparency = 1
-                Dropdown.BorderSizePixel = 0
-                --Dropdown.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
-                Dropdown.Size = UDim2.new(0, 175, 0, 25)
-                Dropdown.Font = guipallet.Font
-                Dropdown.Text = name .. ": " .. value
-                Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Dropdown.TextSize = 22
-                Dropdown.TextWrapped = true
-                Dropdown.TextXAlignment = Enum.TextXAlignment.Left
-                Dropdown.TextYAlignment = Enum.TextYAlignment.Bottom
-                --Dropdown.ZIndex = 5
-
-                DropdownOptions.Name = "DropdownOptions"
-                DropdownOptions.Parent = optionframe
-                DropdownOptions.BackgroundTransparency = 1
-                DropdownOptions.BorderSizePixel = 0
-                DropdownOptions.Position = UDim2.new(0, 0, 0, 25)
-                DropdownOptions.Size = UDim2.new(0, 175, 0, 25)
-                DropdownOptions.Visible = false
-                DropdownOptions.ZIndex = 500
-                --DropdownOptions.ZIndexBehavior = Enum.ZIndexBehavior.Global
-
-                DropdownList.Name = "DropdownList"
-                DropdownList.Parent = DropdownOptions
-                DropdownList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-                DropdownList.SortOrder = Enum.SortOrder.LayoutOrder
-                DropdownList.Padding = UDim.new(0, 0)
-
-                DropdownOptionsButton.Name = "DropdownOptionsButton"
-                DropdownOptionsButton.Parent = Dropdown
-                DropdownOptionsButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                DropdownOptionsButton.BackgroundTransparency = 1
-                DropdownOptionsButton.BorderSizePixel = 0
-                DropdownOptionsButton.Position = UDim2.new(0.942857146, 0, 0, 0)
-                DropdownOptionsButton.Size = UDim2.new(0, 25, 0, 25)
-                DropdownOptionsButton.Font = guipallet.Font
-                DropdownOptionsButton.Text = ">"
-                DropdownOptionsButton.Rotation = 90
-                DropdownOptionsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-                DropdownOptionsButton.TextSize = 22
-                DropdownOptionsButton.TextWrapped = true
-
-                dropdownapi.MainObject = Dropdown
-            
-                function dropdownapi:CreateOptionButton(name)
-                    local button = Instance.new("TextButton")
-
-                    button.Name = name
-                    button.Parent = DropdownOptions
-                    button.BackgroundColor3 = guipallet.Color1
-                    button.BackgroundTransparency = 0.8
-                    button.BorderSizePixel = 0
-                    button.Size = UDim2.new(0, 175, 0, 25)
-                    button.Font = guipallet.Font
-                    button.Text = name
-                    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    button.TextSize = 22
-                    button.TextWrapped = true
-                    button.TextXAlignment = Enum.TextXAlignment.Left
-                    button.ZIndex = 500
-
-                    button.MouseButton1Click:Connect(function()
-                        dropdownapi:Select(name)
-                        DropdownOptions.Visible = false
-                    end)
-                end
-
-                for i, v in pairs(list) do
-                    dropdownapi:CreateOptionButton(v)
-                end
-
-                table.insert(connections, DropdownOptionsButton.MouseButton1Click:Connect(function()
-                    if DropdownOptions.Visible then
-                        DropdownOptions.Visible = false
-                        DropdownOptionsButton.Rotation = 90
-                    else
-                        DropdownOptions.Visible = true
-                        DropdownOptionsButton.Rotation = -90
-                    end
-                end))
-
-                table.insert(connections, DropdownList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                    local count = 0
-                    for _, child in pairs(DropdownOptions:GetChildren()) do
-                        if child:IsA("TextButton") then
-                            count = count + 1
-                        end
-                    end
-                    --ListFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                    DropdownOptions.Size = UDim2.new(0, 175, 0, count * 25)
-                end))
-
-                function dropdownapi:Select(name)
-                    if dropdownapi.List[name] or guilibrary:findStringInTable(dropdownapi.List, name) then
-                        dropdownapi.Value = dropdownapi.List[name] or dropdownapi.List[guilibrary:findStringInTable(dropdownapi.List, name)]
-                        Dropdown.Text =  argstable.Name .. ": " .. tostring(name)
-                        Callback(name)
-                    end
-                end
-
-                dropdownapi:Select(value)
-            
-                guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Dropdown"] = {
-                    Table = dropdownapi,
-                    mainobject = Dropdown,
-                    Type = "Dropdown",
-                    Tab = TabsFrame.Name
-                }
-                
-                return dropdownapi
-            end               
+                    Default = value,
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
+                })
+            end
             function ToggleTable:CreateToggle(argstable)
                 local name = argstable.Name
-                local value = argstable.Default or false
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local optiontoggleapi = {
+                local value = argstable.Default or argstable.DefaultValue or false
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateToggle({
                     Name = name,
-                    Enabled = value,
-                    Value = value,
-                    Type = "OptionToggle",
-                    Callback = Callback
-                }
-            
-                local Label = Instance.new("TextLabel")
-                local ActiveFrame = Instance.new("Frame")
-                local ToggleButton = Instance.new("TextButton")
-            
-                Label.Name = "Label"
-                Label.Parent = optionframe
-                Label.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                Label.BackgroundTransparency = 1
-                Label.Position = UDim2.new(0.091, 0, 0.503, 0)
-                Label.Size = UDim2.new(0, 170, 0, 32)
-                Label.Font = guipallet.Font
-                Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                Label.TextSize = 22 --#name > 12 and 22 or 22 - #name
-                Label.TextXAlignment = Enum.TextXAlignment.Left
-                Label.Text = name
-            
-                ToggleButton.Name = "ToggleButton"
-                ToggleButton.Parent = Label
-                ToggleButton.BackgroundColor3 = guipallet.Color3
-                ToggleButton.BorderSizePixel = 0
-                ToggleButton.Position = UDim2.new(0.817, 0, 0.074, 0)
-                ToggleButton.Size = UDim2.new(0, 29, 0, 29)
-                ToggleButton.ZIndex = 2
-                ToggleButton.Text = ""
-                ToggleButton.AutoButtonColor = false
-            
-                ActiveFrame.Name = "ActiveFrame"
-                ActiveFrame.Parent = Label
-                ActiveFrame.BackgroundColor3 = guipallet.Color3
-                ActiveFrame.BorderSizePixel = 0
-                ActiveFrame.Position = UDim2.new(0, 141, 0, 5)
-                ActiveFrame.Size = UDim2.new(0, 24, 0, 24)
-                ActiveFrame.ZIndex = 3
-            
-                optiontoggleapi.MainObject = Label
-            
-                function optiontoggleapi:Toggle(bool)
-                    bool = bool or not optiontoggleapi.Enabled
-                    value = bool
-                    optiontoggleapi.Enabled = bool
-                    optiontoggleapi.Value = bool
-            
-                    spawn(function()
-                        Callback(bool)
-                    end)
-            
-                    ActiveFrame.BackgroundColor3 = (bool and ((guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2)) or guipallet.Color3
-                end
-
-                function optiontoggleapi:ReToggle()
-                    optiontoggleapi:Toggle()
-                    optiontoggleapi:Toggle()
-                end
-
-                optiontoggleapi:Toggle(value)
-            
-                table.insert(connections, ToggleButton.MouseButton1Click:Connect(function()
-                    optiontoggleapi:Toggle()
-                end))
-
-                guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Toggle"] = {
-                    Table = optiontoggleapi,
-                    mainobject = Label,
-                    Type = "OptionToggle"
-                }
-            
-                return optiontoggleapi
+                    Default = value,
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
+                })
             end
             function ToggleTable:CreateButton(argstable)
                 local name = argstable.Name
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local buttontable = {
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateButton({
                     Name = name,
-                    Callback = Callback
-                }
-
-                local button = Instance.new("TextButton")
-
-                button.Name = name.."_Button"
-                button.Parent = optionframe
-                button.BackgroundColor3 = guipallet.ToggleColor
-                button.BackgroundTransparency = 0.5
-                button.BorderSizePixel = 0
-                button.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
-                button.Size = UDim2.new(0, 175, 0, 25)
-                button.Font = guipallet.Font
-                button.Text = name
-                button.TextColor3 = Color3.fromRGB(255, 255, 255)
-                button.TextSize = 22.000
-                button.TextWrapped = true
-                button.TextXAlignment = Enum.TextXAlignment.Center
-                button.TextYAlignment = Enum.TextYAlignment.Center
-
-                table.insert(connections, button.MouseButton1Click:Connect(function()
-                    Callback()
-                end))
-
-                return buttontable
+                    Callback = callback,
+                    Parent = optionframe
+                })
             end
             function ToggleTable:CreateTextBox(argstable)
                 local name = argstable.Name
-                local value = argstable.DefaultValue or ""
+                local value = argstable.Default or argstable.DefaultValue or ""
                 local PlaceholderText = argstable.PlaceholderText or "nil"
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local textboxapi = {
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateTextBox({
                     Name = name,
-                    Value = value,
-                    PlaceholderText = argstable.PlaceholderText,
-                    Callback = Callback
-                }
-                
-                local textbox_background = Instance.new("Frame")
-                local textbox = Instance.new("TextBox")
-
-                textbox_background.Name = "textboxbackground"
-                textbox_background.Parent = optionframe
-                textbox_background.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                textbox_background.BorderSizePixel = 0
-                textbox_background.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
-                textbox_background.Size = UDim2.new(0, 180, 0, 33)
-
-                textbox.Name = argstable.Name .. "TextBox"
-                textbox.Parent = textbox_background
-                textbox.BackgroundColor3 = guipallet.Color2
-                textbox.BackgroundTransparency = 1
-                textbox.BorderSizePixel = 0
-                textbox.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
-                textbox.Size = UDim2.new(0, 180, 0, 33)
-                textbox.Font = guipallet.Font
-                textbox.Text = value
-                textbox.TextColor3 = Color3.fromRGB(255, 255, 255)
-                textbox.PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
-                textbox.TextSize = 22
-                textbox.PlaceholderText = PlaceholderText
-
-                textboxapi.MainObject = textbox_background
-
-                local focused = false
-                function textboxapi:Set(value)
-                    textbox.Text = value
-                    textboxapi.Value = value
-                    Callback(value)
-                end
-                
-                table.insert(connections, textbox.FocusLost:Connect(function()
-                    textboxapi:Set(textbox.Text)
-                end))
-            
-                guilibrary.Objects[argstable.Name.."TextBox"] = {
-                    Table = textboxapi,
-                    mainobject = textbox,
-                    Type = "TextBox"
-                }
-                
-                return textboxapi
+                    Default = value,
+                    PlaceholderText = PlaceholderText,
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
+                })
             end
-
             function ToggleTable:CreateTextList(argstable)
                 local name = argstable.Name
-                local list = argstable.DefaultList or {}
+                local list = argstable.List or argstable.DefaultList or {}
                 local PlaceholderText = argstable.PlaceholderText or "enter something..."
-                local choose = argstable.Choose or false
-                local multiChoose = argstable.MultiChoose or false
-                local default = argstable.Default or false
-                local current = "none"
-                local choosedTable = {}
-                local choosedObjectsTable = {}
-                local Callback = argstable.Callback or argstable.Function or function() end
-                local count = 0
-                local textlistapi = {
-                    Name = argstable.Name,
+                --local default = argstable.Default or nil
+                --local choose = argstable.Choose or false
+                --local multiChoose = argstable.MultiChoose or false
+                local callback = argstable.Callback or argstable.Function or function() end
+                return OptionFunctions:CreateTextList({
+                    Name = name,
                     List = list,
                     PlaceholderText = PlaceholderText,
-                    Choose = choose,
-                    MultiChoose = multiChoose,
-                    Default = default,
-                    Choosed = "none",
-                    ChoosedTable = {},
-                    Callback = Callback
-                }
-                
-                local textListBackground = Instance.new("Frame")
-                local textListBox = Instance.new("TextBox")
-                local addToListButton = Instance.new("TextButton")
-                local listFrame = Instance.new("ScrollingFrame")
-                local uiListLayout = Instance.new("UIListLayout")
-
-                textListBackground.Name = "textboxbackground"
-                textListBackground.Parent = optionframe
-                textListBackground.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                textListBackground.BorderSizePixel = 0
-                textListBackground.Position = UDim2.new(0, 0, 0, 0)
-                textListBackground.Size = UDim2.new(0, 190, 0, 33)
-                textlistapi.MainObject = textListBackground
-
-                textListBox.Name = argstable.Name .. "TextBox"
-                textListBox.Parent = textListBackground
-                textListBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                textListBox.BackgroundTransparency = 1
-                textListBox.BorderSizePixel = 0
-                textListBox.Position = UDim2.new(0, 0, 0, 0)
-                textListBox.Size = UDim2.new(0, 150, 0, 33)
-                textListBox.Font = guipallet.Font
-                textListBox.Text = ""
-                textListBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-                textListBox.PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
-                textListBox.TextSize = 22
-                textListBox.PlaceholderText = "  "..PlaceholderText
-
-                addToListButton.Name = "AddToListButton"
-                addToListButton.Parent = textListBackground
-                addToListButton.BackgroundColor3 = guipallet.Color2
-                addToListButton.BackgroundTransparency = 1
-                addToListButton.BorderSizePixel = 0
-                addToListButton.Position = UDim2.new(0.888888895, 0, 0, 0)
-                addToListButton.AutoButtonColor = false
-                addToListButton.Size = UDim2.new(0, 25, 0, 33)
-                addToListButton.Font = guipallet.Font
-                addToListButton.Text = "+"
-                addToListButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-                addToListButton.TextSize = 25
-
-                listFrame.Name = "ListFrame"
-                listFrame.Parent = optionframe
-                listFrame.BackgroundTransparency = 1
-                listFrame.BorderSizePixel = 0
-                listFrame.Position = UDim2.new(0, 0, 0, 0)
-                listFrame.Size = UDim2.new(0, 180, 0, 1)
-                listFrame.ScrollBarThickness = 1
-                listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-                uiListLayout.Parent = listFrame
-                uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-                uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                uiListLayout.Padding = UDim.new(0, 3)
-
-                table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                    --ListFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                    if uiListLayout.AbsoluteContentSize.Y > 99 then
-                        listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, 99)
-                        listFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, count * 28)
-                    else
-                        listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                    end
-                end))
-
-                local textlistobjects = {}
-
-                function textlistapi:Set(name, obj)
-                    if obj then
-                        if multiChoose == false then
-                            -- here it's disabling the previous selected one
-                            Callback(choosedTable[1], false)
-                            choosedObjectsTable[1].BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                            table.clear(choosedTable)
-                            table.clear(choosedObjectsTable)
-
-                            -- and here it's enabling the current selected one
-                            obj.BackgroundColor3 = guilibrary:makeColorDarker((guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2)
-                            table.insert(choosedTable, name)
-                            table.insert(choosedObjectsTable, obj)
-                            Callback(name, true)
-                        elseif obj.BackgroundColor3 == (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2 then
-                            obj.BackgroundColor3 =  guilibrary:makeColorDarker((guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2)
-                            table.insert(choosedTable, name)
-                            table.insert(choosedObjectsTable, obj)
-                            Callback(name, true)
-                        else
-                            obj.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                            table.remove(choosedTable, name)
-                            table.remove(choosedObjectsTable, obj)
-                            Callback(name, false)
-                        end
-                    end
-                    for _, listobj in next, listFrame do
-                        if not listobj:IsA("UIListLayout") and listobj.Name == not name and not table.find(choosedObjectsTable, obj) then
-                            listobj.BackgroundColor3 =(guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                        end
-                    end
-                end
-
-                function textlistapi:CreateListObject(text)
-                    if not textlistobjects[text] then
-                        local listobject = Instance.new("TextButton")
-                        local uicorner = Instance.new("UICorner")
-                        local removebutton = Instance.new("TextButton")
-                        listobject.Name = text
-                        listobject.Parent = listFrame
-                        listobject.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                        listobject.BorderSizePixel = 0
-                        listobject.Size = UDim2.new(0, 180, 0, 25)
-                        listobject.Font = guipallet.Font
-                        listobject.Text = "  " .. text
-                        listobject.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        listobject.TextSize = 22
-                        listobject.TextXAlignment = Enum.TextXAlignment.Left
-                        listobject.TextYAlignment = Enum.TextYAlignment.Top
-                        uicorner.Parent = listobject
-                        uicorner.CornerRadius = UDim.new(0, guilibrary.UICornersRadius)
-                        removebutton.Parent = listobject
-                        removebutton.BackgroundTransparency = 1
-                        removebutton.Size = UDim2.new(0, 25, 0, 25)
-                        removebutton.Position = UDim2.new(0.888888895, 0, 0, 0)
-                        removebutton.Font = guipallet.Font
-                        removebutton.Text = "-"
-                        removebutton.TextColor3 = guipallet.TextColor
-                        removebutton.TextSize = 22
-                        textlistobjects[text] = listobject
-                        table.insert(list, text)
-                        count = count + 1
-
-                        Callback(text)
-
-                        table.insert(connections, listobject.MouseButton1Click:Connect(function()
-                            if choose then
-                                textlistapi:Select(text, listobject)
-                            end
-                        end))
-
-                        table.insert(connections, removebutton.MouseButton1Click:Connect(function()
-                            listobject:Destroy()
-                            textlistobjects[text] = nil
-                            count = count - 1
-                            table.remove(list, guilibrary:findStringInTable(list, text))
-                        end))
-                    end
-                end
-
-                function textlistapi:ResetListObjects()
-                    for _, object in next, listFrame do
-                        if not object:IsA("UIListLayout") then
-                            table.remove(list, guilibrary:findStringInTable(list, object.text))
-                            object:Destroy()
-                        end
-                    end
-                    textlistobjects = {}
-                    count = 0
-                    for _, name in next, list do
-                        textlistapi:CreateListObject(name)
-                    end
-                end
-
-                addToListButton.MouseButton1Click:Connect(function()
-                    textlistapi:CreateListObject(textListBox.Text)
-                    textListBox.Text = ""
-                end)
-
-                for _, name in next, list do
-                    textlistapi:CreateListObject(name)
-                end
-            
-                guilibrary.ObjectsThatCanBeSaved[argstable.Name .. "TextList"] = {
-                    Table = textlistapi, 
-                    mainobject = textListBackground, 
-                    textbox = textListBox,
-                    Type = "TextList"
-                }
-                return textlistapi
+                    --Default = default,
+                    --Choose = choose,
+                    --MultiChoose = multiChoose,
+                    Callback = callback,
+                    Parent = optionframe,
+                    Tab = tab,
+                    ToggleName = ToggleTable.Name
+                })
             end
 
-            -- Note: this is still ToggleTable:CreateToggle function
-            local thngylol = Instance.new("Frame")
-            local thngyloltwo = Instance.new("Frame")
+            -- // Note: this is still ToggleTable:CreateToggle function
+            local frame = Instance.new("Frame")
+            local frame2 = Instance.new("Frame")
 
-            thngylol.Parent = optionframe
-            thngylol.Transparency = 1
-            thngylol.Size = UDim2.new(0, 0, 0, 0.7)
-            thngylol.LayoutOrder = 99999
+            frame.Parent = optionframe
+            frame.Transparency = 1
+            frame.Size = UDim2.new(0, 0, 0, 0.7)
+            frame.LayoutOrder = 99999
 
-            thngyloltwo.Parent = optionframe
-            thngyloltwo.Transparency = 1
-            thngyloltwo.Size = UDim2.new(0, 0, 0, 0.7)
-            thngyloltwo.LayoutOrder = -9999
+            frame2.Parent = optionframe
+            frame2.Transparency = 1
+            frame2.Size = UDim2.new(0, 0, 0, 0.7)
+            frame2.LayoutOrder = -9999
 
-            guilibrary.ObjectsThatCanBeSaved[data.Name.."Toggle"] = {
-                Table = ToggleTable,
-                mainobject = toggle, 
-                OptionFrame = optionframe,
-                Type = "Toggle",
+            guilibrary.ObjectsToSave.Toggles[name] = {
+                Name = name,
+                API = ToggleTable,
+                Options = {}
             }
             return ToggleTable
         end
 
-        function tabtable:CreateSlider(argstable)
-            local Value = argstable.Default or argstable.Min
-            local min = argstable.Min
-            local max = argstable.Max
-            local round = argstable.Round or 0
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local sliderapi = {
-                Value = Value,
-                Min = min,
-                Max = max,
-                Round = round,
-                Callback = Callback
-            }
-
-            local slider = Instance.new("TextButton")
-            local SliderTextBox = Instance.new("TextBox")
-            local slidertext = Instance.new("TextLabel")
-            local slider_2 = Instance.new("Frame")
-        
-            slider.Name = "Slider"
-            slider.Parent = ScrollingFrame
-            slider.BackgroundColor3 = guipallet.ToggleColor
-            slider.BorderSizePixel = 0
-            slider.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
-            slider.Size = UDim2.new(0, 180, 0, 34)
-            slider.Text = ""
-            slider.AutoButtonColor = false
-        
-            SliderTextBox.Name = "SliderTextBox"
-            SliderTextBox.Parent = slider
-            SliderTextBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2
-            SliderTextBox.BackgroundTransparency = 1
-            SliderTextBox.BorderSizePixel = 0
-            SliderTextBox.Position = UDim2.new(0.0188679248, 0, 0, 0)
-            SliderTextBox.Size = UDim2.new(0, 180, 0, 33)
-            SliderTextBox.ZIndex = 4
-            SliderTextBox.Font = guipallet.Font
-            SliderTextBox.PlaceholderText = ""
-            SliderTextBox.Text = ""
-            SliderTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-            SliderTextBox.TextSize = 22
-            SliderTextBox.TextXAlignment = Enum.TextXAlignment.Left
-            SliderTextBox.TextEditable = false
-            SliderTextBox.Visible = false
-
-            slidertext.Name = "SliderText"
-            slidertext.Parent = slider
-            slidertext.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            slidertext.BackgroundTransparency = 1
-            slidertext.BorderSizePixel = 0
-            slidertext.Position = UDim2.new(0.0188679248, 0, 0, 0)
-            slidertext.Size = UDim2.new(0, 180, 0, 33)
-            slidertext.ZIndex = 3
-            slidertext.Font = guipallet.Font
-            slidertext.Text = ""
-            slidertext.TextColor3 = Color3.fromRGB(255, 255, 255)
-            slidertext.TextSize = 22
-            slidertext.TextXAlignment = Enum.TextXAlignment.Left
-        
-            slider_2.Name = "Slider_2"
-            slider_2.Parent = slider
-            slider_2.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2
-            slider_2.BorderSizePixel = 0
-            slider_2.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
-            slider_2.Size = UDim2.new(0, 0, 0, 34)
-            slider_2.ZIndex = 2
-
-            sliderapi.MainObject = slider
-        
-            local function slide(input)
-                local sizeX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
-                local value = math.floor(((((max - min) * sizeX) + min) * (10 ^ round)) + 0.5) / (10 ^ round)
-
-                slider_2.Size = UDim2.new(sizeX, 0, 1, 0)
-                sliderapi.Value = value
-                slidertext.Text = argstable.Name .. ": " .. tostring(value)
-
-                if not argstable.OnInputEnded then
-                    Callback(value)
-                end
-            end
-        
-            local sliding = false
-        
-            table.insert(connections, slider.InputBegan:Connect(function(input)
-                local currentTime = tick()
-                local function HandleFocusLost(enter)
-                    if enter then
-                        local value = tonumber(SliderTextBox.Text)
-                        if value then
-                            sliderapi:Set(value, guilibrary.SliderCanOverride)
-                        end
-                    end
-                    slidertext.Visible = true
-                    SliderTextBox.Visible = false
-                    SliderTextBox.TextEditable = false
-                end
-            
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
-                    if guilibrary.SliderDoubleClick and currentTime - SliderLastPress < 0.5 then
-                        slidertext.Visible = false
-                        SliderTextBox.Visible = true
-                        SliderTextBox.TextEditable = true
-                        SliderTextBox:CaptureFocus()
-                        SliderTextBox.FocusLost:Connect(HandleFocusLost)
-                    else
-                        SliderLastPress = currentTime
-                        sliding = true
-                        slide(input)
-                    end
-                end
-            end))
-            
-            table.insert(connections, SliderTextBox.FocusLost:Connect(function(enter)
-                if enter then
-                    local value = tonumber(SliderTextBox.Text)
-                    if value then
-                        sliderapi:Set(value, guilibrary.SliderCanOverride)
-                    end
-                end
-                slidertext.Visible = true
-                SliderTextBox.Visible = false
-                SliderTextBox.TextEditable = false
-            end))
-            
-            table.insert(connections, slider.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    if argstable.OnInputEnded then
-                        Callback(sliderapi.Value)
-                    end
-                    sliding = false
-                end
-            end))
-            
-            table.insert(connections, userInputService.InputChanged:Connect(function(input)
-                if (input.UserInputType == Enum.UserInputType.MouseMovement and userInputService.MouseEnabled) or (input.UserInputType == Enum.UserInputType.Touch) then
-                    if sliding then
-                        slide(input)
-                    end
-                end
-            end))
-        
-            function sliderapi:Set(value, CanOverride)
-                local SizeValue = math.floor((math.clamp(value, min, max) * (10 ^ round)) + 0.5) / (10 ^ round)
-                if CanOverride then
-                    value = value
-                else
-                    value = SizeValue
-                end
-
-                sliderapi.Value = value
-                slider_2.Size = UDim2.new((SizeValue - min) / (max - min), 0, 1, 0)
-                slidertext.Text = argstable.Name .. ": " .. tostring(value)
-
-                Callback(value)
-            end
-
-            sliderapi:Set(sliderapi.Value)
-        
-            guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Slider"] = {
-                Table = sliderapi,
-                mainobject = slider,
-                Type = "Slider"
-            }
-            return sliderapi
-        end
-        function tabtable:CreateDropDown(argstable)
-            local name = argstable.Name
-            local list = argstable.List or {}
-            local value = argstable.Default or list[1] and list[1] or "nothing"
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local dropdownapi = {
-                Name = name,
-                Value = value,
-                List = list,
-                Callback = Callback
-            }
-        
-            local function stringtablefind(table1, key)
-                for i,v in next, table1 do
-                    if tostring(v) == tostring(key) then
-                        return i
-                    end
-                end
-            end
-        
-            local function getvalue(index) 
-                local realindex
-                if index > #dropdownapi.List then
-                    realindex = 1 
-                elseif index < 1 then
-                    realindex = #dropdownapi.List
-                else
-                    realindex = index
-                end
-                return realindex
-            end
-        
-            local Dropdown = Instance.new("TextLabel")
-            local DropdownOptions = Instance.new("Frame")
-            local DropdownList = Instance.new("UIListLayout")
-            local DropdownOptionsButton = Instance.new("TextButton")
-
-            Dropdown.Name = "Dropdown"
-            Dropdown.Parent = ScrollingFrame
-            Dropdown.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            Dropdown.BackgroundTransparency = 1
-            Dropdown.BorderSizePixel = 0
-            Dropdown.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
-            Dropdown.Size = UDim2.new(0, 175, 0, 25)
-            Dropdown.Font = guipallet.Font
-            Dropdown.Text = name .. ": " .. value
-            Dropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-            Dropdown.TextSize = 22
-            Dropdown.TextWrapped = true
-            Dropdown.TextXAlignment = Enum.TextXAlignment.Left
-            Dropdown.TextYAlignment = Enum.TextYAlignment.Bottom
-            Dropdown.ZIndex = 5
-
-            DropdownOptions.Name = "DropdownOptions"
-            DropdownOptions.Parent = Dropdown
-            DropdownOptions.BackgroundColor3 = Color3.new(255, 255, 255)
-            DropdownOptions.BackgroundTransparency = 1
-            DropdownOptions.BorderSizePixel = 0
-            DropdownOptions.Position = UDim2.new(0, 0, 1, 0)
-            DropdownOptions.Size = UDim2.new(0, 175, 0, 25)
-            DropdownOptions.Visible = false
-            DropdownOptions.ZIndex = 10
-
-            DropdownList.Name = "DropdownList"
-            DropdownList.Parent = DropdownOptions
-            DropdownList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-            DropdownList.SortOrder = Enum.SortOrder.LayoutOrder
-            DropdownList.Padding = UDim.new(0, 0)
-
-            DropdownOptionsButton.Name = "DropdownOptionsButton"
-            DropdownOptionsButton.Parent = Dropdown
-            DropdownOptionsButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            DropdownOptionsButton.BackgroundTransparency = 1
-            DropdownOptionsButton.BorderSizePixel = 0
-            DropdownOptionsButton.Position = UDim2.new(0.942857146, 0, 0, 0)
-            DropdownOptionsButton.Size = UDim2.new(0, 25, 0, 25)
-            DropdownOptionsButton.Font = guipallet.Font
-            DropdownOptionsButton.Text = ">"
-            DropdownOptionsButton.Rotation = 90
-            DropdownOptionsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            DropdownOptionsButton.TextSize = 22
-            DropdownOptionsButton.TextWrapped = true
-
-            dropdownapi.MainObject = Dropdown
-        
-            function dropdownapi:CreateOptionButton(name)
-                local button = Instance.new("TextButton")
-
-                button.Name = name
-                button.Parent = DropdownOptions
-                button.BackgroundColor3 = guipallet.Color4
-                button.BorderSizePixel = 0
-                button.Size = UDim2.new(0, 175, 0, 25)
-                button.Font = guipallet.Font
-                button.Text = name
-                button.TextColor3 = Color3.fromRGB(255, 255, 255)
-                button.TextSize = 22
-                button.TextWrapped = true
-                button.TextXAlignment = Enum.TextXAlignment.Left
-                button.ZIndex = 12
-
-                button.MouseButton1Click:Connect(function()
-                    dropdownapi:Select(name)
-                    DropdownOptions.Visible = false
-                end)
-            end
-
-            for i, v in pairs(list) do
-                dropdownapi:CreateOptionButton(v)
-            end
-
-            table.insert(connections, DropdownOptionsButton.MouseButton1Click:Connect(function()
-                if DropdownOptions.Visible then
-                    DropdownOptions.Visible = false
-                    DropdownOptionsButton.Rotation = 90
-                else
-                    DropdownOptions.Visible = true
-                    DropdownOptionsButton.Rotation = -90
-                end
-            end))
-
-            function dropdownapi:Select(name)
-                if dropdownapi.List[name] or stringtablefind(dropdownapi.List, name) then
-                    dropdownapi.Value = dropdownapi.List[name] or dropdownapi.List[stringtablefind(dropdownapi.List, name)]
-                    Dropdown.Text =  argstable.Name .. ": " .. tostring(name)
-                    Callback(name)
-                end
-            end
-
-            dropdownapi:Select(value)
-        
-            guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Dropdown"] = {
-                Table = dropdownapi,
-                mainobject = Dropdown,
-                Type = "Dropdown",
-                Tab = TabsFrame.Name
-            }
-            
-            return dropdownapi
-        end               
-        function tabtable:CreateSecondToggle(argstable)
-            local name = argstable.Name
-            local value = argstable.Default or false
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local optiontoggleapi = {
-                Name = name,
-                Enabled = value,
-                Callback = Callback
-            }
-        
-            local Label = Instance.new("TextLabel")
-            local ActiveFrame = Instance.new("Frame")
-            local ToggleButton = Instance.new("TextButton")
-        
-            Label.Name = "Label"
-            Label.Parent = ScrollingFrame
-            Label.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            Label.BackgroundTransparency = 1
-            Label.Position = UDim2.new(0.091, 0, 0.503, 0)
-            Label.Size = UDim2.new(0, 170, 0, 32)
-            Label.Font = guipallet.Font
-            Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-            Label.TextSize = 22
-            Label.TextXAlignment = Enum.TextXAlignment.Left
-            Label.Text = argstable.Name
-        
-            ToggleButton.Name = "ToggleButton"
-            ToggleButton.Parent = Label
-            ToggleButton.BackgroundColor3 = guipallet.Color3
-            ToggleButton.BorderSizePixel = 0
-            ToggleButton.Position = UDim2.new(0.817, 0, 0.074, 0)
-            ToggleButton.Size = UDim2.new(0, 29, 0, 29)
-            ToggleButton.ZIndex = 2
-            ToggleButton.Text = ""
-            ToggleButton.AutoButtonColor = false
-        
-            ActiveFrame.Name = "ActiveFrame"
-            ActiveFrame.Parent = Label
-            ActiveFrame.BackgroundColor3 = guipallet.Color3
-            ActiveFrame.BorderSizePixel = 0
-            ActiveFrame.Position = UDim2.new(0, 141, 0, 5)
-            ActiveFrame.Size = UDim2.new(0, 24, 0, 24)
-            ActiveFrame.ZIndex = 3
-        
-            optiontoggleapi.MainObject = Label
-        
-            function optiontoggleapi:Toggle(bool)
-                bool = bool or not optiontoggleapi.Enabled
-                value = bool
-                optiontoggleapi.Enabled = bool
-        
-                spawn(function()
-                    Callback(bool)
-                end)
-        
-                ActiveFrame.BackgroundColor3 = (bool and ((guipallet.ThemeMode == "Default" and tabnametext.TextColor3) or guipallet.ToggleColor2)) or guipallet.Color3
-            end
-
-            optiontoggleapi:Toggle(value)
-        
-            table.insert(connections, ToggleButton.MouseButton1Click:Connect(function()
-                optiontoggleapi:Toggle()
-            end))
-
-            guilibrary.ObjectsThatCanBeSaved[argstable.Name.."Toggle"] = {
-                Table = optiontoggleapi,
-                mainobject = Label,
-                Type = "OptionToggle"
-            }
-        
-            return optiontoggleapi
-        end
-        function tabtable:CreateButton(argstable)
-            local name = argstable.Name
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local buttontable = {
-                Name = name,
-                Callback = Callback
-            }
-
-            local button = Instance.new("TextButton")
-
-            button.Name = name.."_Button"
-            button.Parent = ScrollingFrame
-            button.BackgroundColor3 = guipallet.ToggleColor
-            button.BackgroundTransparency = 0.5
-            button.BorderSizePixel = 0
-            button.Position = UDim2.new(0.0859375, 0, 0.491620123, 0)
-            button.Size = UDim2.new(0, 175, 0, 25)
-            button.Font = guipallet.Font
-            button.Text = name
-            button.TextColor3 = Color3.fromRGB(255, 255, 255)
-            button.TextSize = 22.000
-            button.TextWrapped = true
-            button.TextXAlignment = Enum.TextXAlignment.Center
-            button.TextYAlignment = Enum.TextYAlignment.Center
-
-            table.insert(connections, button.MouseButton1Click:Connect(function()
-                Callback()
-            end))
-
-            return buttontable
-        end
-        function tabtable:CreateTextBox(argstable)
-            local name = argstable.Name
-            local value = argstable.DefaultValue or ""
-            local PlaceholderText = argstable.PlaceholderText or "nil"
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local textboxapi = {
-                Name = name,
-                Value = value,
-                PlaceholderText = argstable.PlaceholderText,
-                Callback = Callback
-            }
-            
-            local textbox_background = Instance.new("Frame")
-            local textbox = Instance.new("TextBox")
-
-            textbox_background.Name = "textboxbackground"
-            textbox_background.Parent = ScrollingFrame
-            textbox_background.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-            textbox_background.BorderSizePixel = 0
-            textbox_background.Position = UDim2.new(0.0833333358, 0, 0.109391868, 0)
-            textbox_background.Size = UDim2.new(0, 180, 0, 33)
-
-            textbox.Name = argstable.Name .. "TextBox"
-            textbox.Parent = textbox_background
-            textbox.BackgroundColor3 = guipallet.ToggleColor
-            textbox.BackgroundTransparency = 1
-            textbox.BorderSizePixel = 0
-            textbox.Position = UDim2.new(0.00786163565, 0, -0.00825500488, 0)
-            textbox.Size = UDim2.new(0, 180, 0, 33)
-            textbox.Font = guipallet.Font
-            textbox.Text = value
-            textbox.TextColor3 = Color3.fromRGB(255, 255, 255)
-            textbox.PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
-            textbox.TextSize = 22
-            textbox.PlaceholderText = PlaceholderText
-
-            textboxapi.MainObject = textbox_background
-
-            local focused = false
-            function textboxapi:Set(value)
-                textbox.Text = value
-                textboxapi.Value = value
-                Callback(value)
-            end
-            
-            table.insert(connections, textbox.FocusLost:Connect(function()
-                textboxapi:Set(textbox.Text)
-            end))
-        
-            guilibrary.Objects[argstable.Name.."TextBox"] = {
-                Table = textboxapi,
-                mainobject = textbox,
-                Type = "TextBox"
-            }
-            
-            return textboxapi
-        end
-
-        function tabtable:CreateTextList(argstable)
-            local name = argstable.Name
-            local list = argstable.DefaultList or argstable.List or {}
-            local PlaceholderText = argstable.PlaceholderText or "enter something..."
-            local choose = argstable.Choose or false
-            local multiChoose = argstable.MultiChoose or false
-            local default = argstable.Default or false
-            local current = "none"
-            local choosedTable = {}
-            local choosedObjectsTable = {}
-            local Callback = argstable.Callback or argstable.Function or function() end
-            local count = 0
-            local textlistapi = {
-                Name = argstable.Name,
-                List = list,
-                PlaceholderText = PlaceholderText,
-                Choose = choose,
-                MultiChoose = multiChoose,
-                Default = default,
-                Choosed = "none",
-                ChoosedTable = {},
-                Callback = Callback
-            }
-            
-            local textListBackground = Instance.new("Frame")
-            local textListBox = Instance.new("TextBox")
-            local addToListButton = Instance.new("TextButton")
-            local listFrame = Instance.new("ScrollingFrame")
-            local uiListLayout = Instance.new("UIListLayout")
-
-            textListBackground.Name = "textboxbackground"
-            textListBackground.Parent = ScrollingFrame
-            textListBackground.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-            textListBackground.BorderSizePixel = 0
-            textListBackground.Position = UDim2.new(0, 0, 0, 0)
-            textListBackground.Size = UDim2.new(0, 190, 0, 33)
-            textlistapi.MainObject = textListBackground
-
-            textListBox.Name = argstable.Name .. "TextBox"
-            textListBox.Parent = textListBackground
-            textListBox.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-            textListBox.BackgroundTransparency = 1
-            textListBox.BorderSizePixel = 0
-            textListBox.Position = UDim2.new(0, 0, 0, 0)
-            textListBox.Size = UDim2.new(0, 150, 0, 33)
-            textListBox.Font = guipallet.Font
-            textListBox.Text = ""
-            textListBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-            textListBox.PlaceholderColor3 = Color3.fromRGB(255, 255, 255)
-            textListBox.TextSize = 22
-            textListBox.PlaceholderText = "  "..PlaceholderText
-
-            addToListButton.Name = "AddToListButton"
-            addToListButton.Parent = textListBackground
-            addToListButton.BackgroundColor3 = guipallet.Color2
-            addToListButton.BackgroundTransparency = 1
-            addToListButton.BorderSizePixel = 0
-            addToListButton.Position = UDim2.new(0.888888895, 0, 0, 0)
-            addToListButton.AutoButtonColor = false
-            addToListButton.Size = UDim2.new(0, 25, 0, 33)
-            addToListButton.Font = guipallet.Font
-            addToListButton.Text = "+"
-            addToListButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            addToListButton.TextSize = 25
-
-            listFrame.Name = "ListFrame"
-            listFrame.Parent = ScrollingFrame
-            listFrame.BackgroundTransparency = 1
-            listFrame.BorderSizePixel = 0
-            listFrame.Position = UDim2.new(0, 0, 0, 0)
-            listFrame.Size = UDim2.new(0, 180, 0, 1)
-            listFrame.ScrollBarThickness = 1
-            listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-            listFrame.ScrollingDirection = Enum.ScrollingDirection.Y
-
-            uiListLayout.Parent = listFrame
-            uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-            uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            uiListLayout.Padding = UDim.new(0, 3)
-
-            table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                --ListFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                if uiListLayout.AbsoluteContentSize.Y > 99 then
-                    listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, 99)
-                    listFrame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, count * 28)
-                else
-                    listFrame.Size = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                end
-            end))
-
-            local textlistobjects = {}
-
-            function textlistapi:Set(name, obj)
-                if obj then
-                    if multiChoose == false then
-                        -- here it's disabling the previous selected one
-                        if choosedObjectsTable[1] then
-                            Callback(choosedTable[1], false)
-                            choosedObjectsTable[1].BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                        end
-                        table.clear(choosedTable)
-                        table.clear(choosedObjectsTable)
-
-                        -- and here it's enabling the current selected one
-                        obj.BackgroundColor3 = guilibrary:makeColorDarker((guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2)
-                        table.insert(choosedTable, name)
-                        table.insert(choosedObjectsTable, obj)
-                        Callback(name, true)
-                    elseif obj.BackgroundColor3 == (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2 then
-                        obj.BackgroundColor3 =  guilibrary:makeColorDarker((guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2)
-                        table.insert(choosedTable, name)
-                        table.insert(choosedObjectsTable, obj)
-                        Callback(name, true)
-                    else
-                        obj.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                        table.remove(choosedTable, name)
-                        table.remove(choosedObjectsTable, obj)
-                        Callback(name, false)
-                    end
-                end
-                for _, listobj in next, listFrame do
-                    if not listobj:IsA("UIListLayout") and listobj.Name == not name and not table.find(choosedObjectsTable, obj) then
-                        listobj.BackgroundColor3 =(guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                    end
-                end
-            end
-
-            function textlistapi:CreateListObject(text)
-                if not textlistobjects[text] then
-                    local listobject = Instance.new("TextButton")
-                    local uicorner = Instance.new("UICorner")
-                    local removebutton = Instance.new("TextButton")
-                    listobject.Name = text
-                    listobject.Parent = listFrame
-                    listobject.BackgroundColor3 = (guipallet.ThemeMode == "Default" and tabname.TextColor3) or guipallet.Color2
-                    listobject.BorderSizePixel = 0
-                    listobject.Size = UDim2.new(0, 180, 0, 25)
-                    listobject.Font = guipallet.Font
-                    listobject.Text = "  " .. text
-                    listobject.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    listobject.TextSize = 22
-                    listobject.TextXAlignment = Enum.TextXAlignment.Left
-                    listobject.TextYAlignment = Enum.TextYAlignment.Top
-                    uicorner.Parent = listobject
-                    uicorner.CornerRadius = UDim.new(0, guilibrary.UICornersRadius)
-                    removebutton.Parent = listobject
-                    removebutton.BackgroundTransparency = 1
-                    removebutton.Size = UDim2.new(0, 25, 0, 25)
-                    removebutton.Position = UDim2.new(0.888888895, 0, 0, 0)
-                    removebutton.Font = guipallet.Font
-                    removebutton.Text = "-"
-                    removebutton.TextColor3 = guipallet.TextColor
-                    removebutton.TextSize = 22
-                    textlistobjects[text] = listobject
-                    table.insert(list, text)
-                    count = count + 1
-
-                    Callback(text)
-
-                    table.insert(connections, listobject.MouseButton1Click:Connect(function()
-                        if choose then
-                            textlistapi:Set(text, listobject)
-                        end
-                    end))
-
-                    table.insert(connections, removebutton.MouseButton1Click:Connect(function()
-                        listobject:Destroy()
-                        textlistobjects[text] = nil
-                        count = count - 1
-                        table.remove(list, guilibrary:findStringInTable(list, text))
-                    end))
-                end
-            end
-
-            function textlistapi:ResetListObjects()
-                for _, object in next, listFrame do
-                    if not object:IsA("UIListLayout") then
-                        table.remove(list, guilibrary:findStringInTable(list, object.text))
-                        object:Destroy()
-                    end
-                end
-                textlistobjects = {}
-                count = 0
-                for _, name in next, list do
-                    textlistapi:CreateListObject(name)
-                end
-            end
-
-            addToListButton.MouseButton1Click:Connect(function()
-                textlistapi:CreateListObject(textListBox.Text)
-                textListBox.Text = ""
-            end)
-
-            for _, name in next, list do
-                textlistapi:CreateListObject(name)
-            end
-        
-            guilibrary.ObjectsThatCanBeSaved[argstable.Name .. "TextList"] = {
-                Table = textlistapi, 
-                mainobject = textListBackground, 
-                textbox = textListBox,
-                Type = "TextList"
-            }
-            return textlistapi
-        end
-
-        --Note: this is still guilibrary:CreateTab function
+        -- // Note: this is still guilibrary:CreateTab function
         local BottomCorner = Instance.new("Frame")
         local BottomFix = Instance.new("Frame")
         local UICorner = Instance.new("UICorner")
 
-        BottomCorner.Parent = ScrollingFrame
-        BottomCorner.BackgroundColor3 = Color3.fromRGB(guipallet.Color1)
+        BottomCorner.Parent = frame
+        BottomCorner.BackgroundColor3 = guipallet.Color1
         BottomCorner.BorderSizePixel = 0
         BottomCorner.Transparency = 0
-        BottomCorner.Size = UDim2.new(0, 207, 0, 12)
+        BottomCorner.Size = UDim2.new(0, 207, 0, 15)
         BottomCorner.Position = UDim2.new(0, 0, 0, 500)
         BottomCorner.LayoutOrder = 99999
+        table.insert(guiObjects.Color1, BottomCorner)
 
         BottomFix.Parent = BottomCorner
-        BottomFix.BackgroundColor3 = Color3.fromRGB(guipallet.Color1)
+        BottomFix.BackgroundColor3 = guipallet.Color1
         BottomFix.BorderSizePixel = 0
         BottomFix.Transparency = 0
         BottomFix.Size = UDim2.new(0, 207, 0, 3)
+        table.insert(guiObjects.Color1, BottomFix)
 
         UICorner.Parent = BottomCorner
         UICorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
-        table.insert(guilibrary.uiCorners, UICorner)
-        
-        guilibrary.ObjectsThatCanBeSaved[tabname.."Tab"] = {
-            Table = tabtable,
-            mainobject = tab, 
+        table.insert(guiObjects.UICorners, UICorner)
+
+        guilibrary.ObjectsToSave.Tabs[tabname] = {
+            Name = tabname,
+            Container = tab,
+            MainObject = tab, -- // remove this when everything's changed to Container
+            API = tabtable,
             Type = "Tab"
         }
         return tabtable
+    end
+    function guilibrary:CreateCustomTab(argstable)
+        local name = argstable.Name
+        local color = argstable.Color or guilibrary.TextColor
+        local tab = Instance.new("TextButton")
+        local tabtext = Instance.new("TextLabel")
+        local container = Instance.new("Frame")
+        local optionsbutton = Instance.new("TextButton")
+        local optionframe = Instance.new("Frame")
+        local pinbutton = Instance.new("TextButton")
+        local uiListLayout = Instance.new("UIListLayout")
+        local uiCorner = Instance.new("UICorner")
+
+        local tabtable = {
+            Name = name,
+            Pinned = false,
+            ObjectsVisible = true,
+            Toggled = false,
+            Position = UDim2.new(0, 40, 0, 40),
+            Order = #Tabs
+        }
+
+        table.insert(Tabs, #Tabs)
+
+        tab.Modal = true
+        tab.Name = name
+        tab.Selectable = true
+        tab.ZIndex = 1
+        tab.Parent = TabsFrame
+        tab.BackgroundColor3 = guipallet.Color1
+        tab.BorderSizePixel = 0
+        tab.Position = UDim2.new(0, 40, 0, 40)
+        tab.Size = UDim2.new(0, 207, 0, 40)
+        tab.Active = true
+        tab.LayoutOrder = 1 + #Tabs
+        tab.AutoButtonColor = false
+        tab.Text = ""
+        tab.Visible = false
+        tabtable.MainObject = tab
+        dragGUI(tab)
+    
+        tabtext.Name = "tabName"
+        tabtext.Parent = tab
+        tabtext.ZIndex = tab.ZIndex + 1
+        tabtext.BackgroundColor3 = guipallet.Color1
+        tabtext.BorderSizePixel = 0
+        tabtext.Position = UDim2.new(0, 0, 0, 0)
+        tabtext.Size = UDim2.new(0, 207, 0, 32)
+        tabtext.Font = guipallet.Font
+        tabtext.Text = " " .. name
+        tabtext.TextColor3 = color
+        tabtext.TextSize = 22
+        tabtext.TextWrapped = true
+        tabtext.TextXAlignment = Enum.TextXAlignment.Left
+        tabtext.TextYAlignment = Enum.TextYAlignment.Top
+        tabtext.Selectable = true
+
+        optionsbutton.Parent = tab
+        optionsbutton.Position = UDim2.new(0, 170, 0, 2)
+        optionsbutton.Size = UDim2.new(0, 32, 0, 32)
+        optionsbutton.BackgroundTransparency = 1
+        optionsbutton.Image = "http://www.roblox.com/asset/?id=12809025337"
+        optionsbutton.Rotation = 90
+
+        optionframe.Name = "OptionFrame"
+        optionframe.Parent = tab
+        optionframe.BackgroundColor3 = guipallet.Color2
+        optionframe.Position = UDim2.new(0.102424242, 0, 0.237059206, 0)
+        optionframe.Size = UDim2.new(0, 207, 0, 0)
+        optionframe.AutomaticSize = "Y"
+        optionframe.Visible = false
+
+        pinbutton.Parent = tabtext
+        pinbutton.BackgroundTransparency = 1
+        pinbutton.BorderSizePixel = 0
+        pinbutton.Position = UDim2.new(0, 150, 0, 4)
+        pinbutton.Size = UDim2.new(0, 20, 0, 20)
+        pinbutton.Font = guipallet.Font
+        pinbutton.Text = "📍"
+        pinbutton.TextColor3 = guilibrary.TextColor
+        pinbutton.TextTransparency = 0.4
+        pinbutton.TextSize = 22
+        
+        uiListLayout.Parent = optionframe
+        uiListLayout.FillDirection = Enum.FillDirection.Horizontal
+        uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        uiListLayout.Padding = UDim.new(0, 0)
+
+        uiCorner.Parent = tab
+        uiCorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
+        table.insert(guiObjects.UICorners, uiCorner)
+
+        function tabtable:getContainer()
+            return container
+        end
+
+        function tabtable:Pin(bool)
+            bool = bool or not tabtable.Pinned
+            if bool then
+                tabtable.Pinned = true
+                pinbutton.TextTransparency = 0
+                table.insert(guilibrary.pinnedobjects, tabtable)
+            else
+                tabtable.Pinned = false
+                pinbutton.TextTransparency = 0.4
+                table.remove(guilibrary.pinnedobjects, table.find(guilibrary.pinnedobjects, tabtable))
+            end
+        end
+
+        function tabtable:Toggle(bool)
+            bool = bool or not tabtable.Toggled
+            tabtable.Toggled = bool
+            tab.Visible = bool
+        end
+
+        table.insert(connections, optionsbutton.MouseButton1Click:Connect(function()
+            optionframe.Visible = not optionframe.Visible
+        end))
+
+        table.insert(connections, pinbutton.MouseButton1Click:Connect(function()
+			tabtable:Pin()
+		end))
+    end
+    function guilibrary:CreateOptionsTab(argstable)
+        local tabname = argstable.Name
+        local color = argstable.Color or Color3.fromRGB(255, 255, 255)
+
+        --local container = Instance.new("Frame")
+        --local uilistLayout2 = Instance.new("UIListLayout")
+
+        local tabapi = {
+            Name = tabname,
+            BaseColor = color,
+            Toggled = false,
+            Position = UDim2.new(0, 40, 0, 40),
+            Order = #Tabs,
+            Toggles = {}
+        }
+
+        table.insert(Tabs, tabapi)
+
+        local tab = Instance.new("TextButton")
+        tab.Modal = true
+        tab.Name = tabname
+        tab.Selectable = true
+        tab.ZIndex = 1
+        tab.Parent = TabsFrame
+        tab.BackgroundColor3 = guipallet.Color1
+        tab.BorderSizePixel = 0
+        tab.Size = UDim2.new(0, 207, 0, 40)
+        tab.Position = UDim2.new(0, 40, 0, 40)
+        tab.Active = true
+        tab.LayoutOrder = 1 + #Tabs
+        tab.AutoButtonColor = false
+        tab.Text = ""
+        tab.Visible = false
+        tabapi.Container = tab
+        dragGUI(tab)
+    
+        local tabtext = Instance.new("TextLabel")
+        tabtext.Name = "tabName"
+        tabtext.Parent = tab
+        tabtext.ZIndex = tab.ZIndex + 1
+        tabtext.BackgroundColor3 = guipallet.Color1
+        tabtext.BorderSizePixel = 0
+        tabtext.Position = UDim2.new(0, 0, 0, 0)
+        tabtext.Size = UDim2.new(0, 207, 0, 32)
+        tabtext.Font = guipallet.Font
+        tabtext.Text = " " .. tabname
+        tabtext.TextColor3 = color
+        tabtext.TextSize = 22
+        tabtext.TextWrapped = true
+        tabtext.TextXAlignment = Enum.TextXAlignment.Left
+        tabtext.TextYAlignment = Enum.TextYAlignment.Top
+        tabtext.Selectable = true
+        table.insert(guiObjects.Color1, tabtext)
+
+        local uiPadding = Instance.new("UIPadding")
+        uiPadding.Parent = tab
+        uiPadding.PaddingTop = UDim.new(0, 10)
+
+        local showunshowbutton = Instance.new("TextButton")
+        showunshowbutton.Parent = tabtext
+        showunshowbutton.BackgroundTransparency = 1
+        showunshowbutton.BorderSizePixel = 0
+        showunshowbutton.Position = UDim2.new(0, 178, 0, 2.5)
+        showunshowbutton.Size = UDim2.new(0, 20, 0, 20)
+        showunshowbutton.Font = guipallet.Font
+        showunshowbutton.Text = "-"
+        showunshowbutton.TextColor3 = guipallet.TextColor
+        showunshowbutton.TextTransparency = 0
+        showunshowbutton.TextSize = 22
+
+        local uiCorner = Instance.new("UICorner")
+        uiCorner.Parent = tab
+        uiCorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
+        table.insert(guiObjects.UICorners, uiCorner)
+
+        --[[
+        container.Name = "Container"
+        container.Parent = tab
+        container.BackgroundTransparency = 1
+        container.BorderSizePixel = 0
+        container.Position = UDim2.new(0, 0, 1, 0)
+        container.Size = UDim2.new(1, 0, 0, 0)
+        ]]
+
+        local frame = Instance.new("ScrollingFrame")
+        frame.Name = "background"
+        frame.Parent = tab
+        frame.BackgroundColor3 = guipallet.Color2
+        frame.Position = UDim2.new(0, 0, 1, 0)
+        frame.Size = UDim2.new(0, 207, 0, 0)
+        --background.AutomaticSize = Enum.AutomaticSize.Y
+        frame.Visible = true
+        frame.ScrollBarThickness = 1
+        frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+        frame.ScrollingDirection = Enum.ScrollingDirection.Y
+        table.insert(guiObjects.Color2, frame)
+
+        local uiListLayout = Instance.new("UIListLayout")
+        uiListLayout.Parent = frame
+        uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        uiListLayout.Padding = UDim.new(0, 8)
+
+        --[[
+        uilistLayout2.Parent = container
+        uilistLayout2.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        uilistLayout2.SortOrder = Enum.SortOrder.LayoutOrder
+        uilistLayout2.Padding = UDim.new(0, 0)
+        ]]
+
+        local bottomCorner = Instance.new("Frame")
+        bottomCorner.Parent = tab
+        bottomCorner.BackgroundColor3 = guipallet.Color1
+        bottomCorner.BorderSizePixel = 0
+        bottomCorner.Transparency = 0
+        bottomCorner.Size = UDim2.new(0, 207, 0, 15)
+        bottomCorner.Position = UDim2.new(0, 0, 0, frame.AbsoluteSize.Y + 50)
+        bottomCorner.LayoutOrder = 99999
+        table.insert(guiObjects.Color1, bottomCorner)
+
+        local uiCorner2 = Instance.new("UICorner")
+        uiCorner2.Parent = bottomCorner
+        uiCorner2.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
+        table.insert(guiObjects.UICorners, uiCorner2)
+
+        local bottomFix = Instance.new("Frame")
+        bottomFix.Parent = bottomCorner
+        bottomFix.BackgroundColor3 = guipallet.Color1
+        bottomFix.BorderSizePixel = 0
+        bottomFix.Transparency = 0
+        bottomFix.Size = UDim2.new(0, 207, 0, 5)
+        table.insert(guiObjects.Color1, bottomFix)
+
+        table.insert(connections, frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            bottomCorner.Position = UDim2.new(0, 0, 0, frame.AbsoluteSize.Y + 30)
+        end))
+
+        table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            if uiListLayout.AbsoluteContentSize.Y < 600 then
+                frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+                frame.Size = UDim2.new(0, 207, 0, uiListLayout.AbsoluteContentSize.Y)
+            else
+                frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
+                frame.Size = UDim2.new(0, 207, 0, 600)
+            end
+        end))
+
+        table.insert(connections, showunshowbutton.MouseButton1Click:Connect(function()
+            frame.Visible = not frame.Visible
+            showunshowbutton.Text = (frame.Visible and "-" or "+")
+        end))
+
+        function tabapi:CreateDivider(DividerText)
+            local Divider = Instance.new("TextLabel")
+            Divider.Name = tabname .. "_TextLabelDivider"
+            Divider.Parent = frame
+            Divider.BackgroundTransparency = 1
+            Divider.BorderSizePixel = 0
+            Divider.Position = UDim2.new(0.0827946085, -17, 0.133742347, 33)
+            Divider.Size = UDim2.new(0, 180, 0, 18)
+            Divider.Font = guipallet.Font
+            Divider.Text = DividerText
+            Divider.TextColor3 = guipallet.TextColor
+            Divider.TextSize = 20
+            Divider.TextXAlignment = Enum.TextXAlignment.Center
+            Divider.TextYAlignment = Enum.TextYAlignment.Center
+            return Divider
+        end
+
+        function tabapi:CreateColorSlider(argstable)
+            local name = argstable.Name
+            local value = argstable.Default or argstable.DefaultValue or Color3.fromRGB(255, 255, 255)
+            local rainbow = argstable.Rainbow or false
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateColorSlider({
+                Name = name,
+                Value = value,
+                Rainbow = rainbow,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                ToggleName = tabapi.Name
+            })
+        end
+        function tabapi:CreateSlider(argstable)
+            local name = argstable.Name
+            local value = argstable.Default or argstable.DefaultValue or argstable.Min
+            local min = argstable.Min
+            local max = argstable.Max
+            local round = argstable.Round or 0
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateSlider({
+                Name = name,
+                Default = value,
+                Min = min,
+                Max = max,
+                Round = round,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                TabName = tabapi.Name
+            })
+        end
+        function tabapi:CreateDropdown(argstable)
+            local name = argstable.Name
+            local list = argstable.List or argstable.DefaultList or {}
+            local value = argstable.Default or list[1] or nil
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateDropdown({
+                Name = name,
+                List = list,
+                Default = value,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                TabName = tabapi.Name
+            })
+        end
+        function tabapi:CreateToggle(argstable)
+            local name = argstable.Name
+            local value = argstable.Default or argstable.DefaultValue or false
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateToggle({
+                Name = name,
+                Default = value,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                TabName = tabapi.Name
+            })
+        end
+        function tabapi:CreateButton(argstable)
+            local name = argstable.Name
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateButton({
+                Name = name,
+                Callback = callback,
+                Parent = frame
+            })
+        end
+        function tabapi:CreateTextBox(argstable)
+            local name = argstable.Name
+            local value = argstable.Default or argstable.DefaultValue or ""
+            local PlaceholderText = argstable.PlaceholderText or "nil"
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateTextBox({
+                Name = name,
+                Default = value,
+                PlaceholderText = PlaceholderText,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                TabName = tabapi.Name
+            })
+        end
+        function tabapi:CreateTextList(argstable)
+            local name = argstable.Name
+            local list = argstable.List or argstable.DefaultList or {}
+            local PlaceholderText = argstable.PlaceholderText or "enter something..."
+            --local default = argstable.Default or nil
+            --local choose = argstable.Choose or false
+            --local multiChoose = argstable.MultiChoose or false
+            local callback = argstable.Callback or argstable.Function or function() end
+            return OptionFunctions:CreateTextList({
+                Name = name,
+                List = list,
+                PlaceholderText = PlaceholderText,
+                --Default = default,
+                --Choose = choose,
+                --MultiChoose = multiChoose,
+                Callback = callback,
+                Parent = frame,
+                Tab = tab,
+                TabName = tabapi.Name
+            })
+        end
+
+        guilibrary.ObjectsToSave.Tabs[tabname] = {
+            Name = tabname,
+            API = tabapi,
+            Type = "OptionTab",
+            Options = {}
+        }
+        return tabapi
     end
 end
 
