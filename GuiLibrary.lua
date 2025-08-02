@@ -1144,8 +1144,9 @@ end
 -- // end of cool functions
 
 -- // notifications
-function guilibrary:CreateNotification(notifTitle, notifText, delay, mode)
-    if not guilibrary.Notifications then return end
+function guilibrary:CreateNotification(notifTitle, notifText, delay, mode, load)
+    load = load or false
+    if not load and not guilibrary.Notifications then return end
     --if not guilibrary.Loaded and (notifText:find("Enabled") or notifText:find("Disabled")) then return end
     if guilibrary.NotificationsMode == "Built-in" then
         local order = #notificationsGui:GetChildren() + 1
