@@ -3292,7 +3292,7 @@ function guilibrary:CreateWindow()
             optionsframebutton.Position = UDim2.new(0, 170, 0, 2)
             optionsframebutton.Size = UDim2.new(0, 32, 0, 32)
             optionsframebutton.BackgroundTransparency = 1
-            optionsframebutton.Image = "http://www.roblox.com/asset/?id=12809025337"
+            optionsframebutton.Image = "rbxassetid://17876016380"
             optionsframebutton.Rotation = 90
 
             optionframe.Name = name.."OptionFrame"
