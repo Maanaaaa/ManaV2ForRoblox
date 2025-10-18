@@ -841,7 +841,7 @@ runFunction(function()
     local delay = {Value = 0.5}
     local collected = {}
     collectCoins = tabs.Utility:CreateToggle({
-        Name = "AutoFarmBeachBalls", -- // CoinsFarm
+        Name = "AutoFarmCoins",
         Callback = function(callback)
             repeat
                 local coin = getNearestCoin()
