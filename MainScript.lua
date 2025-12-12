@@ -6,6 +6,18 @@
 
 repeat task.wait() until game:IsLoaded()
 
+if shared.Mana then
+    local Mana = shared.Mana
+    if shared.ManaDeveloper then
+        Mana.GuiLibrary:Destruct()
+        warn("[ManaV2ForRoblox]: Already loaded but developer mode is enabled, so reinjecting.")
+    else
+        warn("[ManaV2ForRoblox]: Already loaded.")
+        Mana.GuiLibrary:playsound("rbxassetid://421058925", 1)
+        return
+    end
+end
+
 local startTick = tick()
 
 local UserInputService = game:GetService("UserInputService")
@@ -65,12 +77,6 @@ local function isAlive(Player, headCheck)
     else
         return false
     end
-end
-
-if shared.Mana then 
-    warn("[ManaV2ForRoblox]: Already loaded.")
-    Mana.GuiLibrary:playsound("rbxassetid://421058925", 1)
-    return
 end
 
 do
@@ -161,17 +167,17 @@ GuiLibrary:CreateWindow()
 local Tabs = {
     Combat = GuiLibrary:CreateTab({
         Name = "Combat",
-        Color = Color3.fromRGB(252, 60, 68),
+        Color = Color3.fromRGB(83, 214, 110), --252, 60, 68
         TabIcon = "CombatTabIcon.png"
     }),
     Movement = GuiLibrary:CreateTab({
         Name = "Movement",
-        Color = Color3.fromRGB(255, 148, 36),
+        Color = Color3.fromRGB(83, 214, 110), --255, 148, 36
         TabIcon = "MovementTabIcon.png"
     }),
     Render = GuiLibrary:CreateTab({
         Name = "Render",
-        Color = Color3.fromRGB(59, 170, 222),
+        Color = Color3.fromRGB(83, 214, 110), --59, 170, 222
         TabIcon = "RenderTabIcon.png"
     }),
     Utility = GuiLibrary:CreateTab({
@@ -181,22 +187,22 @@ local Tabs = {
     }),
     World = GuiLibrary:CreateTab({
         Name = "World",
-        Color = Color3.fromRGB(52 ,28, 228),
+        Color = Color3.fromRGB(83, 214, 110), --52, 28, 228
         TabIcon = "WorldTabIcon.png"
     }),
     Settings = GuiLibrary:CreateOptionsTab({
         Name = "Settings",
-        Color = Color3.fromRGB(240, 157, 62),
+        Color = Color3.fromRGB(83, 214, 110), --240, 157, 62
         TabIcon = "MiscTabIcon.png"
     }),
     Profiles = GuiLibrary:CreateOptionsTab({
         Name = "Profiles",
-        Color = Color3.fromRGB(255, 255, 255),
+        Color = Color3.fromRGB(83, 214, 110), --255, 255, 255
         TabIcon = "MiscTabIcon.png"
     }),
     Friends = GuiLibrary:CreateOptionsTab({
         Name = "Friends",
-        Color = Color3.fromRGB(240, 157, 62),
+        Color = Color3.fromRGB(83, 214, 110), --240, 157, 62
         TabIcon = "PlayerImage.png"
     }),
     --[[
@@ -241,30 +247,40 @@ Tabs.TextList = textList.tab
 
 -- // Settings tab
 runFunction(function()
-    local soundvolume = {Value = 1}
-    local uiscale = {Value = 1}
-    local uicornersradius = {Value = 4}
+    local mode = {Value = "Built-in"}
+    local volume = {Value = 1}
 
     local divider = Tabs.Settings:CreateDivider("UI")
 
     local notifications = Tabs.Settings:CreateToggle({
         Name = "Notifications",
-        Callback = function(callback)
-            GuiLibrary.Notifications = callback
+        Callback = function(v)
+            GuiLibrary.Notifications = v
+            if mode.Container1 then mode.Container1.Visible = v end
         end
     })
+
+    mode = Tabs.Settings:CreateDropdown({
+        Name = "Mode",
+        List = {"Built-in", "Roblox' core"},
+        Default = "Built-in",
+        Callback = function(v)
+            GuiLibrary.NotificationsMode = v
+        end
+    })
+    mode.Container1.Visible = false
 
     local sounds = Tabs.Settings:CreateToggle({
         Name = "Sounds",
         Callback = function(callback)
             GuiLibrary.Sounds = callback
-            if soundvolume.MainObject then
-                soundvolume.MainObject.Visible = callback
+            if volume.MainObject then
+                volume.MainObject.Visible = callback
             end
         end
     })
 
-    soundvolume = Tabs.Settings:CreateSlider({
+    volume = Tabs.Settings:CreateSlider({
         Name = "Volume",
         Function = function(v)
             GuiLibrary.SoundVolume = v
@@ -275,7 +291,7 @@ runFunction(function()
         Round = 2
     })
 
-    uiscale = Tabs.Settings:CreateSlider({
+    local uiscale = Tabs.Settings:CreateSlider({
         Name = "UI scale",
         Function = function(v)
             GuiLibrary.UIScale.Scale = v
@@ -286,8 +302,8 @@ runFunction(function()
         Round = 2
     })
 
-    uicornersradius = Tabs.Settings:CreateSlider({
-        Name = "UI corners radius",
+    local uicornersradius = Tabs.Settings:CreateSlider({
+        Name = "Corners radius",
         Function = function(v)
             GuiLibrary.uiCornersRadius = v
             GuiLibrary:updateUICorners(v)
@@ -315,10 +331,10 @@ end)
 runFunction(function()
     local divider = Tabs.Settings:CreateDivider("Slider")
 
-    local sliderdoubleclick = Tabs.Settings:CreateToggle({
-        Name = "Double click",
+    local sliderdrightclick = Tabs.Settings:CreateToggle({
+        Name = "RMB to edit",
         Callback = function(callback)
-            GuiLibrary.SliderDoubleClick = callback
+            GuiLibrary.SliderRightClick = callback
         end
     })
 
@@ -326,6 +342,27 @@ runFunction(function()
         Name = "Value override",
         Callback = function(callback)
             GuiLibrary.SliderCanOverride = callback
+        end
+    })
+end)
+
+runFunction(function()
+    local divider = Tabs.Settings:CreateDivider("Hover text")
+
+    local hovertextenabled = Tabs.Settings:CreateToggle({
+        Name = "Hover text",
+        Default = true,
+        Callback = function(v)
+            GuiLibrary.hoverText.Enabled = v
+        end
+    })
+
+    local hovertextposition = Tabs.Settings:CreateDropdown({
+        Name = "Pos.",
+        List = {"Above mouse", "Below mouse"},
+        Default = "Above mouse",
+        Callback = function(v)
+            GuiLibrary.hoverText.Position = v
         end
     })
 end)

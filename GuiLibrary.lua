@@ -32,6 +32,8 @@ local guilibrary = {
     autoSaveDelay = 5,
     Loaded = false,
     ConfigLoaded = false,
+    CanLoadConfig = false,
+    CanSaveConfig = true,
     Device = "None",
     Scale = 1,
     MobileScale = 0.45,
@@ -44,29 +46,23 @@ local guilibrary = {
     AllowNotifications = true,
     NotificationsMode = "Built-in",
     TouchEnabled = false,
-    SliderDoubleClick = true,
-    textlist = {
-        lmb = false,
-        rmb = false
-    },
+    SliderRightClick = false,
     uiCornersRadius = 0,
     SliderCanOverride = false,
-    CanLoadConfig = false,
+    hoverText = {
+        Enabled = true,
+        Position = "Above mouse"
+    },
     ArrayList = {},
-    Objects = {},
-    Functions = {},
-    FontsList = {},
     uiCorners = {},
     APIs = {},
     pinnedobjects = {},
     rainbowObjects = {},
-    ObjectsThatCanBeSaved = {},
     ObjectsToSave = {
         Tabs = {},
         Toggles = {},
         Options = {}
     },
-    SaveData = {}
 }
 
 -- // todo here: make better names for colors instead of color1, 2.../primary color, secondary..
@@ -82,6 +78,7 @@ local guipallet = {
     ToggleColor2 = Color3.fromRGB(52, 235, 58),
     TextColor = Color3.fromRGB(255, 255, 255),
     PlaceholderColor = Color3.fromRGB(220, 220, 220),
+    PlaceholderColor2 = Color3.fromRGB(200, 200, 200),
     InfoColor = Color3.fromRGB(180, 180, 180),
     WarningColor = Color3.new(198, 205, 64), -- 250, 230, 50
     ErrorColor = Color3.fromRGB(205, 64, 78),
@@ -161,10 +158,10 @@ local tweens = {
                 BackgroundColor3 = color or guipallet.ToggleColor2
             })
         end,
-        disable = function(obj)
+        disable = function(obj, color)
             local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Circular)
             return tweenService:Create(obj, tweenInfo, {
-                BackgroundColor3 = guipallet.ToggleColor
+                BackgroundColor3 = color or guipallet.ToggleColor
             })
         end
     },
@@ -184,6 +181,8 @@ local keyStrokesGui = Instance.new("Folder", ScreenGui)
 keyStrokesGui.Name = "KeyStrokes"
 local hoverTextGui = Instance.new("Folder", ScreenGui)
 hoverTextGui.Name = "HoverTexts"
+local searchGui = Instance.new("Folder", ScreenGui)
+searchGui.Name = "Search"
 guilibrary.ScreenGui = ScreenGui
 guilibrary.ClickGui = ClickGui
 guilibrary.keyStrokesGui = keyStrokesGui
@@ -317,6 +316,8 @@ function guilibrary:SaveConfig()
                     newOptionData.Value = optionData.API.Value
                 elseif optionData.Type == "Toggle" then
                     newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "TextBox" then
+                    newOptionData.Value = optionData.API.Value
                 elseif optionData.Type == "TextList" then
                     newOptionData.List = optionData.API.List
                 end
@@ -342,6 +343,8 @@ function guilibrary:SaveConfig()
                 elseif optionData.Type == "Dropdown" then
                     newOptionData.Value = optionData.API.Value
                 elseif optionData.Type == "Toggle" then
+                    newOptionData.Value = optionData.API.Value
+                elseif optionData.Type == "TextBox" then
                     newOptionData.Value = optionData.API.Value
                 elseif optionData.Type == "TextList" then
                     newOptionData.List = optionData.API.List
@@ -402,8 +405,8 @@ function guilibrary:LoadConfig()
                             guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Select(optionData.Value)
                         end
                     elseif optionData.Type == "Toggle" then
-                        if optionData.Value then
-                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Toggle(true)
+                        if optionData.Value ~= nil then
+                            guilibrary.ObjectsToSave.Tabs[tabKey].Options[optionKey].API:Toggle(optionData.Value)
                         end
                     elseif optionData.Type == "TextBox" then
                         if optionData.Value then
@@ -444,8 +447,8 @@ function guilibrary:LoadConfig()
                             guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Select(optionData.Value)
                         end
                     elseif optionData.Type == "Toggle" then
-                        if optionData.Value then
-                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Toggle(true)
+                        if optionData.Value ~= nil then
+                            guilibrary.ObjectsToSave.Toggles[toggleKey].Options[optionKey].API:Toggle(optionData.Value)
                         end
                     elseif optionData.Type == "TextBox" then
                         if optionData.Value then
@@ -789,16 +792,14 @@ function guilibrary:switchProfile(profile)
 end
 ]]
 
-
 spawn(function()
     repeat
-        if shared.Mana.Loaded then
+        if shared.Mana.Loaded and guilibrary.CanSaveConfig then
             guilibrary:SaveConfig()
         end
         task.wait(guilibrary.autoSaveDelay or 10)
     until not shared.Mana
 end)
-
 --// end of cool config system
 
 --// start of cool theme system
@@ -907,6 +908,7 @@ end
 function guilibrary:Toggle(state)
     local state = state or not guilibrary.Toggled
     guilibrary.Toggled = state
+    guilibrary.SearchFrame.Visible = state
 
     --[[
     for _, v in pairs(guilibrary.ObjectsThatCanBeSaved) do
@@ -1015,8 +1017,7 @@ end
 -- makeColorDarker is from roblox devforum
 function guilibrary:makeColorDarker(color)
     local h, s, v = color:ToHSV()
-    v = math.clamp(v * 0.7, 0, 1) -- Reduce the brightness (value) by multiplying it, ensuring it stays within [0, 1]
-    return Color3.fromHSV(h, s, v)
+    return Color3.fromHSV(h, s, math.clamp(v * 0.7, 0, 1))
 end
 
 function guilibrary:HSVtoRGB(h, s, v)
@@ -1129,10 +1130,12 @@ function guilibrary:addHoverText(obj, text)
     hoverText.Size = UDim2.new(0, size.X + 6, 0, size.Y + 4)
 
     table.insert(connections, obj.MouseEnter:Connect(function()
-        hoverText.Position = UDim2.new(0, mouse.X - 2, 0, mouse.Y)
-        hoverText.Visible = true
+        local pos = guilibrary.hoverText.Position == "Above mouse" and 2 or 0
+        local pos2 = guilibrary.hoverText.Position == "Above mouse" and 0 or 40
+        hoverText.Position = UDim2.new(0, mouse.X - pos, 0, mouse.Y + pos2)
+        hoverText.Visible = guilibrary.hoverText.Enabled
         connection = mouse.Move:Connect(function()
-            hoverText.Position = UDim2.new(0, mouse.X - 2, 0, mouse.Y)
+            hoverText.Position = UDim2.new(0, mouse.X - pos, 0, mouse.Y + pos2)
         end)
     end))
 
@@ -1246,7 +1249,7 @@ function guilibrary:CreateNotification(notifTitle, notifText, delay, mode, load)
         task.wait(delay)
 
         tweens.notification.hide(Background, y):Play()
-    elseif guilibrary.NotificationsMode == "Core" then
+    elseif guilibrary.NotificationsMode == "Roblox' core" then
         starterGui:SetCore("SendNotification", {
             Title = notifTitle,
             Text = notifText,
@@ -2423,7 +2426,7 @@ function OptionFunctions:CreateSlider(argstable)
     SliderTextBox.Text = ""
     SliderTextBox.TextColor3 = guipallet.TextColor
     SliderTextBox.TextSize = 22
-    SliderTextBox.TextXAlignment = Enum.TextXAlignment.Left
+    SliderTextBox.TextXAlignment = Enum.TextXAlignment.Center
     SliderTextBox.TextEditable = false
     SliderTextBox.Visible = false
     table.insert(guiObjects.ToggleColor2, SliderTextBox)
@@ -2478,16 +2481,18 @@ function OptionFunctions:CreateSlider(argstable)
             slidertext.Visible = true
             SliderTextBox.Visible = false
             SliderTextBox.TextEditable = false
+            SliderTextBox.ZIndex = 1
         end
     
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
-            if guilibrary.SliderDoubleClick and currentTime - SliderLastPress < 0.5 then
+            if (guilibrary.SliderRightClick and input.UserInputType == Enum.UserInputType.MouseButton2) or (currentTime - SliderLastPress < 0.5 and input.UserInputType ~= Enum.UserInputType.MouseButton1) then
                 slidertext.Visible = false
                 SliderTextBox.Visible = true
                 SliderTextBox.TextEditable = true
+                SliderTextBox.ZIndex = 10
                 SliderTextBox:CaptureFocus()
                 SliderTextBox.FocusLost:Connect(HandleFocusLost)
-            else
+            elseif input.UserInputType ~= Enum.UserInputType.MouseButton2 then
                 SliderLastPress = currentTime
                 sliding = true
                 slide(input)
@@ -2750,17 +2755,17 @@ function OptionFunctions:CreateToggle(argstable)
     table.insert(guiObjects.Color3, ActiveFrame)
 
     function toggleapi:Toggle(bool)
+        if name == 'Hover text' then print(bool) end
         if bool == nil then
             bool = not toggleapi.Enabled
         end
-        if toggleapi.Enabled == bool then return end
+        --if toggleapi.Enabled == bool then return end
         toggleapi.Enabled = bool
         toggleapi.Value = bool
 
         spawn(function()
             callback(bool)
         end)
-
         ActiveFrame.BackgroundColor3 = (bool and ((guipallet.ThemeMode == "Default" and tab:FindFirstChild("tabName").TextColor3) or guipallet.ToggleColor2)) or guipallet.Color3
     end
 
@@ -2832,7 +2837,7 @@ function OptionFunctions:CreateTextBox(argstable)
         PlaceholderText = argstable.PlaceholderText,
         Callback = callback
     }
-    
+
     local background = Instance.new("Frame")
     local textbox = Instance.new("TextBox")
 
@@ -2857,6 +2862,7 @@ function OptionFunctions:CreateTextBox(argstable)
     textbox.PlaceholderColor3 = guipallet.PlaceholderColor
     textbox.TextSize = 22
     textbox.PlaceholderText = PlaceholderText
+    textbox.ClearTextOnFocus = false
 
     function textboxapi:Set(value)
         textbox.Text = value
@@ -2988,24 +2994,6 @@ function OptionFunctions:CreateTextList(argstable)
 
             Callback(text)
 
-            table.insert(connections, listobject.MouseButton1Click:Connect(function()
-                if guilibrary.textlist.lmb then
-                    listobject:Destroy()
-                    textlistobjects[text] = nil
-                    count = count - 1
-                    table.remove(list, guilibrary:findStringInTable(list, text))
-                end
-            end))
-
-            table.insert(connections, listobject.MouseButton2Click:Connect(function()
-                if guilibrary.textlist.rmb then
-                    listobject:Destroy()
-                    textlistobjects[text] = nil
-                    count = count - 1
-                    table.remove(list, guilibrary:findStringInTable(list, text))
-                end
-            end))
-
             table.insert(connections, removebutton.MouseButton1Click:Connect(function()
                 listobject:Destroy()
                 textlistobjects[text] = nil
@@ -3032,25 +3020,147 @@ function OptionFunctions:CreateTextList(argstable)
 end
 
 function guilibrary:CreateWindow()
+    local searchConnections = {}
     ScreenGui.Name = guilibrary:RandomString() -- like protect ok?
-    
-    local TabsFrame = Instance.new("Frame")
-    local UIScale = Instance.new("UIScale")
+    local tabsFrame = Instance.new("Frame")
+    tabsFrame.Name = "Tabs"
+    tabsFrame.Parent = ClickGui
+    tabsFrame.BackgroundTransparency = 1
+    tabsFrame.BorderSizePixel = 0
+    tabsFrame.Position = UDim2.new(0.010, 0, 0.010, 0)
+    tabsFrame.Size = UDim2.new(1, 0, 1, 0)
+    --tabsFrame.AutomaticSize = "X"
+    tabsFrame.Active = false
+    tabsFrame.Archivable = false
+    tabsFrame.Selectable = false
+    guilibrary.TabsFrame = tabsFrame
 
-    TabsFrame.Name = "Tabs"
-    TabsFrame.Parent = ClickGui
-    TabsFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    TabsFrame.BackgroundTransparency = 1
-    TabsFrame.BorderSizePixel = 0
-    TabsFrame.Position = UDim2.new(0.010, 0, 0.010, 0)
-    TabsFrame.Size = UDim2.new(0, 207, 0, 40)
-    TabsFrame.AutomaticSize = "X"
-    
-    UIScale.Parent = TabsFrame
-    UIScale.Scale = guilibrary.Scale
+    local uiScale = Instance.new("UIScale", tabsFrame)
+    uiScale.Scale = guilibrary.Scale
+    guilibrary.UIScale = uiScale
 
-    guilibrary.TabsFrame = TabsFrame
-    guilibrary.UIScale = UIScale
+    local searchFrame = Instance.new("Frame", searchGui)
+    searchFrame.Name = "SearchFrame"
+    searchFrame.BackgroundColor3 = guipallet.Color1
+    searchFrame.BorderSizePixel = 0
+    searchFrame.Size = UDim2.new(0, 207, 0, 40)
+    searchFrame.Position = UDim2.new(0.5, 0, 0, -41)
+    searchFrame.Visible = false
+    guilibrary.SearchFrame = searchFrame
+
+    local searchContainer = Instance.new("ScrollingFrame", searchFrame)
+    searchContainer.Name = "SearchContainer"
+    searchContainer.BackgroundColor3 = guipallet.ToggleColor
+    --searchContainer.BackgroundTransparency = 0
+    searchContainer.BorderSizePixel = 0
+    searchContainer.Position = UDim2.new(0, 0, 0, 38)
+    searchContainer.Size = UDim2.new(1, 0, 0, 0)
+    searchContainer.ScrollBarThickness = 1
+    --searchContainer.CanvasSize = UDim2.new(1, 0, 0, 600)
+    searchContainer.ScrollingDirection = Enum.ScrollingDirection.Y
+
+    local uiListLayout = Instance.new("UIListLayout", searchContainer)
+    uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    uiListLayout.Padding = UDim.new(0, 0)
+
+    local uiPadding = Instance.new("UIPadding", searchContainer)
+    uiPadding.PaddingTop = UDim.new(0, 2)
+
+    local uiCorner = Instance.new("UICorner", searchFrame)
+    uiCorner.CornerRadius = guilibrary.UICorners and guilibrary.UICornersRadius or UDim.new(0, 0)
+    table.insert(guiObjects.UICorners, uiCorner)
+
+    local searchIcon = Instance.new("TextLabel", searchFrame)
+    searchIcon.Name = "SearchIcon"
+    searchIcon.BackgroundTransparency = 1
+    searchIcon.Size = UDim2.new(0, 40, 0, 40)
+    searchIcon.Position = UDim2.new(0, 0, 0, 0)
+    searchIcon.Font = guipallet.Font
+    searchIcon.Text = "🔍"
+    searchIcon.TextColor3 = guipallet.TextColor
+    searchIcon.TextSize = 22
+
+    local divider = Instance.new("Frame", searchFrame)
+    divider.Name = "Divider"
+    divider.BackgroundColor3 = guipallet.Color2
+    divider.BorderSizePixel = 0
+    divider.Position = UDim2.new(0, 45, 0, 5)
+    divider.Size = UDim2.new(0, 2, 0, 30)
+
+    local uiCorner = Instance.new("UICorner", divider)
+    uiCorner.CornerRadius = guilibrary.UICorners and guilibrary.UICornersRadius or UDim.new(0, 0)
+    table.insert(guiObjects.UICorners, uiCorner)
+
+    local searchTextBox = Instance.new("TextBox", searchFrame)
+    searchTextBox.Name = "SearchTextBox"
+    searchTextBox.BackgroundTransparency = 1
+    searchTextBox.BorderSizePixel = 0
+    searchTextBox.Position = UDim2.new(0, 53, 0, 0)
+    searchTextBox.Size = UDim2.new(0, 153, 0, 40)
+    searchTextBox.ClearTextOnFocus = false
+    searchTextBox.Font = guipallet.Font
+    searchTextBox.PlaceholderText = "Search features"
+    searchTextBox.Text = ""
+    searchTextBox.TextColor3 = guipallet.TextColor
+    searchTextBox.PlaceholderColor3 = guipallet.PlaceholderColor2
+    searchTextBox.TextSize = 22
+    searchTextBox.TextXAlignment = Enum.TextXAlignment.Left
+
+    table.insert(connections, searchTextBox:GetPropertyChangedSignal("Text"):Connect(function()
+        local text = searchTextBox.Text:lower()
+        for _, connection in next, searchConnections do
+            betterDisconnect()
+        end
+        for _, container in next, searchContainer:GetChildren() do
+            if not container:IsA("UIListLayout") then
+                container:Destroy()
+            end
+        end
+        for _, v in next, guilibrary.ObjectsToSave.Toggles do
+            if text and text ~= "" and v.API.Name:lower():find(text) then
+                local currentTween, doing, frame
+                local realContainer = v.API.Container
+                if realContainer:FindFirstChild("highlight") then realContainer:FindFirstChild("highlight"):Destroy() end
+                local oldColor = realContainer.BackgroundColor3
+                local container = realContainer:Clone()
+                container.Parent = searchContainer
+                container.OptionsFrameButton.Visible = false -- // pointless
+                table.insert(searchConnections, container.MouseButton1Click:Connect(function()
+                    v.API:Toggle()
+                    container.BackgroundColor3 = (v.API.Enabled and ((guipallet.ThemeMode == "Default" and realContainer.Parent.Parent.tabName.TextColor3) or guipallet.ToggleColor2)) or guipallet.Color1
+                    oldColor = realContainer.BackgroundColor3
+                end))
+                table.insert(searchConnections, container.MouseEnter:Connect(function()
+                    if doing then return end
+                    doing = true
+                    frame = Instance.new("Frame", realContainer)
+                    frame.Name = "highlight"
+                    frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                    frame.BackgroundTransparency = 1
+                    frame.Size = UDim2.new(1, 0, 1, 0)
+                    currentTween = tweenService:Create(frame, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
+                end))
+                table.insert(searchConnections, container.MouseLeave:Connect(function()
+                    if currentTween then currentTween:Cancel() end
+                    doing = false
+                    currentTween = tweenService:Create(frame, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
+                    task.wait(0.1)
+                    if frame then frame:Destroy() end
+                end))
+            end
+        end
+    end))
+
+    table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        searchContainer.Size = UDim2.new(1, 0, 0, uiListLayout.AbsoluteContentSize.Y + 2 < 322 and uiListLayout.AbsoluteContentSize.Y + 2 or 322)
+        searchContainer.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 2)
+        --[[
+        if uiListLayout.AbsoluteContentSize.Y < 322 then
+            searchContainer.Size = UDim2.new(1, 0, 0, 322) -- uiListLayout.AbsoluteContentSize.Y + 2
+            searchContainer.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 2) -- 322
+        end
+        ]]
+    end))
 
     if guilibrary.Device == "Mobile" then
         UIScale.Scale = guilibrary.MobileScale
@@ -3063,14 +3173,11 @@ function guilibrary:CreateWindow()
         local tabicon = argstable.TabIcon
         local tab = Instance.new("TextButton")
         local tabnametext = Instance.new("TextLabel")
-        --local assetimage = Instance.new("ImageLabel")
         local showunshowbutton = Instance.new("TextButton")
         local uiListLayout = Instance.new("UIListLayout")
         local frame = Instance.new("ScrollingFrame")
         local background = Instance.new("Frame")
-        local uiCorner = Instance.new("UICorner")
-        local padding = Instance.new("UIPadding")
-    
+
         local tabtable = {
             Name = tabname,
             BaseColor = color,
@@ -3083,16 +3190,16 @@ function guilibrary:CreateWindow()
         local togglesTable = {}
 
         table.insert(Tabs, #Tabs)
-    
+
         tab.Modal = true
         tab.Name = tabname .. "_TabTop"
         tab.Selectable = true
         tab.ZIndex = 1
-        tab.Parent = TabsFrame
+        tab.Parent = tabsFrame
         tab.BackgroundColor3 = guipallet.Color1
         tab.BorderSizePixel = 0
         tab.Position = UDim2.new(0, 40, 0, 40)
-        tab.Size = UDim2.new(0, 207, 0, 40)
+        tab.Size = UDim2.new(0, 207, 0, 35)
         tab.Active = true
         tab.LayoutOrder = 1 + #Tabs
         tab.AutoButtonColor = false
@@ -3100,51 +3207,56 @@ function guilibrary:CreateWindow()
         tab.Visible = false
         tabtable.Container = tab
         dragGUI(tab)
-    
+
         tabnametext.Name = "tabName"
         tabnametext.Parent = tab
         tabnametext.ZIndex = tab.ZIndex + 1
         tabnametext.BackgroundColor3 = guipallet.Color1
         tabnametext.BorderSizePixel = 0
-        tabnametext.Position = UDim2.new(0, 0, 0, 0)
-        tabnametext.Size = UDim2.new(0, 207, 0, 32)
+        tabnametext.Position = UDim2.new(0, 0, 0, 3)
+        tabnametext.Size = UDim2.new(0, 207, 0, 29)
         tabnametext.Font = guipallet.Font
         tabnametext.Text = " " .. tabname
         tabnametext.TextColor3 = color
         tabnametext.TextSize = 22
         tabnametext.TextWrapped = true
         tabnametext.TextXAlignment = Enum.TextXAlignment.Left
-        tabnametext.TextYAlignment = Enum.TextYAlignment.Top
+        --tabnametext.TextYAlignment = Enum.TextYAlignment.Top
         tabnametext.Selectable = true
 
         showunshowbutton.Parent = tabnametext
-        showunshowbutton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         showunshowbutton.BackgroundTransparency = 1
         showunshowbutton.BorderSizePixel = 0
-        showunshowbutton.Position = UDim2.new(0, 178, 0, 2.5)
-        showunshowbutton.Size = UDim2.new(0, 20, 0, 20)
+        showunshowbutton.Position = UDim2.new(0, 178, 0, 0)
+        showunshowbutton.Size = UDim2.new(0, 20, 0, 35)
         showunshowbutton.Font = guipallet.Font
         showunshowbutton.Text = "-"
         showunshowbutton.TextColor3 = Color3.fromRGB(255, 255, 255)
         showunshowbutton.TextTransparency = 0
         showunshowbutton.TextSize = 22
 
+        --[[
         uiCorner.Parent = tab
         uiCorner.CornerRadius = guilibrary.UICorners and guilibrary.UICornersRadius or UDim.new(0, 0)
         table.insert(guiObjects.UICorners, uiCorner)
-
-        padding.Parent = tab
-        padding.PaddingTop = UDim.new(0, 10)
+        ]]
 
         frame.Name = "TabToggles"
         frame.Parent = tab
         frame.BackgroundTransparency = 1
         frame.BorderSizePixel = 0
-        frame.Position = UDim2.new(0, 0, 1.08, 0)
+        frame.Position = UDim2.new(0, 0, 1, 0)
         frame.Size = UDim2.new(0, 207, 0, 600)
         frame.ScrollBarThickness = 1
         frame.CanvasSize = UDim2.new(0, 0, 0, 0)
         frame.ScrollingDirection = Enum.ScrollingDirection.Y
+        frame.ClipsDescendants = true
+
+        --[[
+        local uiCorner = Instance.new("UICorner", frame)
+        uiCorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
+        table.insert(guiObjects.UICorners, uiCorner)
+        ]]
 
         uiListLayout.Parent = frame
         uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -3288,21 +3400,23 @@ function guilibrary:CreateWindow()
             togname.TextWrapped = true
             togname.TextXAlignment = Enum.TextXAlignment.Left
 
+            optionsframebutton.Name = "OptionsFrameButton"
             optionsframebutton.Parent = toggle
             optionsframebutton.Position = UDim2.new(0, 170, 0, 2)
             optionsframebutton.Size = UDim2.new(0, 32, 0, 32)
             optionsframebutton.BackgroundTransparency = 1
-            optionsframebutton.Image = "rbxassetid://17876016380"
+            optionsframebutton.Image = "http://www.roblox.com/asset/?id=12809025337"
             optionsframebutton.Rotation = 90
 
             optionframe.Name = name.."OptionFrame"
             optionframe.Parent = frame
             optionframe.BackgroundColor3 = guipallet.Color2
-            optionframe.Position = UDim2.new(0.102424242, 0, 0.237059206, 0)
-            optionframe.Size = UDim2.new(0, 207, 0, 0)
+            --optionframe.Position = UDim2.new(0.102424242, 0, 0.237059206, 0)
+            optionframe.Size = UDim2.new(1, 0, 0, 0)
             optionframe.AutomaticSize = "Y"
             optionframe.Visible = false
             optionframe.LayoutOrder = order
+            ToggleTable.optionsFrame = optionframe
 
             UIListLayout.Parent = optionframe
             UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -3412,23 +3526,28 @@ function guilibrary:CreateWindow()
                 if bool == ToggleTable.Enabled then return end
                 silent = silent or false
                 ToggleTable.Enabled = bool
-                local tweenName = (bool and "enable") or "disable"
-            
-                spawn(function()
-                    guilibrary:CreateNotification(name, (bool and "Enabled " or "Disabled ") .. name, 4, "Info")
+
+                task.spawn(function()
+                    spawn(function()
+                        guilibrary:CreateNotification(name, (bool and "Enabled " or "Disabled ") .. name, 4, "Info")
+                    end)
                 end)
 
-                if bool then
-                    tweens.toggle.enable(toggle, guipallet.ThemeMode == "Default" and tabnametext.TextColor3 or guipallet.ToggleColor2):Play()
-                else
-                    tweens.toggle.disable(toggle):Play()
-                end
+                task.spawn(function()
+                    if bool then
+                        tweens.toggle.enable(toggle, guipallet.ThemeMode == "Default" and tabnametext.TextColor3 or guipallet.ToggleColor2):Play()
+                    else
+                        tweens.toggle.disable(toggle):Play()
+                    end
+                end)
 
-                if not silent then
-                    guilibrary:playsound("rbxassetid://421058925", 1)
-                end
+                task.spawn(function()
+                    if not silent then
+                        guilibrary:playsound("rbxassetid://421058925", 1)
+                    end
+                end)
 
-                spawn(function()
+                task.spawn(function()
                     callback(bool)
                 end)
             end
@@ -3596,6 +3715,7 @@ function guilibrary:CreateWindow()
         end
 
         -- // Note: this is still guilibrary:CreateTab function
+        --[[
         local BottomCorner = Instance.new("Frame")
         local BottomFix = Instance.new("Frame")
         local UICorner = Instance.new("UICorner")
@@ -3619,6 +3739,7 @@ function guilibrary:CreateWindow()
         UICorner.Parent = BottomCorner
         UICorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
         table.insert(guiObjects.UICorners, UICorner)
+        ]]
 
         guilibrary.ObjectsToSave.Tabs[tabname] = {
             Name = tabname,
@@ -3774,10 +3895,10 @@ function guilibrary:CreateWindow()
         tab.Name = tabname
         tab.Selectable = true
         tab.ZIndex = 1
-        tab.Parent = TabsFrame
+        tab.Parent = tabsFrame
         tab.BackgroundColor3 = guipallet.Color1
         tab.BorderSizePixel = 0
-        tab.Size = UDim2.new(0, 207, 0, 40)
+        tab.Size = UDim2.new(0, 207, 0, 35)
         tab.Position = UDim2.new(0, 40, 0, 40)
         tab.Active = true
         tab.LayoutOrder = 1 + #Tabs
@@ -3786,45 +3907,50 @@ function guilibrary:CreateWindow()
         tab.Visible = false
         tabapi.Container = tab
         dragGUI(tab)
-    
+
         local tabtext = Instance.new("TextLabel")
         tabtext.Name = "tabName"
         tabtext.Parent = tab
         tabtext.ZIndex = tab.ZIndex + 1
         tabtext.BackgroundColor3 = guipallet.Color1
+        tabtext.BackgroundTransparency = 1
         tabtext.BorderSizePixel = 0
-        tabtext.Position = UDim2.new(0, 0, 0, 0)
-        tabtext.Size = UDim2.new(0, 207, 0, 32)
+        tabtext.Position = UDim2.new(0, 0, 0, 3)
+        tabtext.Size = UDim2.new(1, 0, 0, 29)
         tabtext.Font = guipallet.Font
         tabtext.Text = " " .. tabname
         tabtext.TextColor3 = color
         tabtext.TextSize = 22
         tabtext.TextWrapped = true
         tabtext.TextXAlignment = Enum.TextXAlignment.Left
-        tabtext.TextYAlignment = Enum.TextYAlignment.Top
+        --tabtext.TextYAlignment = Enum.TextYAlignment.Top
         tabtext.Selectable = true
         table.insert(guiObjects.Color1, tabtext)
 
+        --[[
         local uiPadding = Instance.new("UIPadding")
         uiPadding.Parent = tab
         uiPadding.PaddingTop = UDim.new(0, 10)
+        ]]
 
         local showunshowbutton = Instance.new("TextButton")
         showunshowbutton.Parent = tabtext
         showunshowbutton.BackgroundTransparency = 1
         showunshowbutton.BorderSizePixel = 0
-        showunshowbutton.Position = UDim2.new(0, 178, 0, 2.5)
-        showunshowbutton.Size = UDim2.new(0, 20, 0, 20)
+        showunshowbutton.Position = UDim2.new(0, 178, 0, 0)
+        showunshowbutton.Size = UDim2.new(0, 20, 0, 35)
         showunshowbutton.Font = guipallet.Font
         showunshowbutton.Text = "-"
         showunshowbutton.TextColor3 = guipallet.TextColor
         showunshowbutton.TextTransparency = 0
         showunshowbutton.TextSize = 22
 
+        --[[
         local uiCorner = Instance.new("UICorner")
         uiCorner.Parent = tab
         uiCorner.CornerRadius = UDim.new(0, guilibrary.uiCornersRadius)
         table.insert(guiObjects.UICorners, uiCorner)
+        ]]
 
         --[[
         container.Name = "Container"
@@ -3835,16 +3961,15 @@ function guilibrary:CreateWindow()
         container.Size = UDim2.new(1, 0, 0, 0)
         ]]
 
-        local frame = Instance.new("ScrollingFrame")
+        local frame = Instance.new("ScrollingFrame") --scrolling
         frame.Name = "background"
         frame.Parent = tab
         frame.BackgroundColor3 = guipallet.Color2
-        frame.Position = UDim2.new(0, 0, 1, 0)
-        frame.Size = UDim2.new(0, 207, 0, 0)
-        --background.AutomaticSize = Enum.AutomaticSize.Y
+        frame.Position = UDim2.new(0, 1, 1, 0)
+        frame.Size = UDim2.new(0, 205, 0, 0)
+        frame.AutomaticSize = Enum.AutomaticSize.Y
         frame.Visible = true
         frame.ScrollBarThickness = 1
-        frame.CanvasSize = UDim2.new(0, 0, 0, 0)
         frame.ScrollingDirection = Enum.ScrollingDirection.Y
         table.insert(guiObjects.Color2, frame)
 
@@ -3861,8 +3986,9 @@ function guilibrary:CreateWindow()
         uilistLayout2.Padding = UDim.new(0, 0)
         ]]
 
+        --[[
         local bottomCorner = Instance.new("Frame")
-        bottomCorner.Parent = tab
+        bottomCorner.Parent = frame
         bottomCorner.BackgroundColor3 = guipallet.Color1
         bottomCorner.BorderSizePixel = 0
         bottomCorner.Transparency = 0
@@ -3887,14 +4013,19 @@ function guilibrary:CreateWindow()
         table.insert(connections, frame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
             bottomCorner.Position = UDim2.new(0, 0, 0, frame.AbsoluteSize.Y + 30)
         end))
+        ]]
+
+        local uiPadding = Instance.new("UIPadding", frame)
+        uiPadding.PaddingTop = UDim.new(0, 8)
+        uiPadding.PaddingBottom = UDim.new(0, 8)
 
         table.insert(connections, uiListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             if uiListLayout.AbsoluteContentSize.Y < 600 then
                 frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                frame.Size = UDim2.new(0, 207, 0, uiListLayout.AbsoluteContentSize.Y)
+                frame.Size = UDim2.new(0, 205, 0, uiListLayout.AbsoluteContentSize.Y)
             else
                 frame.CanvasSize = UDim2.new(0, uiListLayout.AbsoluteContentSize.X, 0, uiListLayout.AbsoluteContentSize.Y)
-                frame.Size = UDim2.new(0, 207, 0, 600)
+                frame.Size = UDim2.new(0, 205, 0, 600)
             end
         end))
 

@@ -3,6 +3,8 @@
     Made by Maanaaaa
 ]]
 
+local startTick = tick()
+
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local userInputService = game:GetService("UserInputService")
 local tweenService = game:GetService("TweenService")
@@ -841,7 +843,7 @@ runFunction(function()
     local delay = {Value = 0.5}
     local collected = {}
     collectCoins = tabs.Utility:CreateToggle({
-        Name = "AutoFarmCoins",
+        Name = "AutoFarmBeachBalls", -- // CoinsFarm
         Callback = function(callback)
             repeat
                 local coin = getNearestCoin()
@@ -1006,3 +1008,4 @@ runFunction(function()
 end)
 
 GuiLibrary.CanLoadConfig = true
+print("[ManaV2ForRoblox/Scripts/142823291.lua]: Loaded in " .. tostring(tick() - startTick) .. ".")
