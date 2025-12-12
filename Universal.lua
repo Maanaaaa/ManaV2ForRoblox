@@ -3105,19 +3105,13 @@ end)
 runFunction(function()
     local usernameHider = {Enabled = false}
     local mode = {Value = "DisplayName"}
-    local hideDisplayName = {Value = false}
     local customName = {Value = ""}
     local changedObjects = {}
     local connections = {} -- // note: this is a new connections table, not the one that is across this whole script
-    local previous
     local function hide(obj)
         if obj.Text:find(localPlayer.Name) then
             local originalText = obj.Text
-            obj.Text = obj.Text:gsub(localPlayer.Name, (mode.Value == "DisplayName" and not hideDisplayName.Value and localPlayer.DisplayName) or customName.Value)
-            changedObjects[obj] = originalText
-        elseif hideDisplayName.Value and obj.Text:find(localPlayer.DisplayName) then
-            local originalText = obj.Text
-            obj.Text = obj.Text:gsub(localPlayer.Name, (mode.Value == "DisplayName" and not hideDisplayName.Value and localPlayer.DisplayName) or customName.Value)
+            obj.Text = obj.Text:gsub(localPlayer.Name, (mode.Value == "DisplayName" and localPlayer.DisplayName) or customName.Value)
             changedObjects[obj] = originalText
         end
     end
@@ -3175,27 +3169,8 @@ runFunction(function()
         Function = function(v)
             if customName.Container then customName.Container.Visible = v == "Custom" end
             if usernameHider.Enabled then
-                for obj in pairs(changedObjects) do
-                    hide(obj)
-                end
-            end
-        end
-    })
-
-    hideDisplayName = usernameHider:CreateToggle({
-        Name = "Hide Display",
-        Default = false,
-        Function = function(v)
-            if v then
-                previous = mode.Value
-                mode:Select("Custom")
-            else
-                mode:Select(previous or "DisplayName")
-            end
-            if usernameHider.Enabled then
-                for obj in pairs(changedObjects) do
-                    hide(obj)
-                end
+                usernameHider:Toggle(true)
+                usernameHider:Toggle(true)
             end
         end
     })
@@ -3206,7 +3181,7 @@ runFunction(function()
         Default = "",
         Function = function(v)
             if usernameHider.Enabled then
-                for obj in pairs(changedObjects) do
+                for obj, _ in pairs(changedObjects) do
                     hide(obj)
                 end
             end
