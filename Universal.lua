@@ -493,22 +493,6 @@ local function betterDisconnect(connection)
     end
 end
 
---[[
-    ToDo list:
-    Add normal ESP
-    Add PlayerFollow
-    Add PlayerJumpscare
-    Add TurnInToBall
-    Add J3rk0ff + all things that are connected with it
-    Add SoundPlayer (Visual/Utility + in FE/Trolling way)
-    Add normal notifications with switching between normal and roblox's notifications
-    Add plugins/add-ons system
-    Add themes system
-    Make CustomAnimations dynamic, so it just wont add customization for missing animation
-    Add KillAura
-
-]]
-
 -- // Combat tab
 runFunction(function()
     local aimAssist = {Enabled = false}
