@@ -167,17 +167,17 @@ GuiLibrary:CreateWindow()
 local Tabs = {
     Combat = GuiLibrary:CreateTab({
         Name = "Combat",
-        Color = Color3.fromRGB(83, 214, 110), --252, 60, 68
+        Color = Color3.fromRGB(252, 60, 68), --252, 60, 68
         TabIcon = "CombatTabIcon.png"
     }),
     Movement = GuiLibrary:CreateTab({
         Name = "Movement",
-        Color = Color3.fromRGB(83, 214, 110), --255, 148, 36
+        Color = Color3.fromRGB(255, 148, 36), --255, 148, 36
         TabIcon = "MovementTabIcon.png"
     }),
     Render = GuiLibrary:CreateTab({
         Name = "Render",
-        Color = Color3.fromRGB(83, 214, 110), --59, 170, 222
+        Color = Color3.fromRGB(59, 170, 222), --59, 170, 222
         TabIcon = "RenderTabIcon.png"
     }),
     Utility = GuiLibrary:CreateTab({
@@ -187,22 +187,22 @@ local Tabs = {
     }),
     World = GuiLibrary:CreateTab({
         Name = "World",
-        Color = Color3.fromRGB(83, 214, 110), --52, 28, 228
+        Color = Color3.fromRGB(52, 28, 228), --52, 28, 228
         TabIcon = "WorldTabIcon.png"
     }),
     Settings = GuiLibrary:CreateOptionsTab({
         Name = "Settings",
-        Color = Color3.fromRGB(83, 214, 110), --240, 157, 62
+        Color = Color3.fromRGB(240, 157, 62), --240, 157, 62
         TabIcon = "MiscTabIcon.png"
     }),
     Profiles = GuiLibrary:CreateOptionsTab({
         Name = "Profiles",
-        Color = Color3.fromRGB(83, 214, 110), --255, 255, 255
+        Color = Color3.fromRGB(255, 255, 255), --255, 255, 255
         TabIcon = "MiscTabIcon.png"
     }),
     Friends = GuiLibrary:CreateOptionsTab({
         Name = "Friends",
-        Color = Color3.fromRGB(83, 214, 110), --240, 157, 62
+        Color = Color3.fromRGB(240, 157, 62), --240, 157, 62
         TabIcon = "PlayerImage.png"
     }),
     --[[
@@ -239,7 +239,7 @@ local keyStrokes = GuiLibrary:CreateKeyStrokes()
 Mana.KeyStrokes = keyStrokes
 keyStrokes:toggle()
 
---[[ // text list (soon)
+--[[ // text list (soon (never))
 local textList = GuiLibrary:CreateTextList()
 Mana.TextList = textList
 Tabs.TextList = textList.tab
